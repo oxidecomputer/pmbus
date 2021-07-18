@@ -1,0 +1,46 @@
+{
+    "OPERATION": {
+        "OnOffState": (
+            name: "On/off state",
+            bitrange: (High(7), Low(7)),
+            values: {
+                "Off": (0, "output off"),
+                "On": (1, "output on"),
+            }
+        ),
+        "TurnOffBehavior": (
+            name: "power down behavior",
+            bitrange: (High(6), Low(6)),
+            values: {
+                "Set": (1, "powers down based on TOFF_DELAY"),
+                "Clear": (0, "powers down immediately"),
+            },
+        ),
+        "VoltageCommandSource": (
+            name: "source of output voltage",
+            bitrange: (High(5), Low(4)),
+            values: {
+                "VOUT_COMMAND": (0b00, "set by VOUT_COMMAND"),
+                "VOUT_MARGIN_LOW": (0b01, "set by VOUT_MARGIN_LOW"),
+                "VOUT_MARGIN_HIGH": (0b10, "set by VOUT_MARGIN_HIGH"),
+                "AVS_VOUT_COMMAND": (0b11, "set by AVSBus")
+            }
+        ),
+        "MarginFaultResponse": (
+            name: "Margin fault response",
+            bitrange: (High(3), Low(2)),
+            values: {
+                "Ignore": (0b10, "ignore margin faults" ),
+                "ActUpon": (0b10, "act upon margin faults"),
+            },
+        ),
+        "TransitionControl": (
+            name: "Transition control",
+            bitrange: (High(1), Low(1)),
+            values: {
+                "Clear": (0, "not set"),
+                "Set": (1, "set"),
+            }
+        ),
+    } 
+}

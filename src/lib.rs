@@ -15,6 +15,9 @@ pub use num_traits::float::FloatCore;
 pub use num_derive::{FromPrimitive, ToPrimitive};
 pub use num_traits::{FromPrimitive, ToPrimitive};
 
+mod operation;
+pub use crate::operation::Operation;
+
 #[allow(dead_code, non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq, Debug, FromPrimitive)]
 #[repr(u8)]
@@ -244,23 +247,6 @@ pub enum Command {
     MFR_SPECIFIC_FD = 0xfd,
     MFR_SPECIFIC_COMMAND_EXT = 0xfe,
     PMBUS_COMMAND_EXT = 0xff,
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Operation {
-    ReadByte,
-    WriteByte,
-    SendByte,
-    ReadWord,
-    WriteWord,
-    ReadWord32,
-    ReadBlock,
-    WriteBlock,
-    ProcessCall,
-    MfrDefined,
-    Extended,
-    Illegal,
-    Unknown,
 }
 
 impl Command {
