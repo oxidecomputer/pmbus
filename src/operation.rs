@@ -14,5 +14,3 @@ pub enum Operation {
     Illegal,
     Unknown,
 }
-
-

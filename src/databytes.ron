@@ -9,7 +9,7 @@
             }
         ),
         "TurnOffBehavior": (
-            name: "power down behavior",
+            name: "Power down behavior",
             bitrange: (High(6), Low(6)),
             values: {
                 "Set": (1, "powers down based on TOFF_DELAY"),
@@ -17,7 +17,7 @@
             },
         ),
         "VoltageCommandSource": (
-            name: "source of output voltage",
+            name: "Source of output voltage",
             bitrange: (High(5), Low(4)),
             values: {
                 "VOUT_COMMAND": (0b00, "set by VOUT_COMMAND"),
@@ -30,7 +30,7 @@
             name: "Margin fault response",
             bitrange: (High(3), Low(2)),
             values: {
-                "Ignore": (0b10, "ignore margin faults" ),
+                "Ignore": (0b01, "ignore margin faults" ),
                 "ActUpon": (0b10, "act upon margin faults"),
             },
         ),

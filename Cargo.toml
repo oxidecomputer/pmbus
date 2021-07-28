@@ -8,6 +8,7 @@ edition = "2018"
 ron = "0.6"
 serde = "1.0.126"
 anyhow = "1.0.31"
+convert_case = "0.3.2"
 
 [dependencies]
 num-traits = { version = "0.2.12", default-features = false }

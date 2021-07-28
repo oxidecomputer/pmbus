@@ -18,6 +18,9 @@ pub use num_traits::{FromPrimitive, ToPrimitive};
 mod operation;
 pub use crate::operation::Operation;
 
+mod commands;
+pub use crate::commands::*;
+
 #[allow(dead_code, non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq, Debug, FromPrimitive)]
 #[repr(u8)]
@@ -1135,5 +1138,32 @@ mod tests {
         verify!(0xfe, MFR_SPECIFIC_COMMAND_EXT, Extended, Extended);
         verify!(0xff, PMBUS_COMMAND_EXT, Extended, Extended);
         std::println!("{:?}", Command::from_u8(0x9));
+    }
+
+    #[test]
+    fn verify_operation() {
+        let data = commands::OPERATION::Data(0x4);
+
+        data.fields(|field, value| {
+            std::println!("{} = {}", field.name(), value);
+        });
+    }
+
+    #[test]
+    fn verify_operation_set() {
+        use commands::OPERATION::*;
+        let mut data = Data(0x4);
+
+        assert_ne!(
+            data.get_voltage_command_source(),
+            Some(VoltageCommandSource::VOUT_MARGIN_HIGH)
+        );
+
+        data.set_voltage_command_source(VoltageCommandSource::VOUT_MARGIN_HIGH);
+
+        assert_eq!(
+            data.get_voltage_command_source(),
+            Some(VoltageCommandSource::VOUT_MARGIN_HIGH)
+        );
     }
 }
