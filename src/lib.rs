@@ -1315,4 +1315,32 @@ mod tests {
         dump(&data);
     }
 
+    #[test]
+    fn verify_status_vout() {
+        use commands::STATUS_VOUT::*;
+        let data = CommandData::from_slice(&[0x0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_iout() {
+        use commands::STATUS_IOUT::*;
+        let data = CommandData::from_slice(&[0x0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_cml() {
+        use commands::STATUS_CML::*;
+        let data = CommandData::from_slice(&[0x82]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_other() {
+        use commands::STATUS_OTHER::*;
+        let data = CommandData::from_slice(&[0x1]).unwrap();
+        dump(&data);
+    }
+
 }
