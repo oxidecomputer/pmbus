@@ -5,7 +5,6 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Write;
-use std::fs;
 use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
@@ -83,14 +82,31 @@ fn validate(
         }
     };
 
-    // TODO: Check for overlapping ranges, illegal values
+    let mut v: Vec<Option<&String>> = vec![None; *size * 8];
+
     for (f, field) in fields {
-        if field.bitrange.0 .0 < field.bitrange.1 .0 {
+        let (high, low) = (field.bitrange.0.0, field.bitrange.1.0);
+
+        if high < low {
             bail!("{}: field \"{}\" has illegal bit range", cmd, f);
         }
 
-        if field.bitrange.0 .0 as usize >= size * 8 {
+        if high as usize >= size * 8 {
             bail!("{}: field \"{}\" has high bit that exceeds size", cmd, f);
+        }
+
+        for bit in low..=high {
+            match v[bit as usize] {
+                None => {
+                    v[bit as usize] = Some(f);
+                }
+                Some(o) => {
+                    bail!(
+                        "{}: field \"{}\" overlaps with \"{}\" at bit {}",
+                        cmd, f, o, bit
+                    );
+                }
+            }
         }
     }
 
@@ -146,6 +162,7 @@ fn output_databytes(
     let bits = size * 8;
 
     writeln!(&mut s, r##"
+#[allow(non_snake_case)]
 pub mod {} {{
     use super::Bitpos;
     use super::Bitwidth;
@@ -155,7 +172,7 @@ pub mod {} {{
     use num_traits::FromPrimitive;
     use num_traits::ToPrimitive;
 
-    pub struct Data(pub u{});
+    pub struct CommandData(pub u{});
 
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub enum Field {{"##, cmd, bits)?;
@@ -250,9 +267,20 @@ pub mod {} {{
     }}"##)?;
 
     writeln!(&mut s, r##"
-    impl Data {{
+    impl CommandData {{
+        pub fn from_slice(slice: &[u8]) -> Option<Self> {{
+            use core::convert::TryInto;
+
+            let v: Result<&[u8; {}], _> = slice.try_into();
+
+            match v {{
+                Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
+                Err(_) => None,
+            }}
+        }}
+
         pub fn field(bit: Bitpos) -> Option<(Field, Bitwidth)> {{
-            match bit.0 {{"##)?;
+            match bit.0 {{"##, size, bits)?;
 
     for (f, field) in fields {
         writeln!(&mut s,
@@ -317,12 +345,12 @@ pub mod {} {{
     writeln!(&mut s, "    }}")?;
 
     writeln!(&mut s, r##"
-    impl super::Data for Data {{
-        fn fields(&self, iter: impl Fn(&dyn super::Field, &dyn super::Value)) {{
+    impl super::CommandData for CommandData {{
+        fn fields(&self, mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)) {{
             let mut pos = 0;
 
             while pos < {} {{
-                if let Some((field, width)) = Data::field(Bitpos(pos)) {{
+                if let Some((field, width)) = CommandData::field(Bitpos(pos)) {{
                     let val = self.get(field);
                     iter(&field, &val);
                     pos += width.0;
@@ -331,7 +359,11 @@ pub mod {} {{
                 }}
             }}
         }}
-    }}"##, bits)?;
+
+        fn raw(&self) -> (u32, Bitwidth) {{
+            (self.0 as u32, Bitwidth({}))
+        }}
+    }}"##, bits, bits)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -383,11 +415,14 @@ fn codegen() -> Result<()> {
 
     let out_dir = env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("databytes.rs");
+    let mut file = File::create(&dest_path)?;
 
     for (cmd, fields) in dbs {
+        use std::io::Write;
+
         validate(&cmd, &fields, &sizes)?;
         let out = output_databytes(&cmd, &fields, &sizes)?;
-        fs::write(&dest_path, out)?;
+        file.write_all(out.as_bytes())?;
     }
 
     Ok(())

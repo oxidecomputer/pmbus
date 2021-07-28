@@ -14,8 +14,9 @@ pub trait Value: core::fmt::Display {
     fn raw(&self) -> u32;
 }
 
-pub trait Data {
-    fn fields(&self, iter: impl Fn(&dyn Field, &dyn Value));
+pub trait CommandData {
+    fn fields(&self, iter: impl FnMut(&dyn Field, &dyn Value));
+    fn raw(&self) -> (u32, Bitwidth);
 }
 
 include!(concat!(env!("OUT_DIR"), "/databytes.rs"));

@@ -42,5 +42,179 @@
                 "Set": (1, "set"),
             }
         ),
-    } 
+    },
+
+    "ON_OFF_CONFIG": {
+        "PowerControl": (
+            name: "Power control source",
+            bitrange: (High(4), Low(4)),
+            values: {
+                "Regardless": (0b0, "regardless of OPERATION/CONTROL"),
+                "Controlled": (0b1, "OPERATION/CONTROL"),
+            },
+        ),
+        "CommandControl": (
+            name: "OPERATION disposition",
+            bitrange: (High(3), Low(3)),
+            values: {
+                "Ignore": (0b0, "ignores OPERATION on/off"),
+                "Abides": (0b1, "abides by OPERATION on/off"),
+            },
+        ),
+        "ControlControl": (
+            name: "CONTROL pin disposition",
+            bitrange: (High(2), Low(2)),
+            values: {
+                "Ignore": (0b0, "ignores CONTROL pin"),
+                "Abides": (0b1, "abides by CONTROL pin"),
+            }
+        ),
+        "ControlPolarity": (
+            name: "Polarity of CONTROL pin",
+            bitrange: (High(1), Low(1)),
+            values: {
+                "ActiveLow": (0b0, "active low"),
+                "ActiveHigh": (0b1, "active high"),
+            }
+        ),
+        "ControlOff": (
+            name: "CONTROL pin action",
+            bitrange: (High(0), Low(0)),
+            values: {
+                "Programmed": (0b0, "use programmed delay"),
+                "Immediate": (0b1, "turn off output immediately"),
+            }
+        ),
+    },
+
+    "STATUS_WORD": {
+        "OutputVoltageFault": (
+            name: "Output voltage fault",
+            bitrange: (High(15), Low(15)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "OutputCurrentFault": (
+            name: "Output current/power fault",
+            bitrange: (High(14), Low(14)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "InputFault": (
+            name: "Input voltage/current/power fault",
+            bitrange: (High(13), Low(13)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "ManufacturerFault": (
+            name: "Manufacturer-specific fault",
+            bitrange: (High(12), Low(12)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "PowerGoodStatus": (
+            name: "POWER_GOOD signal status",
+            bitrange: (High(11), Low(11)),
+            values: {
+                "PowerGood": (0b0, "POWER_GOOD is set"),
+                "NoPowerGood": (0b1, "POWER_GOOD is not set"),
+            }
+        ),
+        "FanFault": (
+            name: "Fan fault",
+            bitrange: (High(10), Low(10)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "OtherFault": (
+            name: "STATUS_OTHER fault",
+            bitrange: (High(9), Low(9)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "UnknownFault": (
+            name: "Unknown fault",
+            bitrange: (High(8), Low(8)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "Busy": (
+            name: "Busy device fault",
+            bitrange: (High(7), Low(7)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "Off": (
+            name: "Device not providing power",
+            bitrange: (High(6), Low(6)),
+            values: {
+                "PowerNotOff": (0b0, "power is not off"),
+                "PowerOff": (0b1, "power is off"),
+            }
+        ),
+        "OutputOvervoltageFault": (
+            name: "Output overvoltage fault",
+            bitrange: (High(5), Low(5)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "OutputOvercurrentFault": (
+            name: "Output overcurrent fault",
+            bitrange: (High(4), Low(4)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "InputUndervoltageFault": (
+            name: "Input undervoltage fault",
+            bitrange: (High(3), Low(3)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "TemperatureFault": (
+            name: "Temperature fault",
+            bitrange: (High(2), Low(2)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "CMLFault": (
+            name: "Communications/memory/logic fault",
+            bitrange: (High(1), Low(1)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        ),
+        "NoneOfTheAbove": (
+            name: "Unknown fault",
+            bitrange: (High(0), Low(0)),
+            values: {
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }
+        )
+    }
 }

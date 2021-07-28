@@ -21,6 +21,11 @@ pub use crate::operation::Operation;
 mod commands;
 pub use crate::commands::*;
 
+#[derive(Copy, Clone, Debug)]
+pub enum Error {
+    ShortData,
+}
+
 #[allow(dead_code, non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq, Debug, FromPrimitive)]
 #[repr(u8)]
@@ -730,6 +735,27 @@ impl Command {
             Command::Deprecated => Operation::Unknown,
         }
     }
+
+    pub fn data(
+        &self,
+        payload: &[u8],
+        iter: impl Fn(&dyn Field, &dyn Value)
+    ) -> Result<(), Error> {
+        match self {
+            Command::OPERATION => {
+                use commands::OPERATION::CommandData;
+                if let Some(data) = CommandData::from_slice(payload) {
+                    data.fields(iter);
+                    Ok(())
+                } else {
+                    Err(Error::ShortData)
+                }
+            }
+            _ => {
+                Ok(())
+            }
+        }
+    }
 }
 
 ///
@@ -1142,7 +1168,7 @@ mod tests {
 
     #[test]
     fn verify_operation() {
-        let data = commands::OPERATION::Data(0x4);
+        let data = commands::OPERATION::CommandData(0x4);
 
         data.fields(|field, value| {
             std::println!("{} = {}", field.name(), value);
@@ -1152,7 +1178,10 @@ mod tests {
     #[test]
     fn verify_operation_set() {
         use commands::OPERATION::*;
-        let mut data = Data(0x4);
+        let mut data = CommandData(0x4);
+
+        std::println!("");
+        dump(&data);
 
         assert_ne!(
             data.get_voltage_command_source(),
@@ -1161,9 +1190,115 @@ mod tests {
 
         data.set_voltage_command_source(VoltageCommandSource::VOUT_MARGIN_HIGH);
 
+        std::println!("");
+        dump(&data);
+
         assert_eq!(
             data.get_voltage_command_source(),
             Some(VoltageCommandSource::VOUT_MARGIN_HIGH)
         );
     }
+
+    #[test]
+    fn raw_operation() {
+        Command::OPERATION.data(&[0x4], |field, value| {
+            std::println!("{} = {}", field.name(), value);
+        }).unwrap();
+    }
+
+    fn dump(data: &impl commands::CommandData) {
+        let (val, width) = data.raw();
+        let width = width.0 as usize;
+        let nibble = 4;
+        let maxwidth = 16;
+        let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
+
+        let mut v = std::vec![];
+
+        data.fields(|field, value| {
+            v.push((field.bits(), field.name(), std::format!("{}", value)));
+        });
+
+        v.reverse();
+
+        std::print!("{:indent$}", "", indent = indent);
+        std::print!("0b");
+
+        for v in (0..width).step_by(nibble) {
+            std::print!(
+                "{:04b}{}",
+                (val >> ((width - nibble) - v)) & 0xf,
+                if v + nibble < width { "_" } else { "\n" }
+            )
+        }
+
+        while v.len() > 0 {
+            let mut cur = width - 1;
+
+            std::print!("{:indent$}", "", indent = indent);
+            std::print!("  ");
+
+            for i in 0..v.len() {
+                while cur > v[i].0.0.0 as usize {
+                    if cur % nibble == 0 {
+                        std::print!(" ");
+                    }
+
+                    std::print!(" ");
+                    cur -= 1;
+                }
+
+                if i < v.len() - 1 {
+                    std::print!("|");
+
+                    if cur % nibble == 0 {
+                        std::print!(" ");
+                    }
+
+                    cur -= 1;
+                } else {
+                    std::print!("+--");
+
+                    while cur > 0 {
+                        std::print!("-");
+
+                        if cur % nibble == 0 {
+                            std::print!("-");
+                        }
+
+                        cur -= 1;
+                    }
+
+                    std::println!(" {} = {}", v[i].1, v[i].2);
+                }
+            }
+
+            v.pop();
+        }
+    }
+    
+    #[test]
+    fn verify_status_word() {
+        use commands::STATUS_WORD::*;
+
+        let data = CommandData::from_slice(&[0x5, 0x8]).unwrap();
+
+        std::println!("");
+        dump(&data);
+
+        data.fields(|field, value| {
+            std::println!("{} = {}", field.name(), value);
+        });
+    }
+
+    #[test]
+    fn verify_on_off_config() {
+        use commands::ON_OFF_CONFIG::*;
+
+        let data = CommandData::from_slice(&[0x17]).unwrap();
+
+        std::println!("");
+        dump(&data);
+    }
+
 }
