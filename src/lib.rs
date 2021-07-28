@@ -1221,7 +1221,7 @@ mod tests {
 
         v.reverse();
 
-        std::print!("{:indent$}", "", indent = indent);
+        std::print!("\n{:indent$}", "", indent = indent);
         std::print!("0b");
 
         for v in (0..width).step_by(nibble) {
@@ -1281,9 +1281,7 @@ mod tests {
     fn verify_status_word() {
         use commands::STATUS_WORD::*;
 
-        let data = CommandData::from_slice(&[0x5, 0x8]).unwrap();
-
-        std::println!("");
+        let data = CommandData::from_slice(&[0x43, 0x18]).unwrap();
         dump(&data);
 
         data.fields(|field, value| {
@@ -1296,8 +1294,24 @@ mod tests {
         use commands::ON_OFF_CONFIG::*;
 
         let data = CommandData::from_slice(&[0x17]).unwrap();
+        dump(&data);
+    }
 
-        std::println!("");
+    #[test]
+    fn verify_capability() {
+        use commands::CAPABILITY::*;
+
+        let data = CommandData::from_slice(&[0xd0]).unwrap();
+        dump(&data);
+
+        let data = CommandData::from_slice(&[0xb0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_vout_mode() {
+        use commands::VOUT_MODE::*;
+        let data = CommandData::from_slice(&[0x97]).unwrap();
         dump(&data);
     }
 

@@ -19,10 +19,22 @@ struct Low(u8);
 struct Value(u16, String);
 
 #[derive(Debug, Deserialize)]
+enum Values<T> {
+    Scalar,
+    Sentinels(T),
+}
+
+#[derive(Debug, Deserialize)]
+enum Bits {
+    Bitrange(High, Low),
+    Bit(u8)
+}
+
+#[derive(Debug, Deserialize)]
 struct Field {
     name: String,
-    bitrange: (High, Low),
-    values: HashMap<String, Value>,
+    bits: Bits,
+    values: Values<HashMap<String, Value>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,6 +79,13 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     Ok(sizes)
 }
 
+fn bitrange(bits: &Bits) -> (u8, u8) {
+    match bits {
+        Bits::Bit(pos) => (*pos, *pos),
+        Bits::Bitrange(High(high), Low(low)) => (*high, *low),
+    }
+}
+
 fn validate(
     cmd: &str,
     fields: &HashMap<String, Field>,
@@ -85,7 +104,7 @@ fn validate(
     let mut v: Vec<Option<&String>> = vec![None; *size * 8];
 
     for (f, field) in fields {
-        let (high, low) = (field.bitrange.0.0, field.bitrange.1.0);
+        let (high, low) = bitrange(&field.bits);
 
         if high < low {
             bail!("{}: field \"{}\" has illegal bit range", cmd, f);
@@ -114,12 +133,41 @@ fn validate(
 }
 
 #[rustfmt::skip::macros(writeln)]
+fn output_scalar(
+    name: &str,
+    width: usize
+) -> Result<String> {
+    let mut s = String::new();
+    let bits = ((width + 8) / 8) * 8;
+
+    writeln!(&mut s, r##"
+    #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
+    #[allow(non_camel_case_types)]
+    pub struct {}(pub u{});
+
+    impl {} {{
+        fn desc(&self) -> &'static str {{
+            "(scalar value)"
+        }}
+    }}"##, name, bits, name)?;
+
+    Ok(s)
+}
+
+#[rustfmt::skip::macros(writeln)]
 fn output_value(
     name: &str,
-    values: &HashMap<String, Value>,
+    values: &Values<HashMap<String, Value>>,
     width: usize,
 ) -> Result<String> {
     let mut s = String::new();
+
+    let values = match values {
+        Values::Sentinels(ref v) => v,
+        Values::Scalar => {
+            return output_scalar(name, width);
+        }
+    };
 
     writeln!(&mut s, r##"
     #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
@@ -195,8 +243,10 @@ pub mod {} {{
             match self {{"##)?;
 
     for (f, field) in fields {
-        let pos = field.bitrange.1 .0;
-        let width = field.bitrange.0 .0 - field.bitrange.1 .0 + 1;
+        let (high, low) = bitrange(&field.bits);
+
+        let pos = low;
+        let width = high - low + 1;
 
         writeln!(&mut s, "                Field::{} => \
             (Bitpos({}), Bitwidth({})),", f, pos, width)?;
@@ -215,7 +265,8 @@ pub mod {} {{
     writeln!(&mut s, "            }}\n        }}\n    }}")?;
 
     for (f, field) in fields {
-        let width = field.bitrange.0 .0 - field.bitrange.1 .0 + 1;
+        let (high, low) = bitrange(&field.bits);
+        let width = high - low + 1;
         write!(&mut s, "{}", output_value(&f, &field.values, width.into())?)?;
     }
 
@@ -242,15 +293,39 @@ pub mod {} {{
     writeln!(&mut s, "            }}\n        }}")?;
 
     writeln!(&mut s, r##"
+        fn scalar(&self) -> bool {{
+            match self {{"##)?;
+
+    for (f, field) in fields {
+        if let Values::Scalar = &field.values {
+            writeln!(&mut s, "                Value::{}(_) => true,", f)?;
+        }
+    }
+
+    writeln!(&mut s, "                _ => false,")?;
+    writeln!(&mut s, "            }}\n        }}")?;
+
+    writeln!(&mut s, r##"
         fn raw(&self) -> u32 {{
             match self {{"##)?;
 
-    for (f, _) in fields {
-        writeln!(
-            &mut s,
-            "                Value::{}(v) => v.to_u32().unwrap(),",
-            f
-        )?;
+    for (f, field) in fields {
+        match field.values {
+            Values::Sentinels(_) => {
+                writeln!(
+                    &mut s,
+                    "                Value::{}(v) => v.to_u32().unwrap(),",
+                    f
+                )?;
+            }
+            Values::Scalar => {
+                writeln!(
+                    &mut s,
+                    "                Value::{}(v) => v.0 as u32,",
+                    f
+                )?;
+            }
+        }
     }
 
     writeln!(&mut s, "                Value::Unknown(v) => *v as u32,")?;
@@ -259,10 +334,17 @@ pub mod {} {{
     writeln!(&mut s, r##"
     impl core::fmt::Display for Value {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
-            write!(
-                f, "0b{{:b}} ({{}})",
-                super::Value::raw(self), super::Value::desc(self)
-            )
+            if super::Value::scalar(self) {{
+                write!(
+                    f, "0x{{:x}} ({{}})",
+                    super::Value::raw(self), super::Value::raw(self)
+                )
+            }} else {{
+                write!(
+                    f, "0b{{:b}} ({{}})",
+                    super::Value::raw(self), super::Value::desc(self)
+                )
+            }}
         }}
     }}"##)?;
 
@@ -283,10 +365,11 @@ pub mod {} {{
             match bit.0 {{"##, size, bits)?;
 
     for (f, field) in fields {
+        let (high, low) = bitrange(&field.bits);
+
         writeln!(&mut s,
             "                {} => Some((Field::{}, Bitwidth({}))),",
-            field.bitrange.1.0, f,
-            field.bitrange.0.0 - field.bitrange.1.0 + 1
+            low, f, high - low + 1
         )?;
     }
 
@@ -346,7 +429,10 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl super::CommandData for CommandData {{
-        fn fields(&self, mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)) {{
+        fn fields(
+            &self,
+            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+        ) {{
             let mut pos = 0;
 
             while pos < {} {{

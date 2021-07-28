@@ -2,219 +2,290 @@
     "OPERATION": {
         "OnOffState": (
             name: "On/off state",
-            bitrange: (High(7), Low(7)),
-            values: {
+            bits: Bit(7),
+            values: Sentinels({
                 "Off": (0, "output off"),
                 "On": (1, "output on"),
-            }
+            }),
         ),
         "TurnOffBehavior": (
             name: "Power down behavior",
-            bitrange: (High(6), Low(6)),
-            values: {
+            bits: Bit(6),
+            values: Sentinels({
                 "Set": (1, "powers down based on TOFF_DELAY"),
                 "Clear": (0, "powers down immediately"),
-            },
+            }),
         ),
         "VoltageCommandSource": (
             name: "Source of output voltage",
-            bitrange: (High(5), Low(4)),
-            values: {
+            bits: Bitrange(High(5), Low(4)),
+            values: Sentinels({
                 "VOUT_COMMAND": (0b00, "set by VOUT_COMMAND"),
                 "VOUT_MARGIN_LOW": (0b01, "set by VOUT_MARGIN_LOW"),
                 "VOUT_MARGIN_HIGH": (0b10, "set by VOUT_MARGIN_HIGH"),
                 "AVS_VOUT_COMMAND": (0b11, "set by AVSBus")
-            }
+            }),
         ),
         "MarginFaultResponse": (
             name: "Margin fault response",
-            bitrange: (High(3), Low(2)),
-            values: {
+            bits: Bitrange(High(3), Low(2)),
+            values: Sentinels({
                 "Ignore": (0b01, "ignore margin faults" ),
                 "ActUpon": (0b10, "act upon margin faults"),
-            },
+            }),
         ),
         "TransitionControl": (
             name: "Transition control",
-            bitrange: (High(1), Low(1)),
-            values: {
+            bits: Bit(1),
+            values: Sentinels({
                 "Clear": (0, "not set"),
                 "Set": (1, "set"),
-            }
+            }),
         ),
     },
 
     "ON_OFF_CONFIG": {
         "PowerControl": (
             name: "Power control source",
-            bitrange: (High(4), Low(4)),
-            values: {
+            bits: Bit(4),
+            values: Sentinels({
                 "Regardless": (0b0, "regardless of OPERATION/CONTROL"),
                 "Controlled": (0b1, "OPERATION/CONTROL"),
-            },
+            }),
         ),
         "CommandControl": (
             name: "OPERATION disposition",
-            bitrange: (High(3), Low(3)),
-            values: {
+            bits: Bit(3),
+            values: Sentinels({
                 "Ignore": (0b0, "ignores OPERATION on/off"),
                 "Abides": (0b1, "abides by OPERATION on/off"),
-            },
+            }),
         ),
         "ControlControl": (
             name: "CONTROL pin disposition",
-            bitrange: (High(2), Low(2)),
-            values: {
+            bits: Bit(2),
+            values: Sentinels({
                 "Ignore": (0b0, "ignores CONTROL pin"),
                 "Abides": (0b1, "abides by CONTROL pin"),
-            }
+            }),
         ),
         "ControlPolarity": (
             name: "Polarity of CONTROL pin",
-            bitrange: (High(1), Low(1)),
-            values: {
+            bits: Bit(1),
+            values: Sentinels({
                 "ActiveLow": (0b0, "active low"),
                 "ActiveHigh": (0b1, "active high"),
-            }
+            }),
         ),
         "ControlOff": (
             name: "CONTROL pin action",
-            bitrange: (High(0), Low(0)),
-            values: {
+            bits: Bit(0),
+            values: Sentinels({
                 "Programmed": (0b0, "use programmed delay"),
                 "Immediate": (0b1, "turn off output immediately"),
-            }
+            }),
+        ),
+    },
+
+    "CAPABILITY": {
+        "PacketErrorChecking": (
+            name: "Packet error checking",
+            bits: Bit(7),
+            values: Sentinels({
+                "NotSupported": (0b0, "not supported"),
+                "Supported": (0b1, "supported"),
+            }),
+        ),
+        "MaximumBusSpeed": (
+            name: "Maximum supported bus speed",
+            bits: Bitrange(High(6), Low(5)),
+            values: Sentinels({
+                "Speed100KHz": (0b00, "100 kHz"),
+                "Speed400kHz": (0b01, "400 kHz"),
+                "Speed1MHz": (0b10, "1 MHz"),
+            }),
+        ),
+        "SMBusAlert": (
+            name: "SMBus Alert Response support",
+            bits: Bit(4),
+            values: Sentinels({
+                "NotSupported": (0b0, "not supported"),
+                "Supported": (0b1, "supported"),
+            }),
+        ),
+        "NumericFormat": (
+            name: "Numeric data format",
+            bits: Bit(3),
+            values: Sentinels({
+                "NotIEEEHalf": (0b0, "not IEEE Half Precision"),
+                "IEEEHalf": (0b1, "IEEE Half Precision"),
+            }),
+        ),
+        "AVSBusSupport": (
+            name: "Adapative Voltage Bus support",
+            bits: Bit(2),
+            values: Sentinels({
+                "NotSupported": (0b0, "not supported"),
+                "Supported": (0b1, "supported"),
+            }),
+        ),
+    },
+
+    "VOUT_MODE": {
+        "AbsoluteOrRelative": (
+            name: "Sense",
+            bits: Bit(7),
+            values: Sentinels({
+                "Absolute": (0b0, "absolute setting"),
+                "Relative": (0b1, "relative adjustment"),
+            }),
+        ),
+        "Mode": (
+            name: "VOUT mode",
+            bits: Bitrange(High(6), Low(5)),
+            values: Sentinels({
+                "ULINEAR16": (0b00, "parameter is ULINEAR16 exponent"),
+                "VID": (0b01, "parameter is VID code"),
+                "Direct": (0b10, "DIRECT format"),
+                "IEEEHalf": (0b11, "IEEE Half Precision format"),
+            }),
+        ),
+        "Parameter": (
+            name: "Parameter",
+            bits: Bitrange(High(4), Low(0)),
+            values: Scalar,
         ),
     },
 
     "STATUS_WORD": {
         "OutputVoltageFault": (
             name: "Output voltage fault",
-            bitrange: (High(15), Low(15)),
-            values: {
+            bits: Bit(15),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "OutputCurrentFault": (
             name: "Output current/power fault",
-            bitrange: (High(14), Low(14)),
-            values: {
+            bits: Bit(14),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "InputFault": (
             name: "Input voltage/current/power fault",
-            bitrange: (High(13), Low(13)),
-            values: {
+            bits: Bit(13),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "ManufacturerFault": (
             name: "Manufacturer-specific fault",
-            bitrange: (High(12), Low(12)),
-            values: {
+            bits: Bit(12),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "PowerGoodStatus": (
             name: "POWER_GOOD signal status",
-            bitrange: (High(11), Low(11)),
-            values: {
+            bits: Bit(11),
+            values: Sentinels({
                 "PowerGood": (0b0, "POWER_GOOD is set"),
                 "NoPowerGood": (0b1, "POWER_GOOD is not set"),
-            }
+            }),
         ),
         "FanFault": (
             name: "Fan fault",
-            bitrange: (High(10), Low(10)),
-            values: {
+            bits: Bitrange(High(10), Low(10)),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "OtherFault": (
             name: "STATUS_OTHER fault",
-            bitrange: (High(9), Low(9)),
-            values: {
+            bits: Bit(9),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "UnknownFault": (
             name: "Unknown fault",
-            bitrange: (High(8), Low(8)),
-            values: {
+            bits: Bitrange(High(8), Low(8)),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "Busy": (
             name: "Busy device fault",
-            bitrange: (High(7), Low(7)),
-            values: {
+            bits: Bit(7),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "Off": (
             name: "Device not providing power",
-            bitrange: (High(6), Low(6)),
-            values: {
+            bits: Bitrange(High(6), Low(6)),
+            values: Sentinels({
                 "PowerNotOff": (0b0, "power is not off"),
                 "PowerOff": (0b1, "power is off"),
-            }
+            }),
         ),
         "OutputOvervoltageFault": (
             name: "Output overvoltage fault",
-            bitrange: (High(5), Low(5)),
-            values: {
+            bits: Bit(5),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "OutputOvercurrentFault": (
             name: "Output overcurrent fault",
-            bitrange: (High(4), Low(4)),
-            values: {
+            bits: Bit(4),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "InputUndervoltageFault": (
             name: "Input undervoltage fault",
-            bitrange: (High(3), Low(3)),
-            values: {
+            bits: Bit(3),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "TemperatureFault": (
             name: "Temperature fault",
-            bitrange: (High(2), Low(2)),
-            values: {
+            bits: Bit(2),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "CMLFault": (
             name: "Communications/memory/logic fault",
-            bitrange: (High(1), Low(1)),
-            values: {
+            bits: Bit(1),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         ),
         "NoneOfTheAbove": (
             name: "Unknown fault",
-            bitrange: (High(0), Low(0)),
-            values: {
+            bits: Bit(0),
+            values: Sentinels({
                 "NoFault": (0b0, "no fault"),
                 "Fault": (0b1, "fault"),
-            }
+            }),
         )
-    }
+    },
+
 }

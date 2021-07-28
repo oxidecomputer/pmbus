@@ -10,6 +10,7 @@ pub trait Field {
 }
 
 pub trait Value: core::fmt::Display {
+    fn scalar(&self) -> bool;
     fn desc(&self) -> &'static str;
     fn raw(&self) -> u32;
 }
