@@ -1,0 +1,29 @@
+([
+    (0xb1, "COMPENSATION_CONFIG", WriteBlock, ReadBlock),
+    (0xb5, "POWER_STAGE_CONFIG", WriteBlock, ReadBlock),
+    (0xd0, "TELEMETRY_CONFIG", WriteBlock, ReadBlock),
+    (0xda, "READ_ALL", Illegal, ReadBlock),
+    (0xdb, "STATUS_ALL", Illegal, ReadBlock),
+    (0xdc, "STATUS_PHASE", WriteWord, ReadWord),
+    (0xe3, "PGOOD_CONFIG", WriteWord, ReadWord),
+    (0xe4, "SYNC_CONFIG", WriteByte, ReadByte),
+    (0xec, "STACK_CONFIG", WriteWord, ReadWord),
+    (0xed, "MISC_OPTIONS", WriteWord, ReadWord),
+    (0xee, "PIN_DETECT_OVERRIDE", WriteWord, ReadWord),
+    (0xef, "ADDRESS", WriteByte, ReadByte),
+    (0xf0, "NVM_CHECKSUM", Illegal, ReadWord),
+    (0xf1, "SIMULATE_FAULT", WriteWord, ReadWord),
+    (0xfc, "FUSION_ID0", WriteWord, ReadWord),
+    (0xfd, "FUSION_ID1", WriteBlock, ReadBlock),
+], {
+    "STATUS_MFR_SPECIFIC": {
+        "POR": (
+            name: "Power-on-reset fault",
+            bits: Bit(7),
+            values: Sentinels({
+                "NoFault": (0b0, "no fault"),
+                "Fault": (0b1, "fault"),
+            }),
+        )
+    }
+})
