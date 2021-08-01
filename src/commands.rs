@@ -7,6 +7,7 @@ pub struct Bitwidth(pub u8);
 #[derive(Copy, Clone, Debug)]
 pub enum Error {
     ShortData,
+    InvalidCode,
 }
 
 pub trait Field {
@@ -20,14 +21,9 @@ pub trait Value: core::fmt::Display {
     fn raw(&self) -> u32;
 }
 
-pub trait Command {
+pub trait Command: core::fmt::Debug {
     fn read_op(&self) -> Operation;
     fn write_op(&self) -> Operation;
-    fn data(
-        &self,
-        payload: &[u8],
-        iter: impl Fn(&dyn Field, &dyn Value),
-    ) -> Result<(), Error>;
 }
 
 pub trait CommandData {

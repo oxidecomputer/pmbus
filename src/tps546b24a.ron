@@ -25,5 +25,33 @@
                 "Fault": (0b1, "fault"),
             }),
         )
+    },
+
+    "READ_ALL": {
+        "READ_VIN": (
+            name: "READ_VIN command",
+            bits: Bitrange(High(79), Low(64)),
+            values: Scalar,
+        ),
+        "READ_TEMPERATURE1": (
+            name: "READ_TEMPERATURE1 command",
+            bits: Bitrange(High(63), Low(48)),
+            values: Scalar,
+        ),
+        "READ_IOUT": (
+            name: "READ_IOUT command",
+            bits: Bitrange(High(47), Low(32)),
+            values: Scalar,
+        ),
+        "READ_VOUT": (
+            name: "READ_VOUT command",
+            bits: Bitrange(High(31), Low(16)),
+            values: Scalar,
+        ),
+        "STATUS_WORD": (
+            name: "STATUS_WORD command",
+            bits: Bitrange(High(15), Low(0)),
+            values: Scalar,
+        ),
     }
 })

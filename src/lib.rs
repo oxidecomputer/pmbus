@@ -19,7 +19,11 @@ mod operation;
 pub use crate::operation::Operation;
 
 pub mod commands;
-pub use crate::commands::{CommandCode, CommandData, Error, Field, Value};
+pub use crate::commands::{command, data, devices};
+pub use crate::commands::{
+    Bitpos, Bitwidth, Command, CommandCode, CommandData, Device, Error, Field,
+    Value,
+};
 
 ///
 /// The coefficients spelled out by PMBus for use in the DIRECT data format
@@ -471,18 +475,15 @@ mod tests {
             .unwrap();
     }
 
-    fn dump(data: &impl commands::CommandData) {
-        let (val, width) = data.raw();
+    fn dump_data(
+        val: u32,
+        width: Bitwidth,
+        v: &mut std::vec::Vec<((Bitpos, Bitwidth), &str, std::string::String)>,
+    ) {
         let width = width.0 as usize;
         let nibble = 4;
         let maxwidth = 16;
         let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
-
-        let mut v = std::vec![];
-
-        data.fields(|field, value| {
-            v.push((field.bits(), field.name(), std::format!("{}", value)));
-        });
 
         v.reverse();
 
@@ -540,6 +541,17 @@ mod tests {
 
             v.pop();
         }
+    }
+
+    fn dump(data: &impl commands::CommandData) {
+        let (val, width) = data.raw();
+        let mut v = std::vec![];
+
+        data.fields(|field, value| {
+            v.push((field.bits(), field.name(), std::format!("{}", value)));
+        });
+
+        dump_data(val, width, &mut v);
     }
 
     #[test]
@@ -613,5 +625,55 @@ mod tests {
         use commands::adm1272::STATUS_MFR_SPECIFIC::*;
         let data = CommandData::from_slice(&[0x40]).unwrap();
         dump(&data);
+    }
+
+    #[test]
+    fn device_list() {
+        let code = commands::CommandCode::STATUS_MFR_SPECIFIC as u8;
+
+        std::println!("code is {:x}", code);
+
+        devices(|d| {
+            for i in 0..=0xff {
+                command(d, i, |cmd| {
+                    std::println!("{:?}: {:2x} {:?}", d, i, cmd);
+                });
+            }
+        });
+    }
+
+    #[test]
+    fn tps_read_all() {
+        use commands::tps546b24a::READ_ALL::*;
+
+        let data = CommandData::from_slice(&[
+            0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
+            0x00, 0x00, 0x00,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_read_vin(), 0xd2fe);
+        assert_eq!(data.get_read_vout(), 0x0263);
+        assert_eq!(data.get_status_word(), 0x0002);
+        assert_eq!(data.get_read_temperature_1(), 0xdbd8);
+    }
+
+    #[test]
+    fn tps_read_all_data() {
+        let code = commands::tps546b24a::CommandCode::READ_ALL as u8;
+
+        std::println!("code is {:x}", code);
+
+        let data = [
+            0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
+            0x00, 0x00, 0x00,
+        ];
+
+        for code in 0..=0xff {
+            let _ =
+                super::data(Device::Tps546B24A, code, &data[0..], |f, _v| {
+                    std::println!("f is {}", f.name());
+                });
+        }
     }
 }

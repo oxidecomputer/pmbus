@@ -62,14 +62,23 @@ struct Command(u8, String, Operation, Operation);
 #[derive(Debug, Deserialize)]
 struct Commands(Vec<Command>, HashMap<String, HashMap<String, Field>>);
 
+#[derive(Debug, Deserialize)]
+struct Device(String, String);
+
 fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
 
+    //
+    // Note that we always treat a ReadBlock as a 128-bit quantity, the
+    // largest that we can fit into a primitive.  Any register that attempts
+    // to use more than 128-bits won't be able to be defined.
+    //
     for cmd in cmds {
         let size = match cmd.3 {
             Operation::ReadByte => Some(1),
             Operation::ReadWord => Some(2),
             Operation::ReadWord32 => Some(4),
+            Operation::ReadBlock => Some(16),
             Operation::WriteByte
             | Operation::WriteWord
             | Operation::WriteBlock => {
@@ -103,8 +112,8 @@ pub enum CommandCode {{"##)?;
 
     writeln!(&mut s, r##"}}
 
-impl CommandCode {{
-    pub fn read_op(&self) -> Operation {{
+impl Command for CommandCode {{
+    fn read_op(&self) -> Operation {{
         match self {{"##)?;
 
     for cmd in &cmds.0 {
@@ -115,7 +124,7 @@ impl CommandCode {{
     writeln!(&mut s, "        }}\n    }}")?;
 
     writeln!(&mut s, r##"
-    pub fn write_op(&self) -> Operation {{
+    fn write_op(&self) -> Operation {{
         match self {{"##)?;
 
     for cmd in &cmds.0 {
@@ -123,9 +132,10 @@ impl CommandCode {{
             "            CommandCode::{} => Operation::{:?},", cmd.1, cmd.2)?;
     }
 
-    writeln!(&mut s, "        }}\n    }}")?;
+    writeln!(&mut s, "        }}\n    }}\n}}")?;
 
     writeln!(&mut s, r##"
+impl CommandCode {{
     pub fn data(
         &self,
         payload: &[u8],
@@ -167,9 +177,11 @@ fn validate(
     cmd: &str,
     fields: &HashMap<String, Field>,
     sizes: &HashMap<String, Option<usize>>,
-) -> Result<()> {
+) -> Result<(usize, usize)> {
+    let mut highest = 0;
+
     let size = match sizes.get(cmd) {
-        Some(Some(size)) => size,
+        Some(Some(size)) => *size,
         Some(None) => {
             bail!("command {} does not allow a register", cmd);
         }
@@ -178,7 +190,8 @@ fn validate(
         }
     };
 
-    let mut v: Vec<Option<&String>> = vec![None; *size * 8];
+    let bits = size * 8;
+    let mut v: Vec<Option<&String>> = vec![None; bits];
 
     for (f, field) in fields {
         let (high, low) = bitrange(&field.bits);
@@ -187,8 +200,12 @@ fn validate(
             bail!("{}: field \"{}\" has illegal bit range", cmd, f);
         }
 
-        if high as usize >= size * 8 {
+        if high as usize >= bits {
             bail!("{}: field \"{}\" has high bit that exceeds size", cmd, f);
+        }
+
+        if high > highest {
+            highest = high;
         }
 
         for bit in low..=high {
@@ -206,13 +223,23 @@ fn validate(
         }
     }
 
-    Ok(())
+    //
+    // If this a block read, we will trim our size to our highest known bit
+    // to prevent a spurious short read.
+    //
+    let bytes = if bits == 128 {
+        (highest as usize + 7) / 8
+    } else {
+        size
+    };
+
+    Ok((bits, bytes))
 }
 
 #[rustfmt::skip::macros(writeln)]
 fn output_scalar(name: &str, width: usize) -> Result<String> {
     let mut s = String::new();
-    let bits = ((width + 8) / 8) * 8;
+    let bits = ((width + 7) / 8) * 8;
 
     writeln!(&mut s, r##"
     #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
@@ -274,17 +301,17 @@ fn output_value(
 }
 
 #[rustfmt::skip::macros(writeln)]
-fn output_databytes(
+fn output_command_data(
     cmd: &str,
     fields: &HashMap<String, Field>,
-    sizes: &HashMap<String, Option<usize>>,
+    bits: usize,
+    bytes: usize,
 ) -> Result<String> {
     let mut s = String::new();
-    let size = sizes.get(cmd).unwrap().unwrap();
-    let bits = size * 8;
 
     writeln!(&mut s, r##"
 #[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
 pub mod {} {{
     use super::Bitpos;
     use super::Bitwidth;
@@ -424,7 +451,10 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl CommandData {{
-        pub fn from_slice(slice: &[u8]) -> Option<Self> {{
+        pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##)?;
+
+    if bits == bytes * 8 {
+        writeln!(&mut s, r##"
             use core::convert::TryInto;
 
             let v: Result<&[u8; {}], _> = slice.try_into();
@@ -433,10 +463,30 @@ pub mod {} {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}
+        }}"##, bytes, bits)?;
+    } else {
+        writeln!(&mut s, "            let v: u{} = ", bits)?;
 
+        for i in 0..bytes {
+            if i == 0 {
+                writeln!(&mut s, "{:16}(slice[{}] as u{})", "", i, bits)?;
+            } else {
+                writeln!(&mut s,
+                    "{:16}| ((slice[{}] as u{}) << {}){}", "",
+                    i, bits, i * 8,
+                    if i == bytes - 1 { ";" } else { "" }
+                )?;
+            }
+        }
+
+        writeln!(&mut s, r##"
+            Some(Self(v))
+        }}"##)?;
+    }
+
+    writeln!(&mut s, r##"
         pub fn field(bit: Bitpos) -> Option<(Field, Bitwidth)> {{
-            match bit.0 {{"##, size, bits)?;
+            match bit.0 {{"##)?;
 
     for (f, field) in fields {
         let (high, low) = bitrange(&field.bits);
@@ -482,16 +532,27 @@ pub mod {} {{
             self.0 |= raw << pos.0;
         }}"##, bits)?;
 
-    for (f, _) in fields {
+    for (f, field) in fields {
         let method = f.from_case(Case::Camel).to_case(Case::Snake);
 
-        writeln!(&mut s, r##"
-        pub fn get_{}(&mut self) -> Option<{}> {{
+        match field.values {
+            Values::Scalar => {
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> u{} {{
+            self.get_val(Field::{})
+        }}"##, method, bits, f)?;
+            }
+
+            Values::Sentinels(_) => {
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> Option<{}> {{
             match self.get(Field::{}) {{
                 Value::{}(v) => Some(v),
                 _ => None,
             }}
         }}"##, method, f, f, f)?;
+            }
+        }
 
         writeln!(&mut s, r##"
         pub fn set_{}(&mut self, val: {}) {{
@@ -531,11 +592,138 @@ pub mod {} {{
 }
 
 #[rustfmt::skip::macros(writeln)]
+#[rustfmt::skip::macros(write)]
+fn output_devices(devices: &Vec<Device>) -> Result<String> {
+    let mut s = String::new();
+
+    let name = |str: &str| str.to_case(Case::UpperCamel);
+
+    writeln!(&mut s, r##"
+#[derive(Copy, Clone, Debug)]
+pub enum Device {{
+    Common,"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, "    {},", name(&dev.0))?;
+    }
+
+    write!(&mut s, r##"
+}}
+
+impl Device {{
+    pub fn from_str(str: &str) -> Option<Self> {{
+        "##)?;
+
+    for dev in devices {
+        write!(&mut s, r##"if str == Device::{}.name() {{
+            Some(Device::{})
+        }} else "##, name(&dev.0), name(&dev.0))?;
+    }
+
+    writeln!(&mut s, r##"{{
+            None
+        }}
+    }}
+
+    pub fn name(&self) -> &str {{
+        match self {{
+            Device::Common => "<common>","##)?;
+
+    for dev in devices {
+        writeln!(&mut s,
+            "            Device::{} => \"{}\",", name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+
+    writeln!(&mut s, r##"
+    pub fn desc(&self) -> &str {{
+        match self {{
+            Device::Common => "<common>","##)?;
+
+    for dev in devices {
+        writeln!(&mut s,
+            "            Device::{} => \"{}\",", name(&dev.0), dev.1)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+    writeln!(&mut s, "}}")?;
+
+    writeln!(&mut s, r##"
+pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
+    for dev in devices {
+        writeln!(&mut s, "    dev(Device::{});", name(&dev.0))?;
+    }
+    writeln!(&mut s, r##"}}
+
+pub fn data(
+    device: Device,
+    code: u8,
+    payload: &[u8],
+    iter: impl Fn(&dyn Field, &dyn Value)
+) -> Result<(), Error> {{
+    match device {{
+        Device::Common => match CommandCode::from_u8(code) {{
+            Some(cmd) => {{
+                cmd.data(payload, iter)?;
+                Ok(())
+            }}
+            None => {{
+                Err(Error::InvalidCode)
+            }}
+        }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+        Device::{} => match {}::CommandCode::from_u8(code) {{
+            Some(cmd) => {{
+                cmd.data(payload, iter)?;
+                Ok(())
+            }}
+            None => {{
+                Err(Error::InvalidCode)
+            }}
+        }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, r##"    }}
+}}
+
+pub fn command(
+    device: Device,
+    code: u8,
+    mut cb: impl FnMut(&dyn Command)
+) {{
+    match device {{
+        Device::Common => match CommandCode::from_u8(code) {{
+            Some(cmd) => {{
+                cb(&cmd);
+            }}
+            None => {{}}
+        }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+        Device::{} => match {}::CommandCode::from_u8(code) {{
+            Some(cmd) => {{
+                cb(&cmd);
+            }}
+            None => {{}}
+        }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "    }}\n}}\n")?;
+
+    Ok(s)
+}
+
+#[rustfmt::skip::macros(writeln)]
 fn output_device(device: &str) -> Result<String> {
     let mut s = String::new();
 
     writeln!(&mut s, r##"
 pub mod {} {{
+    pub use super::Command;
     pub use super::CommandData;
     pub use super::Value;
     pub use super::Field;
@@ -595,15 +783,25 @@ fn codegen() -> Result<()> {
     file.write_all(out.as_bytes())?;
 
     for (cmd, fields) in dbs {
-        validate(cmd, fields, &sizes)?;
-        let out = output_databytes(cmd, fields, &sizes)?;
+        let (bits, bytes) = validate(cmd, fields, &sizes)?;
+        let out = output_command_data(cmd, fields, bits, bytes)?;
         file.write_all(out.as_bytes())?;
     }
 
-    let devices = ["adm1272", "tps546b24a"];
+    let f = open_file("devices.ron")?;
+
+    let devices: Vec<Device> = match from_reader(f) {
+        Ok(devices) => devices,
+        Err(e) => {
+            bail!("failed to parse devices.ron: {}", e);
+        }
+    };
 
     let dest_path = Path::new(&out_dir).join("devices.rs");
     let mut dfile = File::create(&dest_path)?;
+
+    let out = output_devices(&devices)?;
+    dfile.write_all(out.as_bytes())?;
 
     //
     // Now we need to iterate over our devices.  For each one, we'll generate
@@ -611,10 +809,10 @@ fn codegen() -> Result<()> {
     // all devices.
     //
     for dev in &devices {
-        let dest_path = Path::new(&out_dir).join(format!("{}.rs", dev));
+        let dest_path = Path::new(&out_dir).join(format!("{}.rs", dev.0));
         let mut file = File::create(&dest_path)?;
 
-        let fname = format!("{}.ron", dev);
+        let fname = format!("{}.ron", &dev.0);
         let f = open_file(&fname)?;
 
         let mut dcmds: Commands = match from_reader(f) {
@@ -644,31 +842,30 @@ fn codegen() -> Result<()> {
 
         let dsizes = reg_sizes(&dcmds.0)?;
 
-        for (cmd, fields) in &dcmds.1 {
-            validate(&cmd, &fields, &dsizes)?;
-        }
-
         //
         // Now emit data payloads, allowing the device definition to
         // override any common payload.
         //
         for (cmd, fields) in dbs {
             if let Some(fields) = dcmds.1.get(cmd) {
-                let out = output_databytes(cmd, fields, &dsizes)?;
+                let (bits, bytes) = validate(&cmd, &fields, &dsizes)?;
+                let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.1.remove(cmd);
             } else {
-                let out = output_databytes(cmd, fields, &sizes)?;
+                let (bits, bytes) = validate(&cmd, &fields, &sizes)?;
+                let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
         }
 
         for (cmd, fields) in &dcmds.1 {
-            let out = output_databytes(cmd, fields, &dsizes)?;
+            let (bits, bytes) = validate(&cmd, &fields, &dsizes)?;
+            let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
         }
 
-        let out = output_device(dev)?;
+        let out = output_device(&dev.0)?;
         dfile.write_all(out.as_bytes())?;
     }
 
