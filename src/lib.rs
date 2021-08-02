@@ -19,7 +19,7 @@ mod operation;
 pub use crate::operation::Operation;
 
 pub mod commands;
-pub use crate::commands::{command, data, devices};
+pub use crate::commands::{command, devices, fields};
 pub use crate::commands::{
     Bitpos, Bitwidth, Command, CommandCode, CommandData, Device, Error, Field,
     Value,
@@ -447,7 +447,6 @@ mod tests {
         use commands::OPERATION::*;
         let mut data = CommandData(0x4);
 
-        std::println!("");
         dump(&data);
 
         assert_ne!(
@@ -457,7 +456,6 @@ mod tests {
 
         data.set_voltage_command_source(VoltageCommandSource::VOUT_MARGIN_HIGH);
 
-        std::println!("");
         dump(&data);
 
         assert_eq!(
@@ -469,7 +467,7 @@ mod tests {
     #[test]
     fn raw_operation() {
         CommandCode::OPERATION
-            .data(&[0x4], |field, value| {
+            .fields(&[0x4], |field, value| {
                 std::println!("{} = {}", field.name(), value);
             })
             .unwrap();
@@ -484,8 +482,6 @@ mod tests {
         let nibble = 4;
         let maxwidth = 16;
         let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
-
-        v.reverse();
 
         std::print!("\n{:indent$}", "", indent = indent);
         std::print!("0b");
@@ -671,9 +667,37 @@ mod tests {
 
         for code in 0..=0xff {
             let _ =
-                super::data(Device::Tps546B24A, code, &data[0..], |f, _v| {
+                super::fields(Device::Tps546B24A, code, &data[0..], |f, _v| {
                     std::println!("f is {}", f.name());
                 });
         }
+    }
+
+    #[test]
+    fn tps_passthrough() {
+        //
+        // This is a bit of a mouthful of a test to assure that common registers
+        // are correctly passed through into device-specific modules.
+        //
+        use commands::tps546b24a::CAPABILITY::*;
+
+        let code = commands::tps546b24a::CommandCode::CAPABILITY as u8;
+        let payload = &[0xd0];
+        let mut result = None;
+
+        let name = Field::MaximumBusSpeed.name();
+
+        let cap = CommandData::from_slice(payload).unwrap();
+        let val = cap.get(Field::MaximumBusSpeed);
+        let target = std::format!("{}", val);
+
+        super::fields(Device::Tps546B24A, code, payload, |f, v| {
+            if f.name() == name {
+                result = Some(std::format!("{}", v));
+            }
+        })
+        .unwrap();
+
+        assert_eq!(result, Some(target));
     }
 }

@@ -94,7 +94,7 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
 }
 
 #[rustfmt::skip::macros(writeln)]
-fn output_commands(cmds: &Commands) -> Result<String> {
+fn output_commands(cmds: &Commands, device: bool) -> Result<String> {
     let mut s = String::new();
 
     writeln!(&mut s, r##"
@@ -136,10 +136,10 @@ impl Command for CommandCode {{
 
     writeln!(&mut s, r##"
 impl CommandCode {{
-    pub fn data(
+    pub fn fields(
         &self,
         payload: &[u8],
-        iter: impl Fn(&dyn Field, &dyn Value)
+        iter: impl FnMut(&dyn Field, &dyn Value)
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
@@ -159,7 +159,22 @@ impl CommandCode {{
             }}"##, cmd.1, cmd.1)?;
     }
 
-    writeln!(&mut s, "            _ => Ok(()),")?;
+    if device {
+        //
+        // For devices, we want to fallback to calling the common data
+        // method.
+        //
+        writeln!(&mut s, r##"            _ => {{
+                let code = *self as u8;
+                match super::CommandCode::from_u8(code) {{
+                    Some(cmd) => cmd.fields(payload, iter),
+                    None => Ok(())
+                }}
+            }}"##)?;
+    } else {
+        writeln!(&mut s, "            _ => Ok(()),")?;
+    }
+
     writeln!(&mut s, "        }}\n    }}\n}}")?;
 
     Ok(s)
@@ -258,6 +273,7 @@ fn output_scalar(name: &str, width: usize) -> Result<String> {
 #[rustfmt::skip::macros(writeln)]
 fn output_value(
     name: &str,
+    desc: &str,
     values: &Values<HashMap<String, Value>>,
     width: usize,
 ) -> Result<String> {
@@ -271,13 +287,14 @@ fn output_value(
     };
 
     writeln!(&mut s, r##"
+    /// Values that can be taken by the {} field
     #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
     #[allow(non_camel_case_types)]
-    pub enum {} {{"##, name)?;
+    pub enum {} {{"##, desc, name)?;
 
     for (v, value) in values {
-        writeln!(
-            &mut s, "        {} = 0b{:0width$b},",
+        writeln!(&mut s, "        /// {}", value.1)?;
+        writeln!(&mut s, "        {} = 0b{:0width$b},",
             v, value.0, width = width
         )?;
     }
@@ -368,7 +385,11 @@ pub mod {} {{
     for (f, field) in fields {
         let (high, low) = bitrange(&field.bits);
         let width = high - low + 1;
-        write!(&mut s, "{}", output_value(&f, &field.values, width.into())?)?;
+        write!(
+            &mut s,
+            "{}",
+            output_value(&f, &field.name, &field.values, width.into())?
+        )?;
     }
 
     writeln!(&mut s, r##"
@@ -437,12 +458,12 @@ pub mod {} {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
             if super::Value::scalar(self) {{
                 write!(
-                    f, "0x{{:x}} ({{}})",
-                    super::Value::raw(self), super::Value::raw(self)
+                    f, "0x{{:x}}",
+                    super::Value::raw(self)
                 )
             }} else {{
                 write!(
-                    f, "0b{{:b}} ({{}})",
+                    f, "0b{{:b}} = {{}}",
                     super::Value::raw(self), super::Value::desc(self)
                 )
             }}
@@ -545,12 +566,15 @@ pub mod {} {{
 
             Values::Sentinels(_) => {
                 writeln!(&mut s, r##"
+        /// Return the value of the {} field as a [`Value::{}`], or
+        /// `None` if the field is corrupt or otherwise cannot be represented
+        /// as a [`Value::{}`].
         pub fn get_{}(&self) -> Option<{}> {{
             match self.get(Field::{}) {{
                 Value::{}(v) => Some(v),
                 _ => None,
             }}
-        }}"##, method, f, f, f)?;
+        }}"##, field.name, f, f,method, f, f, f)?;
             }
         }
 
@@ -568,23 +592,26 @@ pub mod {} {{
             &self,
             mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
         ) {{
-            let mut pos = 0;
+            let mut pos: u8 = {};
 
-            while pos < {} {{
-                if let Some((field, width)) = CommandData::field(Bitpos(pos)) {{
+            loop {{
+                if let Some((field, _)) = CommandData::field(Bitpos(pos)) {{
                     let val = self.get(field);
                     iter(&field, &val);
-                    pos += width.0;
-                }} else {{
-                    pos += 1;
                 }}
+
+                if pos == 0 {{
+                    break;
+                }}
+
+                pos -= 1;
             }}
         }}
 
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
         }}
-    }}"##, bits, bits)?;
+    }}"##, bits - 1, bits)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -656,16 +683,21 @@ pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
     }
     writeln!(&mut s, r##"}}
 
-pub fn data(
+/// For the given command code, iterates over the fields in the structured
+/// register (if any), calling the specified function for each field and its
+/// value.  In general, this should only be used by agnostic code that is
+/// attmpting to make sense of PMBus data; *in situ* code that wishes to pull
+/// a particular value should use the direct accessor function instead.
+pub fn fields(
     device: Device,
     code: u8,
     payload: &[u8],
-    iter: impl Fn(&dyn Field, &dyn Value)
+    iter: impl FnMut(&dyn Field, &dyn Value)
 ) -> Result<(), Error> {{
     match device {{
         Device::Common => match CommandCode::from_u8(code) {{
             Some(cmd) => {{
-                cmd.data(payload, iter)?;
+                cmd.fields(payload, iter)?;
                 Ok(())
             }}
             None => {{
@@ -677,7 +709,7 @@ pub fn data(
         writeln!(&mut s, r##"
         Device::{} => match {}::CommandCode::from_u8(code) {{
             Some(cmd) => {{
-                cmd.data(payload, iter)?;
+                cmd.fields(payload, iter)?;
                 Ok(())
             }}
             None => {{
@@ -779,7 +811,7 @@ fn codegen() -> Result<()> {
     let dest_path = Path::new(&out_dir).join("commands.rs");
     let mut file = File::create(&dest_path)?;
 
-    let out = output_commands(&cmds)?;
+    let out = output_commands(&cmds, false)?;
     file.write_all(out.as_bytes())?;
 
     for (cmd, fields) in dbs {
@@ -837,7 +869,7 @@ fn codegen() -> Result<()> {
             }
         }
 
-        let out = output_commands(&dcmds)?;
+        let out = output_commands(&dcmds, true)?;
         file.write_all(out.as_bytes())?;
 
         let dsizes = reg_sizes(&dcmds.0)?;
