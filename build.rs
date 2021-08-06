@@ -18,12 +18,47 @@ struct High(u8);
 struct Low(u8);
 
 #[derive(Debug, Deserialize)]
+struct Factor(f32);
+
+#[derive(Debug, Deserialize)]
+struct Offset(f32);
+
+#[derive(Debug, Deserialize)]
 struct Value(u16, String);
+
+#[derive(Debug, Deserialize)]
+enum Units {
+    Nanoseconds,
+    Milliseconds,
+    Seconds,
+    Amperes,
+    Milliamps,
+    Volts,
+    Millivolts,
+    Celsius,
+}
+
+impl Units {
+    fn suffix(&self) -> &str {
+        match self {
+            Units::Nanoseconds => "ns",
+            Units::Milliseconds => "ms",
+            Units::Seconds => "s",
+            Units::Amperes => "A",
+            Units::Milliamps => "mA",
+            Units::Volts => "V",
+            Units::Millivolts => "mV",
+            Units::Celsius => "degrees C",
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 enum Values<T> {
     Scalar,
     Sentinels(T),
+    Units(Units),
+    ScaledUnits(Units, Factor),
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,13 +277,12 @@ fn validate(
     // If this a block read, we will trim our size to our highest known bit
     // to prevent a spurious short read.
     //
-    let bytes = if bits == 128 {
-        (highest as usize + 7) / 8
+    if bits == 128 {
+        let bits = (highest + 1).next_power_of_two();
+        Ok((bits.into(), ((highest + 7) / 8).into()))
     } else {
-        size
-    };
-
-    Ok((bits, bytes))
+        Ok((bits, size))
+    }
 }
 
 #[rustfmt::skip::macros(writeln)]
@@ -281,7 +315,7 @@ fn output_value(
 
     let values = match values {
         Values::Sentinels(ref v) => v,
-        Values::Scalar => {
+        Values::Scalar | Values::Units(_) | Values::ScaledUnits(..) => {
             return output_scalar(name, width);
         }
     };
@@ -332,6 +366,7 @@ fn output_command_data(
 pub mod {} {{
     use super::Bitpos;
     use super::Bitwidth;
+
     use num_derive::FromPrimitive;
     use num_derive::ToPrimitive;
 
@@ -419,8 +454,11 @@ pub mod {} {{
             match self {{"##)?;
 
     for (f, field) in fields {
-        if let Values::Scalar = &field.values {
-            writeln!(&mut s, "                Value::{}(_) => true,", f)?;
+        match field.values {
+            Values::Scalar | Values::Units(_) | Values::ScaledUnits(..) => {
+                writeln!(&mut s, "                Value::{}(_) => true,", f)?;
+            }
+            _ => {}
         }
     }
 
@@ -432,7 +470,7 @@ pub mod {} {{
             match self {{"##)?;
 
     for (f, field) in fields {
-        match field.values {
+        match &field.values {
             Values::Sentinels(_) => {
                 writeln!(
                     &mut s,
@@ -440,7 +478,7 @@ pub mod {} {{
                     f
                 )?;
             }
-            Values::Scalar => {
+            Values::Scalar | Values::Units(_) | Values::ScaledUnits(..) => {
                 writeln!(
                     &mut s,
                     "                Value::{}(v) => v.0 as u32,",
@@ -456,16 +494,51 @@ pub mod {} {{
     writeln!(&mut s, r##"
     impl core::fmt::Display for Value {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
-            if super::Value::scalar(self) {{
-                write!(
-                    f, "0x{{:x}}",
-                    super::Value::raw(self)
-                )
-            }} else {{
-                write!(
-                    f, "0b{{:b}} = {{}}",
-                    super::Value::raw(self), super::Value::desc(self)
-                )
+            match self {{"##)?;
+
+    for (f, field) in fields {
+        match &field.values {
+            Values::Scalar => {
+                writeln!(&mut s, r##"
+                Value::{}(_) => {{
+                    write!(
+                        f, "0x{{:x}}",
+                        super::Value::raw(self)
+                    )
+                }}"##, f)?;
+            }
+
+            Values::Units(u) => {
+                writeln!(&mut s, r##"
+                Value::{}(_) => {{
+                    write!(
+                        f, "{{}} {}",
+                        super::Value::raw(self)
+                    )
+                }}"##, f, u.suffix())?;
+            }
+
+            Values::ScaledUnits(u, Factor(factor)) => {
+                writeln!(&mut s, r##"
+                Value::{}(_) => {{
+                    write!(
+                        f, "{{}}{}",
+                        super::Value::raw(self) as f32 * {}
+                    )
+                }}"##, f, u.suffix(), factor)?;
+            }
+
+            _ => {}
+        }
+    }
+
+    writeln!(&mut s, r##"
+                _ => {{
+                    write!(
+                        f, "0b{{:b}} = {{}}",
+                        super::Value::raw(self), super::Value::desc(self)
+                    )
+                }}
             }}
         }}
     }}"##)?;
@@ -478,13 +551,13 @@ pub mod {} {{
         writeln!(&mut s, r##"
             use core::convert::TryInto;
 
-            let v: Result<&[u8; {}], _> = slice.try_into();
+            let v: Result<&[u8; {}], _> = slice[0..{}].try_into();
 
             match v {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, bytes, bits)?;
+        }}"##, bytes, bytes, bits)?;
     } else {
         writeln!(&mut s, "            let v: u{} = ", bits)?;
 
@@ -556,12 +629,26 @@ pub mod {} {{
     for (f, field) in fields {
         let method = f.from_case(Case::Camel).to_case(Case::Snake);
 
-        match field.values {
+        match &field.values {
             Values::Scalar => {
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> u{} {{
             self.get_val(Field::{})
         }}"##, method, bits, f)?;
+            }
+
+            Values::Units(unit) => {
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> crate::{:?} {{
+            crate::{:?}(self.get_val(Field::{}) as f32)
+        }}"##, method, unit, unit, f)?;
+            }
+
+            Values::ScaledUnits(unit, Factor(factor)) => {
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> crate::{:?} {{
+            crate::{:?}(self.get_val(Field::{}) as f32 * {})
+        }}"##, method, unit, unit, f, factor)?;
             }
 
             Values::Sentinels(_) => {
@@ -611,7 +698,15 @@ pub mod {} {{
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
         }}
-    }}"##, bits - 1, bits)?;
+
+        fn command(
+            &self,
+            mut cb: impl FnMut(&dyn super::Command)
+        ) {{
+            cb(&super::CommandCode::{})
+        }}
+
+    }}"##, bits - 1, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 

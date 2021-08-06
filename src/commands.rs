@@ -29,6 +29,7 @@ pub trait Command: core::fmt::Debug {
 pub trait CommandData {
     fn fields(&self, iter: impl FnMut(&dyn Field, &dyn Value));
     fn raw(&self) -> (u32, Bitwidth);
+    fn command(&self, cb: impl FnMut(&dyn Command));
 }
 
 pub use crate::operation::Operation;

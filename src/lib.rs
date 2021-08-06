@@ -45,7 +45,7 @@
 //! understands the full (ADM1272-specific) functionality.  For code that
 //! wishes to be device agnostic but still be able to display contents, there
 //! exists the [`commands::fields`] function that takes a [`Device`], a code,
-//! and a payload and iterate over its fields and values.  
+//! and a payload, and closure to iterate over its fields and values.  
 //!
 //! A final (crucial) constraint is that this crate remains `no_std`; it
 //! performs no dynamic allocation and in general relies on program text
@@ -59,8 +59,8 @@
 //! terrible things are sometimes required for beautiful abstractions.
 //!
 
-pub use num_traits::float::FloatCore;
 pub use num_derive::{FromPrimitive, ToPrimitive};
+pub use num_traits::float::FloatCore;
 pub use num_traits::{FromPrimitive, ToPrimitive};
 
 mod operation;
@@ -232,6 +232,18 @@ impl ULinear16 {
         self.0 as f32 * f32::powi(2.0, exp.into())
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Volts(pub f32);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Millivolts(pub f32);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Amperes(pub f32);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Milliamps(pub f32);
 
 #[cfg(test)]
 mod tests {
@@ -529,9 +541,15 @@ mod tests {
         let width = width.0 as usize;
         let nibble = 4;
         let maxwidth = 16;
+
+        if width > maxwidth {
+            std::println!("{:?}", v);
+            return;
+        }
+
         let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
 
-        std::print!("\n{:indent$}", "", indent = indent);
+        std::print!("{:indent$}", "", indent = indent);
         std::print!("0b");
 
         for v in (0..width).step_by(nibble) {
@@ -590,6 +608,10 @@ mod tests {
     fn dump(data: &impl commands::CommandData) {
         let (val, width) = data.raw();
         let mut v = std::vec![];
+
+        data.command(|cmd| {
+            std::println!("\n{:?}: ", cmd);
+        });
 
         data.fields(|field, value| {
             v.push((field.bits(), field.name(), std::format!("{}", value)));
@@ -704,9 +726,7 @@ mod tests {
 
     #[test]
     fn tps_read_all_data() {
-        let code = commands::tps546b24a::CommandCode::READ_ALL as u8;
-
-        std::println!("code is {:x}", code);
+        let _code = commands::tps546b24a::CommandCode::READ_ALL as u8;
 
         let data = [
             0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
@@ -747,5 +767,25 @@ mod tests {
         .unwrap();
 
         assert_eq!(result, Some(target));
+    }
+
+    #[test]
+    fn bmr480_default() {
+        use commands::bmr480::*;
+
+        let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
+        dump(&data.unwrap());
+
+        let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
+        dump(&data.unwrap());
+
+        let data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
+            0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_trim_limit(), Millivolts(170.0));
+
+        dump(&data);
     }
 }
