@@ -15,7 +15,7 @@
     (0xf1, "SIMULATE_FAULT", WriteWord, ReadWord),
     (0xfc, "FUSION_ID0", WriteWord, ReadWord),
     (0xfd, "FUSION_ID1", WriteBlock, ReadBlock),
-], {
+], [], {
     "STATUS_MFR_SPECIFIC": {
         "POR": (
             name: "Power-on-reset fault",

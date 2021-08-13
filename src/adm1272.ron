@@ -18,7 +18,7 @@
     (0xf4, "STATUS_HYSTERESIS", WriteByte, ReadByte),
     (0xf5, "STATUS_GPIO", WriteByte, ReadByte),
     (0xf6, "STRT_UP_IOUT_LIM", WriteWord, ReadWord),
-], {
+], [], {
     "STATUS_MFR_SPECIFIC": {
         "FETHealthFault": (
             name: "FET health fault",

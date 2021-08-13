@@ -43,6 +43,9 @@
     (0xfc, "MFR_ADDED_DROOP_DURING_RAMP", WriteWord, ReadWord),
     (0xfd, "MFR_FIRMWARE_DATA", Illegal, ReadBlock),
     (0xfe, "MFR_RESTART", WriteBlock, Illegal),
+], [
+//    ("READ_VOUT", VOutMode(UnsignedLinear), Volts),
+    ("READ_IOUT", Linear11, Amperes),
 ], {
     "MFR_VIN_OV_WARN_RESPONSE": {
         "Response": (

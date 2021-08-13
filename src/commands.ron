@@ -224,7 +224,7 @@
     (0xfd, "MFR_SPECIFIC_FD", MfrDefined, MfrDefined),
     (0xfe, "MFR_SPECIFIC_COMMAND_EXT", Extended, Extended),
     (0xff, "PMBUS_COMMAND_EXT", Extended, Extended),
-], {
+], [], {
     "OPERATION": {
         "OnOffState": (
             name: "On/off state",

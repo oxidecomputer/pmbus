@@ -8,17 +8,26 @@ pub struct Bitwidth(pub u8);
 pub enum Error {
     ShortData,
     InvalidCode,
+    ValueOutOfRange,
 }
 
-pub trait Field {
+pub trait Field: core::fmt::Debug {
+    /// Returns true if this field is a bitfield. If this returns false,
+    /// [`Field::bits`] will return 0 for the position and the entire value
+    /// width for the width.
+    fn bitfield(&self) -> bool;
+
+    /// Returns the bits that the field covers
     fn bits(&self) -> (Bitpos, Bitwidth);
+
+    /// Returns the name of the field
     fn name(&self) -> &'static str;
 }
 
-pub trait Value: core::fmt::Display {
-    fn scalar(&self) -> bool;
+pub trait Value: core::fmt::Display + core::fmt::Debug {
     fn desc(&self) -> &'static str;
     fn raw(&self) -> u32;
+    fn scalar(&self) -> bool;
 }
 
 pub trait Command: core::fmt::Debug {
@@ -27,9 +36,26 @@ pub trait Command: core::fmt::Debug {
 }
 
 pub trait CommandData {
-    fn fields(&self, iter: impl FnMut(&dyn Field, &dyn Value));
+    fn interpret(&self, iter: impl FnMut(&dyn Field, &dyn Value));
     fn raw(&self) -> (u32, Bitwidth);
     fn command(&self, cb: impl FnMut(&dyn Command));
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct WholeField(&'static str, Bitwidth);
+
+impl Field for WholeField {
+    fn bitfield(&self) -> bool {
+        false
+    }
+
+    fn bits(&self) -> (Bitpos, Bitwidth) {
+        (Bitpos(0), self.1)
+    }
+
+    fn name(&self) -> &'static str {
+        self.0
+    }
 }
 
 pub use crate::operation::Operation;

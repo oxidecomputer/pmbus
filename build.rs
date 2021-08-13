@@ -26,6 +26,10 @@ struct Offset(f32);
 #[derive(Debug, Deserialize)]
 struct Value(u16, String);
 
+//
+// Each member of this enum must have a corresponding 1-tuple struct in
+// crate::units::Units.
+//
 #[derive(Debug, Deserialize)]
 enum Units {
     Nanoseconds,
@@ -36,6 +40,9 @@ enum Units {
     Volts,
     Millivolts,
     Celsius,
+    Kilohertz,
+    RPM,
+    Watts,
 }
 
 impl Units {
@@ -49,6 +56,9 @@ impl Units {
             Units::Volts => "V",
             Units::Millivolts => "mV",
             Units::Celsius => "degrees C",
+            Units::RPM => "RPM",
+            Units::Watts => "W",
+            Units::Kilohertz => "kHz",
         }
     }
 }
@@ -59,6 +69,22 @@ enum Values<T> {
     Sentinels(T),
     Units(Units),
     ScaledUnits(Units, Factor),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+enum VOutMode {
+    SignedLinear,
+    UnsignedLinear,
+    Direct,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+enum Format {
+    Linear11,
+    ULinear16,
+    SLimear16,
+    Direct,
+    VOutMode(VOutMode),
 }
 
 #[derive(Debug, Deserialize)]
@@ -95,7 +121,14 @@ enum Operation {
 struct Command(u8, String, Operation, Operation);
 
 #[derive(Debug, Deserialize)]
-struct Commands(Vec<Command>, HashMap<String, HashMap<String, Field>>);
+struct CommandNumericFormat(String, Format, Units);
+
+#[derive(Debug, Deserialize)]
+struct Commands(
+    Vec<Command>,
+    Vec<CommandNumericFormat>,
+    HashMap<String, HashMap<String, Field>>,
+);
 
 #[derive(Debug, Deserialize)]
 struct Device(String, String);
@@ -171,7 +204,7 @@ impl Command for CommandCode {{
 
     writeln!(&mut s, r##"
 impl CommandCode {{
-    pub fn fields(
+    pub fn interpret(
         &self,
         payload: &[u8],
         iter: impl FnMut(&dyn Field, &dyn Value)
@@ -179,14 +212,14 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.0 {
-        if cmds.1.get(&cmd.1).is_none() {
+        if cmds.2.get(&cmd.1).is_none() {
             continue;
         }
 
         writeln!(&mut s, r##"            CommandCode::{} => {{
                 use {}::CommandData;
                 if let Some(data) = CommandData::from_slice(payload) {{
-                    data.fields(iter);
+                    data.interpret(iter);
                     Ok(())
                 }} else {{
                     Err(Error::ShortData)
@@ -202,7 +235,7 @@ impl CommandCode {{
         writeln!(&mut s, r##"            _ => {{
                 let code = *self as u8;
                 match super::CommandCode::from_u8(code) {{
-                    Some(cmd) => cmd.fields(payload, iter),
+                    Some(cmd) => cmd.interpret(payload, iter),
                     None => Ok(())
                 }}
             }}"##)?;
@@ -392,6 +425,10 @@ pub mod {} {{
     }}
 
     impl super::Field for Field {{
+        fn bitfield(&self) -> bool {{
+            true
+        }}
+
         fn bits(&self) -> (Bitpos, Bitwidth) {{
             match self {{"##)?;
 
@@ -639,15 +676,15 @@ pub mod {} {{
 
             Values::Units(unit) => {
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> crate::{:?} {{
-            crate::{:?}(self.get_val(Field::{}) as f32)
+        pub fn get_{}(&self) -> crate::units::{:?} {{
+            crate::units::{:?}(self.get_val(Field::{}) as f32)
         }}"##, method, unit, unit, f)?;
             }
 
             Values::ScaledUnits(unit, Factor(factor)) => {
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> crate::{:?} {{
-            crate::{:?}(self.get_val(Field::{}) as f32 * {})
+        pub fn get_{}(&self) -> crate::units::{:?} {{
+            crate::units::{:?}(self.get_val(Field::{}) as f32 * {})
         }}"##, method, unit, unit, f, factor)?;
             }
 
@@ -675,7 +712,7 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl super::CommandData for CommandData {{
-        fn fields(
+        fn interpret(
             &self,
             mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
         ) {{
@@ -707,6 +744,115 @@ pub mod {} {{
         }}
 
     }}"##, bits - 1, bits, cmd)?;
+
+    writeln!(&mut s, "}}")?;
+
+    Ok(s)
+}
+
+#[rustfmt::skip::macros(writeln)]
+fn output_command_data_value(
+    cmd: &str,
+    format: &Format,
+    u: &Units,
+    bytes: usize,
+) -> Result<String> {
+    let mut s = String::new();
+    let bits = bytes * 8;
+
+    let units = &format!("crate::units::{:?}", u);
+
+    writeln!(&mut s, r##"
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+pub mod {} {{
+    use super::Bitwidth;
+
+    pub struct CommandData(pub u{});
+
+    use super::Error;
+
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub struct Value({});
+
+    impl core::fmt::Display for Value {{
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
+            write!(f, "{{}}{}", self.0.0)
+        }}
+    }}
+
+    impl super::Value for Value {{
+        fn desc(&self) -> &'static str {{
+            "{} measurement"
+        }}
+
+        fn scalar(&self) -> bool {{
+            true
+        }}
+
+        fn raw(&self) -> u32 {{
+            self.0.0 as u32
+        }}
+    }}
+
+    impl CommandData {{
+        pub fn from_slice(slice: &[u8]) -> Option<Self> {{
+            use core::convert::TryInto;
+
+            let v: Result<&[u8; {}], _> = slice[0..{}].try_into();
+
+            match v {{
+                Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
+                Err(_) => None,
+            }}
+        }}"##, cmd, bits, units, u.suffix(), cmd, bytes, bytes, bits)?;
+
+    match format {
+        Format::Linear11 => {
+            writeln!(&mut s, r##"
+        pub fn get(&self) -> {} {{
+            {}(crate::Linear11(self.0).to_real())
+        }}
+
+        pub fn set(&mut self, val: {}) -> Result<(), Error> {{
+            if let Some(lin) = crate::Linear11::from_real(val.0) {{
+                self.0 = lin.0;
+                Ok(())
+            }} else {{
+                Err(Error::ValueOutOfRange)
+            }}
+        }}"##, units, units, units)?;
+        }
+
+        _ => {
+            panic!("{:?} not yet supported", format);
+        }
+    }
+
+    writeln!(&mut s, "    }}")?;
+
+    writeln!(&mut s, r##"
+    impl super::CommandData for CommandData {{
+        fn interpret(
+            &self,
+            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+        ) {{
+            let field = crate::commands::WholeField("{} measurement", Bitwidth({}));
+            iter(&field, &Value(self.get()))
+        }}
+
+        fn raw(&self) -> (u32, Bitwidth) {{
+            (self.0 as u32, Bitwidth({}))
+        }}
+
+        fn command(
+            &self,
+            mut cb: impl FnMut(&dyn super::Command)
+        ) {{
+            cb(&super::CommandCode::{})
+        }}
+
+    }}"##, cmd, bits, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -769,77 +915,78 @@ impl Device {{
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
-    writeln!(&mut s, "}}")?;
+
+    writeln!(&mut s, r##"
+    /// For this device and the given command code, iterates over the fields
+    /// in the structured register (if any), calling the specified function
+    /// for each field and its value.  In general, this should only be used by
+    /// agnostic code that is attmpting to make sense of PMBus data; *in situ*
+    /// code that wishes to pull a particular value should use the direct
+    /// accessor function instead.
+    pub fn interpret(
+        &self,
+        code: u8,
+        payload: &[u8],
+        iter: impl FnMut(&dyn Field, &dyn Value)
+    ) -> Result<(), Error> {{
+        match self {{
+            Device::Common => match CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.interpret(payload, iter)?;
+                    Ok(())
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+            Device::{} => match {}::CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.interpret(payload, iter)?;
+                    Ok(())
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+    writeln!(&mut s, r##"
+    pub fn command(
+        &self,
+        code: u8,
+        mut cb: impl FnMut(&dyn Command)
+    ) {{
+        match self {{
+            Device::Common => match CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cb(&cmd);
+                }}
+                None => {{}}
+            }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+            Device::{} => match {}::CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cb(&cmd);
+                }}
+                None => {{}}
+            }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n}}")?;
 
     writeln!(&mut s, r##"
 pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
     for dev in devices {
         writeln!(&mut s, "    dev(Device::{});", name(&dev.0))?;
     }
-    writeln!(&mut s, r##"}}
 
-/// For the given command code, iterates over the fields in the structured
-/// register (if any), calling the specified function for each field and its
-/// value.  In general, this should only be used by agnostic code that is
-/// attmpting to make sense of PMBus data; *in situ* code that wishes to pull
-/// a particular value should use the direct accessor function instead.
-pub fn fields(
-    device: Device,
-    code: u8,
-    payload: &[u8],
-    iter: impl FnMut(&dyn Field, &dyn Value)
-) -> Result<(), Error> {{
-    match device {{
-        Device::Common => match CommandCode::from_u8(code) {{
-            Some(cmd) => {{
-                cmd.fields(payload, iter)?;
-                Ok(())
-            }}
-            None => {{
-                Err(Error::InvalidCode)
-            }}
-        }},"##)?;
-
-    for dev in devices {
-        writeln!(&mut s, r##"
-        Device::{} => match {}::CommandCode::from_u8(code) {{
-            Some(cmd) => {{
-                cmd.fields(payload, iter)?;
-                Ok(())
-            }}
-            None => {{
-                Err(Error::InvalidCode)
-            }}
-        }},"##, name(&dev.0), dev.0)?;
-    }
-
-    writeln!(&mut s, r##"    }}
-}}
-
-pub fn command(
-    device: Device,
-    code: u8,
-    mut cb: impl FnMut(&dyn Command)
-) {{
-    match device {{
-        Device::Common => match CommandCode::from_u8(code) {{
-            Some(cmd) => {{
-                cb(&cmd);
-            }}
-            None => {{}}
-        }},"##)?;
-
-    for dev in devices {
-        writeln!(&mut s, r##"
-        Device::{} => match {}::CommandCode::from_u8(code) {{
-            Some(cmd) => {{
-                cb(&cmd);
-            }}
-            None => {{}}
-        }},"##, name(&dev.0), dev.0)?;
-    }
-
-    writeln!(&mut s, "    }}\n}}\n")?;
+    writeln!(&mut s, "}}")?;
 
     Ok(s)
 }
@@ -900,7 +1047,7 @@ fn codegen() -> Result<()> {
     };
 
     let sizes = reg_sizes(&cmds.0)?;
-    let dbs = &cmds.1;
+    let dbs = &cmds.2;
 
     let out_dir = env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("commands.rs");
@@ -974,11 +1121,11 @@ fn codegen() -> Result<()> {
         // override any common payload.
         //
         for (cmd, fields) in dbs {
-            if let Some(fields) = dcmds.1.get(cmd) {
+            if let Some(fields) = dcmds.2.get(cmd) {
                 let (bits, bytes) = validate(&cmd, &fields, &dsizes)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
-                dcmds.1.remove(cmd);
+                dcmds.2.remove(cmd);
             } else {
                 let (bits, bytes) = validate(&cmd, &fields, &sizes)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
@@ -986,9 +1133,24 @@ fn codegen() -> Result<()> {
             }
         }
 
-        for (cmd, fields) in &dcmds.1 {
+        for (cmd, fields) in &dcmds.2 {
             let (bits, bytes) = validate(&cmd, &fields, &dsizes)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
+            file.write_all(out.as_bytes())?;
+        }
+
+        for cmd in &dcmds.1 {
+            let bytes = match dsizes.get(&cmd.0) {
+                Some(Some(size)) => *size,
+                Some(None) => {
+                    bail!("command {} does not allow a value", cmd.0);
+                }
+                None => {
+                    bail!("command {} does not exist", cmd.0);
+                }
+            };
+
+            let out = output_command_data_value(&cmd.0, &cmd.1, &cmd.2, bytes)?;
             file.write_all(out.as_bytes())?;
         }
 

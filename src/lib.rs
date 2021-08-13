@@ -44,8 +44,8 @@
 //! There therefore exists a [`commands::adm1272::PMON_CONFIG`] module that
 //! understands the full (ADM1272-specific) functionality.  For code that
 //! wishes to be device agnostic but still be able to display contents, there
-//! exists the [`commands::fields`] function that takes a [`Device`], a code,
-//! and a payload, and closure to iterate over its fields and values.  
+//! exists a [`Device::interpret`] that given a device, a code, and a payload,
+//! calls the specified closure to iterate over fields and values.  
 //!
 //! A final (crucial) constraint is that this crate remains `no_std`; it
 //! performs no dynamic allocation and in general relies on program text
@@ -66,8 +66,10 @@ pub use num_traits::{FromPrimitive, ToPrimitive};
 mod operation;
 pub use crate::operation::Operation;
 
+pub mod units;
+
 pub mod commands;
-pub use crate::commands::{command, devices, fields};
+pub use crate::commands::devices;
 pub use crate::commands::{
     Bitpos, Bitwidth, Command, CommandCode, CommandData, Device, Error, Field,
     Value,
@@ -232,18 +234,6 @@ impl ULinear16 {
         self.0 as f32 * f32::powi(2.0, exp.into())
     }
 }
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Volts(pub f32);
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Millivolts(pub f32);
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Amperes(pub f32);
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Milliamps(pub f32);
 
 #[cfg(test)]
 mod tests {
@@ -497,7 +487,7 @@ mod tests {
     fn verify_operation() {
         let data = commands::OPERATION::CommandData(0x4);
 
-        data.fields(|field, value| {
+        data.interpret(|field, value| {
             std::println!("{} = {}", field.name(), value);
         });
     }
@@ -527,7 +517,7 @@ mod tests {
     #[test]
     fn raw_operation() {
         CommandCode::OPERATION
-            .fields(&[0x4], |field, value| {
+            .interpret(&[0x4], |field, value| {
                 std::println!("{} = {}", field.name(), value);
             })
             .unwrap();
@@ -613,7 +603,7 @@ mod tests {
             std::println!("\n{:?}: ", cmd);
         });
 
-        data.fields(|field, value| {
+        data.interpret(|field, value| {
             v.push((field.bits(), field.name(), std::format!("{}", value)));
         });
 
@@ -627,7 +617,7 @@ mod tests {
         let data = CommandData::from_slice(&[0x43, 0x18]).unwrap();
         dump(&data);
 
-        data.fields(|field, value| {
+        data.interpret(|field, value| {
             std::println!("{} = {}", field.name(), value);
         });
     }
@@ -701,7 +691,7 @@ mod tests {
 
         devices(|d| {
             for i in 0..=0xff {
-                command(d, i, |cmd| {
+                d.command(i, |cmd| {
                     std::println!("{:?}: {:2x} {:?}", d, i, cmd);
                 });
             }
@@ -734,10 +724,9 @@ mod tests {
         ];
 
         for code in 0..=0xff {
-            let _ =
-                super::fields(Device::Tps546B24A, code, &data[0..], |f, _v| {
-                    std::println!("f is {}", f.name());
-                });
+            let _ = Device::Tps546B24A.interpret(code, &data[0..], |f, _v| {
+                std::println!("f is {}", f.name());
+            });
         }
     }
 
@@ -759,12 +748,13 @@ mod tests {
         let val = cap.get(Field::MaximumBusSpeed);
         let target = std::format!("{}", val);
 
-        super::fields(Device::Tps546B24A, code, payload, |f, v| {
-            if f.name() == name {
-                result = Some(std::format!("{}", v));
-            }
-        })
-        .unwrap();
+        Device::Tps546B24A
+            .interpret(code, payload, |f, v| {
+                if f.name() == name {
+                    result = Some(std::format!("{}", v));
+                }
+            })
+            .unwrap();
 
         assert_eq!(result, Some(target));
     }
@@ -784,8 +774,38 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(data.get_trim_limit(), Millivolts(170.0));
+        assert_eq!(data.get_trim_limit(), units::Millivolts(170.0));
 
         dump(&data);
+    }
+
+    #[test]
+    fn bmr480_iout() {
+        use commands::bmr480::*;
+
+        let data = [
+            (0xf028u16, 10.0),
+            (0xf133, 76.75),
+            (0xf040, 16.0),
+            (0xf004, 1.0),
+            (0xf051, 20.25),
+            (0xf079, 30.25),
+            (0xf00a, 2.5),
+            (0xf0c9, 50.25),
+            (0xf07d, 31.25),
+            (0xf00b, 2.75),
+            (0xf009, 2.25),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(iout.get(), units::Amperes(d.1));
+
+            iout.interpret(|f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            });
+        }
     }
 }
