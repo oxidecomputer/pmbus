@@ -2,4 +2,5 @@
     ("adm1272", "Analog Devices Positive Hot Swap Controller"),
     ("tps546b24a", "Texas Instruments 2.95V-18V 20A Stackable Buck Converter"),
     ("bmr480", "Flex DC-DC Converter"),
+    ("bmr491", "Flex DC-DC Converter"),
 ]

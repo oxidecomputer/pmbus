@@ -35,8 +35,14 @@ pub trait Command: core::fmt::Debug {
     fn write_op(&self) -> Operation;
 }
 
+pub type VOutMode = VOUT_MODE::CommandData;
+
 pub trait CommandData {
-    fn interpret(&self, iter: impl FnMut(&dyn Field, &dyn Value));
+    fn interpret(
+        &self,
+        mode: impl Fn() -> VOutMode,
+        iter: impl FnMut(&dyn Field, &dyn Value),
+    );
     fn raw(&self) -> (u32, Bitwidth);
     fn command(&self, cb: impl FnMut(&dyn Command));
 }

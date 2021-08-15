@@ -196,32 +196,6 @@ impl Linear11 {
 #[derive(Copy, Clone, Debug)]
 pub struct ULinear16Exponent(pub i8);
 
-#[derive(Copy, Clone, Debug)]
-pub enum VOutMode {
-    ULinear16(ULinear16Exponent),
-    VID(u8),
-    Direct,
-    HalfPrecision,
-}
-
-impl From<u8> for VOutMode {
-    fn from(mode: u8) -> Self {
-        match (mode >> 5) & 0b11 {
-            0b00 => {
-                let exp = ((mode << 3) as i8) >> 3;
-                VOutMode::ULinear16(ULinear16Exponent(exp))
-            }
-            0b01 => {
-                let code = mode & 0x1f;
-                VOutMode::VID(code)
-            }
-            0b10 => VOutMode::Direct,
-            0b11 => VOutMode::HalfPrecision,
-            _ => unreachable!(),
-        }
-    }
-}
-
 ///
 /// A datum in the ULINEAR16 format.  ULINEAR16 is used only for voltage;
 /// the exponent comes from VOUT_MODE.
@@ -239,6 +213,10 @@ impl ULinear16 {
 mod tests {
     use super::*;
     extern crate std;
+
+    fn mode() -> commands::VOutMode {
+        panic!("no no bad bad");
+    }
 
     #[test]
     fn verify_cmds() {
@@ -487,7 +465,7 @@ mod tests {
     fn verify_operation() {
         let data = commands::OPERATION::CommandData(0x4);
 
-        data.interpret(|field, value| {
+        data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
         });
     }
@@ -517,7 +495,7 @@ mod tests {
     #[test]
     fn raw_operation() {
         CommandCode::OPERATION
-            .interpret(&[0x4], |field, value| {
+            .interpret(&[0x4], mode, |field, value| {
                 std::println!("{} = {}", field.name(), value);
             })
             .unwrap();
@@ -603,7 +581,7 @@ mod tests {
             std::println!("\n{:?}: ", cmd);
         });
 
-        data.interpret(|field, value| {
+        data.interpret(mode, |field, value| {
             v.push((field.bits(), field.name(), std::format!("{}", value)));
         });
 
@@ -617,7 +595,7 @@ mod tests {
         let data = CommandData::from_slice(&[0x43, 0x18]).unwrap();
         dump(&data);
 
-        data.interpret(|field, value| {
+        data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
         });
     }
@@ -692,7 +670,14 @@ mod tests {
         devices(|d| {
             for i in 0..=0xff {
                 d.command(i, |cmd| {
-                    std::println!("{:?}: {:2x} {:?}", d, i, cmd);
+                    std::println!(
+                        "{:?}: {:2x} {:?} R={:?} W={:?}",
+                        d,
+                        i,
+                        cmd,
+                        cmd.read_op(),
+                        cmd.write_op()
+                    );
                 });
             }
         });
@@ -724,9 +709,14 @@ mod tests {
         ];
 
         for code in 0..=0xff {
-            let _ = Device::Tps546B24A.interpret(code, &data[0..], |f, _v| {
-                std::println!("f is {}", f.name());
-            });
+            let _ = Device::Tps546B24A.interpret(
+                code,
+                &data[0..],
+                mode,
+                |f, _v| {
+                    std::println!("f is {}", f.name());
+                },
+            );
         }
     }
 
@@ -749,7 +739,7 @@ mod tests {
         let target = std::format!("{}", val);
 
         Device::Tps546B24A
-            .interpret(code, payload, |f, v| {
+            .interpret(code, payload, mode, |f, v| {
                 if f.name() == name {
                     result = Some(std::format!("{}", v));
                 }
@@ -802,7 +792,79 @@ mod tests {
             let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
             assert_eq!(iout.get(), units::Amperes(d.1));
 
-            iout.interpret(|f, v| {
+            iout.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            });
+        }
+    }
+
+    #[test]
+    fn bmr480_vout() {
+        use commands::bmr480::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x15]).unwrap();
+
+        let data = [
+            (0x0071u16, 0.05517578f32),
+            (0x0754, 0.9160156),
+            (0x5f72, 11.930664),
+            (0x5f80, 11.9375),
+            (0x5fd3, 11.978027),
+            (0x5fdb, 11.981934),
+            (0x5fe4, 11.986328),
+            (0x5fe6, 11.987305),
+            (0x5fec, 11.990234),
+            (0x5fee, 11.991211),
+            (0x5ff7, 11.995605),
+            (0x6007, 12.003418),
+            (0x6039, 12.027832),
+            (0x603f, 12.030762),
+            (0x6091, 12.070801),
+            (0x65b7, 12.714355),
+            (0x65d8, 12.730469),
+            (0x670a, 12.879883),
+            (0x68b0, 13.0859375),
+            (0x69c1, 13.219238),
+            (0x69e2, 13.235352),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vout = READ_VOUT::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vout.get(mode()), units::Volts(d.1));
+
+            vout.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            });
+        }
+    }
+
+    #[test]
+    fn bmr480_vin() {
+        use commands::bmr480::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x15]).unwrap();
+
+        let data = [
+            (0x0a5cu16, 1208.0),
+            (0x0a8c, 1304.0),
+            (0xe9a0, 52.0),
+            (0xe9a1, 52.125),
+            (0xe9a2, 52.25),
+            (0xe9a3, 52.375),
+            (0xe9a4, 52.5),
+            (0xe9a6, 52.75),
+            (0xe9a7, 52.875),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vin.get(), units::Volts(d.1));
+
+            vin.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
             });

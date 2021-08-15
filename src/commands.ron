@@ -224,7 +224,17 @@
     (0xfd, "MFR_SPECIFIC_FD", MfrDefined, MfrDefined),
     (0xfe, "MFR_SPECIFIC_COMMAND_EXT", Extended, Extended),
     (0xff, "PMBUS_COMMAND_EXT", Extended, Extended),
-], [], {
+], [
+    //
+    ("VOUT_COMMAND", VOutMode(Unsigned), Volts),
+    ("VOUT_TRIM", VOutMode(Signed), Volts),
+    ("VOUT_CAL_OFFSET", VOutMode(Signed), Volts),
+    ("VOUT_MAX", VOutMode(Unsigned), Volts),
+    ("VOUT_MARGIN_HIGH", VOutMode(Unsigned), Volts),
+    ("VOUT_MARGIN_LOW", VOutMode(Unsigned), Volts),
+    ("VOUT_MIN", VOutMode(Unsigned), Volts),
+    ("READ_VOUT", VOutMode(Unsigned), Volts),
+], {
     "OPERATION": {
         "OnOffState": (
             name: "On/off state",
@@ -379,7 +389,7 @@
         "Parameter": (
             name: "Parameter",
             bits: Bitrange(High(4), Low(0)),
-            values: Scalar,
+            values: Scalar(Signed),
         ),
     },
 
