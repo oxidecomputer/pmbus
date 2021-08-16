@@ -225,7 +225,6 @@
     (0xfe, "MFR_SPECIFIC_COMMAND_EXT", Extended, Extended),
     (0xff, "PMBUS_COMMAND_EXT", Extended, Extended),
 ], [
-    //
     ("VOUT_COMMAND", VOutMode(Unsigned), Volts),
     ("VOUT_TRIM", VOutMode(Signed), Volts),
     ("VOUT_CAL_OFFSET", VOutMode(Signed), Volts),

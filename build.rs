@@ -43,10 +43,12 @@ enum Units {
     Kilohertz,
     RPM,
     Milliohms,
+    VoltsPerMicrosecond,
     VoltsPerMillisecond,
     Watts,
     MillivoltsPerAmp,
     Percent,
+    Unitless,
 }
 
 impl Units {
@@ -65,8 +67,10 @@ impl Units {
             Units::Watts => "W",
             Units::Kilohertz => "kHz",
             Units::VoltsPerMillisecond => "V/ms",
+            Units::VoltsPerMicrosecond => "V/μs",
             Units::MillivoltsPerAmp => "mV/A",
             Units::Percent => "%",
+            Units::Unitless => "",
         }
     }
 }
@@ -224,8 +228,14 @@ impl CommandCode {{
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
+    let mut numerics = HashSet::new();
+
+    for cmd in &cmds.1 {
+        numerics.insert(&cmd.0);
+    }
+
     for cmd in &cmds.0 {
-        if cmds.2.get(&cmd.1).is_none() {
+        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
         }
 
@@ -431,6 +441,7 @@ pub mod {} {{
     use num_traits::FromPrimitive;
     use num_traits::ToPrimitive;
 
+    #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct CommandData(pub u{});
 
     #[derive(Copy, Clone, Debug, PartialEq)]
@@ -810,7 +821,7 @@ pub mod {} {{
     use crate::commands::VOutMode;
 
     #[derive(Copy, Clone, Debug, PartialEq)]
-    pub struct Value({});
+    pub struct Value({}, u32);
 
     impl core::fmt::Display for Value {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
@@ -828,7 +839,7 @@ pub mod {} {{
         }}
 
         fn raw(&self) -> u32 {{
-            self.0.0 as u32
+            self.1
         }}
     }}
 
@@ -906,7 +917,7 @@ pub mod {} {{
             let field = crate::commands::WholeField(
                 "{} measurement", Bitwidth({})
             );
-            iter(&field, &Value(self.get(mode())))
+            iter(&field, &Value(self.get(mode()), self.0.into()))
         }}"##, cmd, bits)?;
     } else {
         writeln!(&mut s, r##"
@@ -918,7 +929,7 @@ pub mod {} {{
             let field = crate::commands::WholeField(
                 "{} measurement", Bitwidth({})
             );
-            iter(&field, &Value(self.get()))
+            iter(&field, &Value(self.get(), self.0.into()))
         }}"##, cmd, bits)?;
     }
 
@@ -960,9 +971,7 @@ fn output_numerics(
         };
 
         units.insert(cmd.2);
-        out.push_str(
-            &output_command_numeric(&cmd.0, &cmd.1, &cmd.2, bytes)?
-        );
+        out.push_str(&output_command_numeric(&cmd.0, &cmd.1, &cmd.2, bytes)?);
     }
 
     Ok(out)
@@ -1251,12 +1260,14 @@ fn codegen() -> Result<()> {
         //
         for (cmd, fields) in dbs {
             if let Some(fields) = dcmds.2.get(cmd) {
-                let (bits, bytes) = validate(&cmd, &fields, &dsizes, &mut units)?;
+                let (bits, bytes) =
+                    validate(&cmd, &fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.2.remove(cmd);
             } else {
-                let (bits, bytes) = validate(&cmd, &fields, &sizes, &mut units)?;
+                let (bits, bytes) =
+                    validate(&cmd, &fields, &sizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
