@@ -89,12 +89,20 @@ enum Values<T> {
     ScaledUnits(Units, Factor),
 }
 
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[allow(non_snake_case)]
+struct Coefficients {
+    m: i32,
+    b: i16,
+    R: i8
+}
+
 #[derive(Clone, Debug, Deserialize)]
 enum Format {
     Linear11,
     ULinear16,
     SLimear16,
-    Direct,
+    Direct(Coefficients),
     VOutMode(Sign),
 }
 
@@ -142,7 +150,7 @@ struct Commands(
 );
 
 #[derive(Debug, Deserialize)]
-struct Device(String, String);
+struct Device(String, String, Option<Coefficients>);
 
 fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
@@ -173,14 +181,17 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
 }
 
 #[rustfmt::skip::macros(writeln)]
-fn output_commands(cmds: &Commands, device: bool) -> Result<String> {
+fn output_commands(
+    cmds: &Commands,
+    shadowing: Option<&Commands>
+) -> Result<String> {
     let mut s = String::new();
 
     writeln!(&mut s, r##"
 pub use num_derive::{{FromPrimitive, ToPrimitive}};
 pub use num_traits::{{FromPrimitive, ToPrimitive}};"##)?;
 
-    if device {
+    if shadowing.is_some() {
         writeln!(&mut s, "use super::VOutMode;")?;
     }
 
@@ -234,6 +245,16 @@ impl CommandCode {{
         numerics.insert(&cmd.0);
     }
 
+    //
+    // If we are a device, we need to go through any numerics that we're
+    // shadowing as well, as they will have a device-local definition.
+    //
+    if let Some(shadowing) = shadowing {
+        for cmd in &shadowing.1 {
+            numerics.insert(&cmd.0);
+        }
+    }
+
     for cmd in &cmds.0 {
         if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
@@ -242,15 +263,14 @@ impl CommandCode {{
         writeln!(&mut s, r##"            CommandCode::{} => {{
                 use {}::CommandData;
                 if let Some(data) = CommandData::from_slice(payload) {{
-                    data.interpret(mode, iter);
-                    Ok(())
+                    data.interpret(mode, iter)
                 }} else {{
                     Err(Error::ShortData)
                 }}
             }}"##, cmd.1, cmd.1)?;
     }
 
-    if device {
+    if shadowing.is_some() {
         //
         // For devices, we want to fallback to calling the common data
         // method.
@@ -433,6 +453,7 @@ fn output_command_data(
 pub mod {} {{
     use super::Bitpos;
     use super::Bitwidth;
+    use super::Error;
     use crate::commands::VOutMode;
 
     use num_derive::FromPrimitive;
@@ -674,7 +695,7 @@ pub mod {} {{
             (self.0 >> pos.0) & ((1 << width.0) - 1)
         }}
         
-        pub fn get(&self, field: Field) -> Value {{
+        pub fn get(&self, field: Field) -> Result<Value, Error> {{
             let raw = self.get_val(field);
 
             match field {{"##, bits)?;
@@ -683,8 +704,8 @@ pub mod {} {{
         writeln!(&mut s, r##"
                 Field::{} => {{
                     match {}::from_u{}(raw) {{
-                        Some(t) => Value::{}(t),
-                        None => Value::Unknown(raw),
+                        Some(t) => Ok(Value::{}(t)),
+                        None => Err(Error::InvalidSentinel),
                     }}
                 }}"##, f, f, bits, f)?;
     }
@@ -741,7 +762,7 @@ pub mod {} {{
         /// as a [`Value::{}`].
         pub fn get_{}(&self) -> Option<{}> {{
             match self.get(Field::{}) {{
-                Value::{}(v) => Some(v),
+                Ok(Value::{}(v)) => Some(v),
                 _ => None,
             }}
         }}"##, field.name, f, f,method, f, f, f)?;
@@ -762,12 +783,12 @@ pub mod {} {{
             &self,
             _mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
-        ) {{
+        ) -> Result<(), Error> {{
             let mut pos: u8 = {};
 
             loop {{
                 if let Some((field, _)) = CommandData::field(Bitpos(pos)) {{
-                    let val = self.get(field);
+                    let val = self.get(field)?;
                     iter(&field, &val);
                 }}
 
@@ -777,6 +798,7 @@ pub mod {} {{
 
                 pos -= 1;
             }}
+            Ok(())
         }}
 
         fn raw(&self) -> (u32, Bitwidth) {{
@@ -803,6 +825,7 @@ fn output_command_numeric(
     format: &Format,
     u: &Units,
     bytes: usize,
+    coeff: Option<Coefficients>,
 ) -> Result<String> {
     let mut s = String::new();
     let bits = bytes * 8;
@@ -858,8 +881,8 @@ pub mod {} {{
     match format {
         Format::Linear11 => {
             writeln!(&mut s, r##"
-        pub fn get(&self) -> {} {{
-            {}(crate::Linear11(self.0).to_real())
+        pub fn get(&self) -> Result<{}, Error> {{
+            Ok({}(crate::Linear11(self.0).to_real()))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
@@ -874,27 +897,62 @@ pub mod {} {{
 
         Format::VOutMode(_) => {
             writeln!(&mut s, r##"
-        pub fn get(&self, mode: VOutMode) -> {} {{
+        pub fn get(&self, mode: VOutMode) -> Result<{}, Error> {{
             match mode.get_mode() {{
                 Some(crate::commands::VOUT_MODE::Mode::ULINEAR16) => {{
                     let exp = crate::ULinear16Exponent(mode.get_parameter());
-                    {}(
+                    Ok({}(
                         crate::ULinear16(self.0, exp).to_real()
-                    )
+                    ))
                 }}
+                Some(crate::commands::VOUT_MODE::Mode::Direct) => {{"##,
+                units, units)?;
+ 
+            match coeff {
+                Some(coeff) => {
+                    writeln!(&mut s, r##"
+                    let coefficients = crate::Coefficients {{
+                        m: {}, R: {}, b: {},
+                    }};
+
+                    Ok({}(
+                        crate::Direct(self.0, coefficients).to_real()
+                    ))"##, coeff.m, coeff.R, coeff.b, units)?;
+                }
+
+                None => {
+                    writeln!(&mut s, r##"
+                    Err(Error::MissingCoefficients)"##)?;
+                }
+            }
+
+            writeln!(&mut s, r##"                }}
                 _ => {{
-                    panic!("unsupported mode {{:?}}", mode.get_mode());
+                    Err(Error::InvalidMode)
                 }}
             }}
+        }}"##)?;
+        }
+
+        Format::Direct(c) => {
+            writeln!(&mut s, r##"
+        pub fn get(&self) -> Result<{}, Error> {{
+            let coefficients = crate::Coefficients {{
+                m: {}, R: {}, b: {},
+            }};
+
+            Ok({}(crate::Direct(self.0, coefficients).to_real()))
         }}
 
-        pub fn set(
-            &mut self,
-            _mode: VOutMode,
-            _val: {}
-        ) -> Result<(), Error> {{
-            Err(Error::ValueOutOfRange)
-        }}"##, units, units, units)?;
+        pub fn set(&mut self, val: {}) -> Result<(), Error> {{
+            let coefficients = crate::Coefficients {{
+                m: {}, R: {}, b: {},
+            }};
+
+            self.0 = crate::Direct::from_real(val.0, coefficients).0;
+
+            Ok(())
+        }}"##, units, c.m, c.R, c.b, units, units, c.m, c.R, c.b)?;
         }
 
         _ => {
@@ -913,11 +971,12 @@ pub mod {} {{
             &self,
             mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
-        ) {{
+        ) -> Result<(), Error> {{
             let field = crate::commands::WholeField(
                 "{} measurement", Bitwidth({})
             );
-            iter(&field, &Value(self.get(mode()), self.0.into()))
+            iter(&field, &Value(self.get(mode())?, self.0.into()));
+            Ok(())
         }}"##, cmd, bits)?;
     } else {
         writeln!(&mut s, r##"
@@ -925,11 +984,12 @@ pub mod {} {{
             &self,
             _mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
-        ) {{
+        ) -> Result<(), Error> {{
             let field = crate::commands::WholeField(
                 "{} measurement", Bitwidth({})
             );
-            iter(&field, &Value(self.get(), self.0.into()))
+            iter(&field, &Value(self.get()?, self.0.into()));
+            Ok(())
         }}"##, cmd, bits)?;
     }
 
@@ -956,6 +1016,7 @@ fn output_numerics(
     cmds: &Vec<CommandNumericFormat>,
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
+    coeff: Option<Coefficients>,
 ) -> Result<String> {
     let mut out = String::new();
 
@@ -971,7 +1032,9 @@ fn output_numerics(
         };
 
         units.insert(cmd.2);
-        out.push_str(&output_command_numeric(&cmd.0, &cmd.1, &cmd.2, bytes)?);
+        out.push_str(
+            &output_command_numeric(&cmd.0, &cmd.1, &cmd.2, bytes, coeff)?
+        );
     }
 
     Ok(out)
@@ -1053,8 +1116,7 @@ impl Device {{
         match self {{
             Device::Common => match CommandCode::from_u8(code) {{
                 Some(cmd) => {{
-                    cmd.interpret(payload, mode, iter)?;
-                    Ok(())
+                    cmd.interpret(payload, mode, iter)
                 }}
                 None => {{
                     Err(Error::InvalidCode)
@@ -1065,8 +1127,7 @@ impl Device {{
         writeln!(&mut s, r##"
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
-                    cmd.interpret(payload, mode, iter)?;
-                    Ok(())
+                    cmd.interpret(payload, mode, iter)
                 }}
                 None => {{
                     Err(Error::InvalidCode)
@@ -1188,7 +1249,7 @@ fn codegen() -> Result<()> {
     let mut file = File::create(&dest_path)?;
     let mut units: HashSet<Units> = HashSet::new();
 
-    let out = output_commands(&cmds, false)?;
+    let out = output_commands(&cmds, None)?;
     file.write_all(out.as_bytes())?;
 
     for (cmd, fields) in dbs {
@@ -1197,7 +1258,7 @@ fn codegen() -> Result<()> {
         file.write_all(out.as_bytes())?;
     }
 
-    let out = output_numerics(&cmds.1, &sizes, &mut units)?;
+    let out = output_numerics(&cmds.1, &sizes, &mut units, None)?;
     file.write_all(out.as_bytes())?;
 
     let f = open_file("devices.ron")?;
@@ -1249,7 +1310,7 @@ fn codegen() -> Result<()> {
             }
         }
 
-        let out = output_commands(&dcmds, true)?;
+        let out = output_commands(&dcmds, Some(&cmds))?;
         file.write_all(out.as_bytes())?;
 
         let dsizes = reg_sizes(&dcmds.0)?;
@@ -1279,10 +1340,10 @@ fn codegen() -> Result<()> {
             file.write_all(out.as_bytes())?;
         }
 
-        let out = output_numerics(&dcmds.1, &dsizes, &mut units)?;
+        let out = output_numerics(&dcmds.1, &dsizes, &mut units, dev.2)?;
         file.write_all(out.as_bytes())?;
 
-        let out = output_numerics(&cmds.1, &sizes, &mut units)?;
+        let out = output_numerics(&cmds.1, &sizes, &mut units, dev.2)?;
         file.write_all(out.as_bytes())?;
 
         let out = output_device(&dev.0)?;

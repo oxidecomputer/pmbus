@@ -4,11 +4,14 @@ pub struct Bitpos(pub u8);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Bitwidth(pub u8);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Error {
     ShortData,
     InvalidCode,
     ValueOutOfRange,
+    InvalidMode,
+    InvalidSentinel,
+    MissingCoefficients,
 }
 
 pub trait Field: core::fmt::Debug {
@@ -42,7 +45,7 @@ pub trait CommandData {
         &self,
         mode: impl Fn() -> VOutMode,
         iter: impl FnMut(&dyn Field, &dyn Value),
-    );
+    ) -> Result<(), Error>;
     fn raw(&self) -> (u32, Bitwidth);
     fn command(&self, cb: impl FnMut(&dyn Command));
 }

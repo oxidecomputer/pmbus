@@ -105,7 +105,7 @@ impl Direct {
         let m: f32 = coefficients.m as f32;
         let b: f32 = coefficients.b.into();
         let exp: i32 = coefficients.R.into();
-        let y: f32 = self.0.into();
+        let y: f32 = (self.0 as i16).into();
 
         (y * f32::powi(10.0, -exp) - b) / m
     }
@@ -467,7 +467,7 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
-        });
+        }).unwrap();
     }
 
     #[test]
@@ -583,7 +583,7 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             v.push((field.bits(), field.name(), std::format!("{}", value)));
-        });
+        }).unwrap();
 
         dump_data(val, width, &mut v);
     }
@@ -597,7 +597,7 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
-        });
+        }).unwrap();
     }
 
     #[test]
@@ -702,6 +702,7 @@ mod tests {
     #[test]
     fn tps_read_all_data() {
         let _code = commands::tps546b24a::CommandCode::READ_ALL as u8;
+        let mode = || commands::VOutMode::from_slice(&[0x97]).unwrap();
 
         let data = [
             0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
@@ -735,7 +736,7 @@ mod tests {
         let name = Field::MaximumBusSpeed.name();
 
         let cap = CommandData::from_slice(payload).unwrap();
-        let val = cap.get(Field::MaximumBusSpeed);
+        let val = cap.get(Field::MaximumBusSpeed).unwrap();
         let target = std::format!("{}", val);
 
         Device::Tps546B24A
@@ -790,12 +791,12 @@ mod tests {
         for d in data {
             let raw = d.0.to_le_bytes();
             let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
-            assert_eq!(iout.get(), units::Amperes(d.1));
+            assert_eq!(iout.get(), Ok(units::Amperes(d.1)));
 
             iout.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            });
+            }).unwrap();
         }
     }
 
@@ -832,12 +833,12 @@ mod tests {
         for d in data {
             let raw = d.0.to_le_bytes();
             let vout = READ_VOUT::CommandData::from_slice(&raw).unwrap();
-            assert_eq!(vout.get(mode()), units::Volts(d.1));
+            assert_eq!(vout.get(mode()), Ok(units::Volts(d.1)));
 
             vout.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            });
+            }).unwrap();
         }
     }
 
@@ -862,12 +863,36 @@ mod tests {
         for d in data {
             let raw = d.0.to_le_bytes();
             let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
-            assert_eq!(vin.get(), units::Volts(d.1));
+            assert_eq!(vin.get(), Ok(units::Volts(d.1)));
 
             vin.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            });
+            }).unwrap();
         }
     }
+
+    #[test]
+    fn isl68224_vin() {
+        use commands::isl68224::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x40]).unwrap();
+
+        let data = [
+            (0x04a9u16, 11.929999),
+            (0xffff, -0.01),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vin.get(), Ok(units::Volts(d.1)));
+
+            vin.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            }).unwrap();
+        }
+    }
+
 }
