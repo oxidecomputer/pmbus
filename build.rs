@@ -94,7 +94,7 @@ enum Values<T> {
 struct Coefficients {
     m: i32,
     b: i16,
-    R: i8
+    R: i8,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -183,7 +183,7 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
 #[rustfmt::skip::macros(writeln)]
 fn output_commands(
     cmds: &Commands,
-    shadowing: Option<&Commands>
+    shadowing: Option<&Commands>,
 ) -> Result<String> {
     let mut s = String::new();
 
@@ -192,7 +192,9 @@ pub use num_derive::{{FromPrimitive, ToPrimitive}};
 pub use num_traits::{{FromPrimitive, ToPrimitive}};"##)?;
 
     if shadowing.is_some() {
-        writeln!(&mut s, "use super::VOutMode;")?;
+        writeln!(&mut s, r##"
+use super::VOutMode;
+use super::Replacement;"##)?;
     }
 
     writeln!(&mut s, r##"
@@ -229,16 +231,6 @@ impl Command for CommandCode {{
 
     writeln!(&mut s, "        }}\n    }}\n}}")?;
 
-    writeln!(&mut s, r##"
-impl CommandCode {{
-    pub fn interpret(
-        &self,
-        payload: &[u8],
-        mode: impl Fn() -> VOutMode,
-        iter: impl FnMut(&dyn Field, &dyn Value)
-    ) -> Result<(), Error> {{
-        match self {{"##)?;
-
     let mut numerics = HashSet::new();
 
     for cmd in &cmds.1 {
@@ -254,6 +246,16 @@ impl CommandCode {{
             numerics.insert(&cmd.0);
         }
     }
+
+    writeln!(&mut s, r##"
+impl CommandCode {{
+    pub fn interpret(
+        &self,
+        payload: &[u8],
+        mode: impl Fn() -> VOutMode,
+        iter: impl FnMut(&dyn Field, &dyn Value)
+    ) -> Result<(), Error> {{
+        match self {{"##)?;
 
     for cmd in &cmds.0 {
         if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
@@ -279,6 +281,48 @@ impl CommandCode {{
                 let code = *self as u8;
                 match super::CommandCode::from_u8(code) {{
                     Some(cmd) => cmd.interpret(payload, mode, iter),
+                    None => Ok(())
+                }}
+            }}"##)?;
+    } else {
+        writeln!(&mut s, "            _ => Ok(()),")?;
+    }
+
+    writeln!(&mut s, r##"        }}
+    }}
+
+    pub fn mutate(
+        &self,
+        payload: &mut [u8],
+        mode: impl Fn() -> VOutMode,
+        iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>
+    ) -> Result<(), Error> {{
+        match self {{"##)?;
+
+    for cmd in &cmds.0 {
+        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+            continue;
+        }
+
+        writeln!(&mut s, r##"            CommandCode::{} => {{
+                use {}::CommandData;
+                if let Some(mut data) = CommandData::from_slice(payload) {{
+                    data.mutate(mode, iter)
+                }} else {{
+                    Err(Error::ShortData)
+                }}
+            }}"##, cmd.1, cmd.1)?;
+    }
+
+    if shadowing.is_some() {
+        //
+        // For devices, we want to fallback to calling the common mutate
+        // method.
+        //
+        writeln!(&mut s, r##"            _ => {{
+                let code = *self as u8;
+                match super::CommandCode::from_u8(code) {{
+                    Some(cmd) => cmd.mutate(payload, mode, iter),
                     None => Ok(())
                 }}
             }}"##)?;
@@ -455,6 +499,7 @@ pub mod {} {{
     use super::Bitwidth;
     use super::Error;
     use crate::commands::VOutMode;
+    use crate::commands::Replacement;
 
     use num_derive::FromPrimitive;
     use num_derive::ToPrimitive;
@@ -801,6 +846,41 @@ pub mod {} {{
             Ok(())
         }}
 
+        fn mutate(
+            &mut self,
+            _mode: impl Fn() -> VOutMode,
+            mut iter: impl FnMut(
+                &dyn super::Field, &dyn super::Value
+            ) -> Option<Replacement>
+        ) -> Result<(), Error> {{
+            let mut pos: u8 = {};
+
+            loop {{
+                if let Some((field, _)) = CommandData::field(Bitpos(pos)) {{
+                    let val = self.get(field)?;
+                    if let Some(replacement) = iter(&field, &val) {{
+                        match replacement {{
+                            Replacement::Boolean(b) => {{
+                                let v = if b {{ 1 }} else {{ 0 }};
+                                self.set_val(field, v);
+                            }}
+
+                            _ => {{
+                                panic!("not yet");
+                            }}
+                        }}
+                    }}
+                }}
+
+                if pos == 0 {{
+                    break;
+                }}
+
+                pos -= 1;
+            }}
+            Ok(())
+        }}
+
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
         }}
@@ -812,7 +892,7 @@ pub mod {} {{
             cb(&super::CommandCode::{})
         }}
 
-    }}"##, bits - 1, bits, cmd)?;
+    }}"##, bits - 1, bits - 1, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -842,6 +922,7 @@ pub mod {} {{
 
     use super::Error;
     use crate::commands::VOutMode;
+    use crate::commands::Replacement;
 
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct Value({}, u32);
@@ -907,7 +988,7 @@ pub mod {} {{
                 }}
                 Some(crate::commands::VOUT_MODE::Mode::Direct) => {{"##,
                 units, units)?;
- 
+
             match coeff {
                 Some(coeff) => {
                     writeln!(&mut s, r##"
@@ -993,6 +1074,49 @@ pub mod {} {{
         }}"##, cmd, bits)?;
     }
 
+    if let Format::VOutMode(_) = format {
+        writeln!(&mut s, r##"
+        fn mutate(
+            &mut self,
+            mode: impl Fn() -> VOutMode,
+            mut iter: impl FnMut(
+                &dyn super::Field, &dyn super::Value
+            ) -> Option<Replacement>
+        ) -> Result<(), Error> {{
+            let field = crate::commands::WholeField(
+                "{} measurement", Bitwidth({})
+            );
+
+            let val = Value(self.get(mode())?, self.0.into());
+
+            if let Some(_replacement) = iter(&field, &val) {{
+                panic!("not yet vout");
+            }}
+
+            Ok(())
+        }}"##, cmd, bits)?;
+    } else {
+        writeln!(&mut s, r##"
+        fn mutate(
+            &mut self,
+            _mode: impl Fn() -> VOutMode,
+            mut iter: impl FnMut(
+                &dyn super::Field, &dyn super::Value
+            ) -> Option<Replacement>
+        ) -> Result<(), Error> {{
+            let field = crate::commands::WholeField(
+                "{} measurement", Bitwidth({})
+            );
+            let val = Value(self.get()?, self.0.into());
+
+            if let Some(_replacement) = iter(&field, &val) {{
+                panic!("not yet dunno");
+            }}
+
+            Ok(())
+        }}"##, cmd, bits)?;
+    }
+
     writeln!(&mut s, r##"
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
@@ -1032,9 +1156,9 @@ fn output_numerics(
         };
 
         units.insert(cmd.2);
-        out.push_str(
-            &output_command_numeric(&cmd.0, &cmd.1, &cmd.2, bytes, coeff)?
-        );
+        out.push_str(&output_command_numeric(
+            &cmd.0, &cmd.1, &cmd.2, bytes, coeff,
+        )?);
     }
 
     Ok(out)
@@ -1128,6 +1252,48 @@ impl Device {{
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
                     cmd.interpret(payload, mode, iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+
+    writeln!(&mut s, r##"
+    /// For this device and the given command code, iterates over the fields
+    /// in the structured register (if any) for the purpose of mutating some
+    /// individual field.  This will call the specified function for each
+    /// field and its value, which should return a value that should serve as
+    /// a replacement for the passed field.  The current VOUT_MODE is required
+    /// to interpret some command data bytes; this must be provided via a
+    /// closure that returns it.  In general -- as with [`interpret`] -- this
+    /// should only be used by agnostic code that is attmpting to modify PMBus
+    /// registers; *in situ* code that wishes to pull a particular value
+    /// should use the direct setter function instead.
+    pub fn mutate(
+        &mut self,
+        code: u8,
+        payload: &mut [u8],
+        mode: impl Fn() -> VOutMode,
+        iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>
+    ) -> Result<(), Error> {{
+        match self {{
+            Device::Common => match CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.mutate(payload, mode, iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+            Device::{} => match {}::CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.mutate(payload, mode, iter)
                 }}
                 None => {{
                     Err(Error::InvalidCode)

@@ -467,7 +467,8 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -583,7 +584,8 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             v.push((field.bits(), field.name(), std::format!("{}", value)));
-        }).unwrap();
+        })
+        .unwrap();
 
         dump_data(val, width, &mut v);
     }
@@ -597,7 +599,8 @@ mod tests {
 
         data.interpret(mode, |field, value| {
             std::println!("{} = {}", field.name(), value);
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
@@ -796,7 +799,8 @@ mod tests {
             iout.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
 
@@ -838,7 +842,8 @@ mod tests {
             vout.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
 
@@ -868,7 +873,8 @@ mod tests {
             vin.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
 
@@ -878,10 +884,7 @@ mod tests {
 
         let mode = || commands::VOutMode::from_slice(&[0x40]).unwrap();
 
-        let data = [
-            (0x04a9u16, 11.929999),
-            (0xffff, -0.01),
-        ];
+        let data = [(0x04a9u16, 11.929999), (0xffff, -0.01)];
 
         for d in data {
             let raw = d.0.to_le_bytes();
@@ -891,8 +894,29 @@ mod tests {
             vin.interpret(mode, |f, v| {
                 assert_eq!(f.bitfield(), false);
                 std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
 
+    #[test]
+    fn mutate_operation() {
+        let mut data = commands::OPERATION::CommandData(0x4);
+
+        dump(&data);
+
+        data.mutate(mode, |field, value| {
+            let v = std::format!("{:?}", field);
+            std::println!("{:?} {} = {}", field, field.name(), value);
+
+            if v == "OnOffState" {
+                Some(commands::Replacement::Boolean(true))
+            } else {
+                None
+            }
+        })
+        .unwrap();
+
+        dump(&data);
+    }
 }

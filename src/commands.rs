@@ -14,6 +14,13 @@ pub enum Error {
     MissingCoefficients,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Replacement {
+    Float(f32),
+    Integer(u32),
+    Boolean(bool),
+}
+
 pub trait Field: core::fmt::Debug {
     /// Returns true if this field is a bitfield. If this returns false,
     /// [`Field::bits`] will return 0 for the position and the entire value
@@ -46,6 +53,13 @@ pub trait CommandData {
         mode: impl Fn() -> VOutMode,
         iter: impl FnMut(&dyn Field, &dyn Value),
     ) -> Result<(), Error>;
+
+    fn mutate(
+        &mut self,
+        mode: impl Fn() -> VOutMode,
+        iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>,
+    ) -> Result<(), Error>;
+
     fn raw(&self) -> (u32, Bitwidth);
     fn command(&self, cb: impl FnMut(&dyn Command));
 }
