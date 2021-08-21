@@ -12,6 +12,8 @@ pub enum Error {
     InvalidMode,
     InvalidSentinel,
     MissingCoefficients,
+    InvalidReplacement,
+    OverflowReplacement,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -32,6 +34,9 @@ pub trait Field: core::fmt::Debug {
 
     /// Returns the name of the field
     fn name(&self) -> &'static str;
+
+    /// Returns the description of the field
+    fn desc(&self) -> &'static str;
 }
 
 pub trait Value: core::fmt::Display + core::fmt::Debug {
@@ -77,6 +82,10 @@ impl Field for WholeField {
     }
 
     fn name(&self) -> &'static str {
+        "scalar"
+    }
+
+    fn desc(&self) -> &'static str {
         self.0
     }
 }

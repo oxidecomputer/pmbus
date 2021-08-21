@@ -522,7 +522,7 @@ pub mod {} {{
     impl core::fmt::Display for Field {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
             use super::Field;
-            write!(f, "{{}}", self.name())
+            write!(f, "{{}}", self.desc())
         }}
     }}
 
@@ -550,8 +550,21 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
+    for (f, _) in fields {
+        writeln!(&mut s, "                Field::{} => \"{}\",", f, f)?;
+    }
+
+    writeln!(&mut s, "            }}\n        }}")?;
+
+    writeln!(&mut s, r##"
+        fn desc(&self) -> &'static str {{
+            match self {{"##)?;
+
     for (f, field) in fields {
-        writeln!(&mut s, "                Field::{} => \"{}\",", f, field.name)?;
+        writeln!(
+            &mut s, "                Field::{} => \"{}\",",
+            f, field.name
+        )?;
     }
 
     writeln!(&mut s, "            }}\n        }}\n    }}")?;
@@ -761,8 +774,9 @@ pub mod {} {{
         fn set_val(&mut self, field: Field, raw: u{}) {{
             use super::Field;
             let (pos, width) = field.bits();
-            self.0 &= !(((1 << width.0) - 1) << pos.0);
-            self.0 |= raw << pos.0;
+            let mask = (1 << width.0) - 1;
+            self.0 &= !(mask << pos.0);
+            self.0 |= (raw & mask) << pos.0;
         }}"##, bits)?;
 
     for (f, field) in fields {
@@ -865,8 +879,20 @@ pub mod {} {{
                                 self.set_val(field, v);
                             }}
 
+                            Replacement::Integer(i) => {{
+                                use super::Field;
+
+                                let width = field.bits().1.0;
+
+                                if i >= 1 << width as u32 {{
+                                    return Err(Error::OverflowReplacement);
+                                }}
+
+                                self.set_val(field, i as u{});
+                            }}
+
                             _ => {{
-                                panic!("not yet");
+                                return Err(Error::InvalidReplacement);
                             }}
                         }}
                     }}
@@ -892,7 +918,7 @@ pub mod {} {{
             cb(&super::CommandCode::{})
         }}
 
-    }}"##, bits - 1, bits - 1, bits, cmd)?;
+    }}"##, bits - 1, bits - 1, bits, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -999,6 +1025,46 @@ pub mod {} {{
                     Ok({}(
                         crate::Direct(self.0, coefficients).to_real()
                     ))"##, coeff.m, coeff.R, coeff.b, units)?;
+                }
+
+                None => {
+                    writeln!(&mut s, r##"
+                    Err(Error::MissingCoefficients)"##)?;
+                }
+            }
+
+            writeln!(&mut s, r##"                }}
+                _ => {{
+                    Err(Error::InvalidMode)
+                }}
+            }}
+        }}
+
+        pub fn set(&mut self, mode: VOutMode, val: {}) -> Result<(), Error> {{
+            match mode.get_mode() {{
+                Some(crate::commands::VOUT_MODE::Mode::ULINEAR16) => {{
+                    let exp = crate::ULinear16Exponent(mode.get_parameter());
+
+                    self.0 = match crate::ULinear16::from_real(val.0, exp) {{
+                        Some(val) => val.0,
+                        None => return Err(Error::ValueOutOfRange)
+                    }};
+
+                    Ok(())
+                }}
+                Some(crate::commands::VOUT_MODE::Mode::Direct) => {{"##,
+                units)?;
+
+            match coeff {
+                Some(coeff) => {
+                    writeln!(&mut s, r##"
+                    let coefficients = crate::Coefficients {{
+                        m: {}, R: {}, b: {},
+                    }};
+
+                    self.0 = crate::Direct::from_real(val.0, coefficients).0;
+
+                    Ok(())"##, coeff.m, coeff.R, coeff.b)?;
                 }
 
                 None => {

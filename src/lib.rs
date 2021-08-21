@@ -207,6 +207,16 @@ impl ULinear16 {
         let exp = self.1 .0;
         self.0 as f32 * f32::powi(2.0, exp.into())
     }
+
+    pub fn from_real(x: f32, exp: ULinear16Exponent) -> Option<Self> {
+        let val = (x / f32::powi(2.0, exp.0.into())).round();
+
+        if val > core::u16::MAX as f32 {
+            None
+        } else {
+            Some(Self(val as u16, exp))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -466,7 +476,7 @@ mod tests {
         let data = commands::OPERATION::CommandData(0x4);
 
         data.interpret(mode, |field, value| {
-            std::println!("{} = {}", field.name(), value);
+            std::println!("{} = {}", field.desc(), value);
         })
         .unwrap();
     }
@@ -497,7 +507,7 @@ mod tests {
     fn raw_operation() {
         CommandCode::OPERATION
             .interpret(&[0x4], mode, |field, value| {
-                std::println!("{} = {}", field.name(), value);
+                std::println!("{} = {}", field.desc(), value);
             })
             .unwrap();
     }
@@ -583,7 +593,7 @@ mod tests {
         });
 
         data.interpret(mode, |field, value| {
-            v.push((field.bits(), field.name(), std::format!("{}", value)));
+            v.push((field.bits(), field.desc(), std::format!("{}", value)));
         })
         .unwrap();
 
@@ -598,7 +608,7 @@ mod tests {
         dump(&data);
 
         data.interpret(mode, |field, value| {
-            std::println!("{} = {}", field.name(), value);
+            std::println!("{} = {}", field.desc(), value);
         })
         .unwrap();
     }
@@ -718,7 +728,7 @@ mod tests {
                 &data[0..],
                 mode,
                 |f, _v| {
-                    std::println!("f is {}", f.name());
+                    std::println!("f is {}", f.desc());
                 },
             );
         }
@@ -901,15 +911,16 @@ mod tests {
 
     #[test]
     fn mutate_operation() {
-        let mut data = commands::OPERATION::CommandData(0x4);
+        use commands::OPERATION::*;
 
+        let mut data = CommandData(0x4);
         dump(&data);
 
-        data.mutate(mode, |field, value| {
-            let v = std::format!("{:?}", field);
-            std::println!("{:?} {} = {}", field, field.name(), value);
+        std::println!("{:?}", data.get_on_off_state());
+        assert_eq!(data.get_on_off_state(), Some(OnOffState::Off));
 
-            if v == "OnOffState" {
+        data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
                 Some(commands::Replacement::Boolean(true))
             } else {
                 None
@@ -917,6 +928,83 @@ mod tests {
         })
         .unwrap();
 
+        assert_eq!(data.get_on_off_state(), Some(OnOffState::On));
+
         dump(&data);
+    }
+
+    #[test]
+    fn mutate_overflow_replacement() {
+        use commands::OPERATION::*;
+
+        let mut data = CommandData(0x4);
+
+        let rval = data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
+                Some(commands::Replacement::Integer(3))
+            } else {
+                None
+            }
+        });
+
+        assert_eq!(rval, Err(Error::OverflowReplacement));
+    }
+
+    #[test]
+    fn mutate_invalid() {
+        use commands::OPERATION::*;
+
+        let mut data = CommandData(0x4);
+
+        let rval = data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
+                Some(commands::Replacement::Float(3.1))
+            } else {
+                None
+            }
+        });
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+    }
+
+    #[test]
+    fn set_vout_command() {
+        let mut vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        std::println!("param is {}", vout.get_parameter());
+        let mut data = CommandData::from_slice(&[0x63, 0x02]).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        data.set(vout, units::Volts(1.20)).unwrap();
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+
+        //
+        // Now crank our resolution up
+        //
+        vout.set_parameter(commands::VOUT_MODE::Parameter(-12i8 as u8));
+        data.set(vout, units::Volts(1.20)).unwrap();
+        std::println!("{:?}", data.get(vout).unwrap());
+
+        vout.set_parameter(commands::VOUT_MODE::Parameter(-15i8 as u8));
+        data.set(vout, units::Volts(1.20)).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.2000122)));
+
+        //
+        // With our exponent cranked to its maximum, there is no room
+        // left for anything greater than 1.
+        //
+        vout.set_parameter(commands::VOUT_MODE::Parameter(-16i8 as u8));
+        data.set(vout, units::Volts(0.20)).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(0.19999695)));
+
+        assert_eq!(
+            data.set(vout, units::Volts(1.20)),
+            Err(Error::ValueOutOfRange)
+        );
+
+        std::println!("{:?}", data.get(vout).unwrap());
     }
 }
