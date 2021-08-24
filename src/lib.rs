@@ -910,6 +910,25 @@ mod tests {
     }
 
     #[test]
+    fn isl68224_ton_rise() {
+        use commands::isl68224::TON_RISE::*;
+
+        let mut data = CommandData::from_slice(&[0xf4, 0x01]).unwrap();
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.5)));
+
+        data.set(units::Milliseconds(0.75)).unwrap();
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.75000006)));
+
+        let rval = data.mutate(mode, |field, _| {
+            assert_eq!(field.bitfield(), false);
+            assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+            Some(commands::Replacement::Float(0.25))
+        });
+
+        std::println!("{:?}", data.get());
+    }
+
+    #[test]
     fn mutate_operation() {
         use commands::OPERATION::*;
 
@@ -968,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn set_vout_command() {
+    fn vout_command_set() {
         let mut vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
         use commands::VOUT_COMMAND::*;
         dump(&vout);
@@ -1006,5 +1025,50 @@ mod tests {
         );
 
         std::println!("{:?}", data.get(vout).unwrap());
+    }
+
+    #[test]
+    fn vout_command_mutate() {
+        let vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        let mut data = CommandData::from_slice(&[0x63, 0x02]).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        let rval = data.mutate(
+            || vout,
+            |field, _| {
+                assert_eq!(field.bitfield(), false);
+                assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+                Some(commands::Replacement::Float(1.20))
+            },
+        );
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+
+        let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Boolean(true)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+
+        let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Float(150.0)));
+
+        assert_eq!(rval, Err(Error::ValueOutOfRange));
+    }
+
+    #[test]
+    fn sentinels() {
+        use commands::OPERATION::*;
+
+        let data = CommandData::from_slice(&[0x88]).unwrap();
+        dump(&data);
+
+        CommandData::sentinels(Bitpos(7), |name, desc, raw| {
+            std::println!("{}: {} = {}", name, desc, raw);
+        });
     }
 }

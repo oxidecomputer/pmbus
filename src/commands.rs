@@ -14,6 +14,7 @@ pub enum Error {
     MissingCoefficients,
     InvalidReplacement,
     OverflowReplacement,
+    InvalidField,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -63,6 +64,11 @@ pub trait CommandData {
         &mut self,
         mode: impl Fn() -> VOutMode,
         iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>,
+    ) -> Result<(), Error>;
+
+    fn sentinels(
+        field: Bitpos,
+        iter: impl FnMut(&str, &str, u32),
     ) -> Result<(), Error>;
 
     fn raw(&self) -> (u32, Bitwidth);

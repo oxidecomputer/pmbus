@@ -569,6 +569,34 @@ pub mod {} {{
 
     writeln!(&mut s, "            }}\n        }}\n    }}")?;
 
+    writeln!(&mut s, r##"
+    impl Field {{
+        #[allow(unused_variables)]
+        #[allow(unused_mut)]
+        fn sentinels(&self, mut sentinel: impl FnMut(&str, &str, u32)) {{
+            match self {{"##)?;
+
+    for (f, field) in fields {
+        if let Values::Sentinels(ref values) = &field.values {
+            writeln!(&mut s, "                Field::{} => {{", f)?;
+
+            for (v, value) in values {
+                writeln!(
+                    &mut s,
+                    r##"                    sentinel(
+                        "{}", "{}", {}
+                    );"##, v, value.1, value.0
+                )?;
+            }
+
+            writeln!(&mut s, "                }}")?;
+        } else {
+            writeln!(&mut s, "                Field::{} => {{}}", f)?;
+        }
+    }
+
+    writeln!(&mut s, "            }}\n        }}\n    }}")?;
+
     for (f, field) in fields {
         let (high, low) = bitrange(&field.bits);
         let width = high - low + 1;
@@ -907,6 +935,18 @@ pub mod {} {{
             Ok(())
         }}
 
+        fn sentinels(
+            field: Bitpos,
+            iter: impl FnMut(&str, &str, u32) 
+        ) -> Result<(), Error> {{
+            if let Some((field, _)) = CommandData::field(field) {{
+                field.sentinels(iter);
+                Ok(())
+            }} else {{
+                Err(Error::InvalidField)
+            }}
+        }}
+
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
         }}
@@ -1153,14 +1193,19 @@ pub mod {} {{
                 "{} measurement", Bitwidth({})
             );
 
-            let val = Value(self.get(mode())?, self.0.into());
+            let mode = mode();
+            let val = Value(self.get(mode)?, self.0.into());
 
-            if let Some(_replacement) = iter(&field, &val) {{
-                panic!("not yet vout");
+            if let Some(replacement) = iter(&field, &val) {{
+                if let Replacement::Float(f) = replacement {{
+                    self.set(mode, {}(f))
+                }} else {{
+                    Err(Error::InvalidReplacement)
+                }}
+            }} else {{
+                Ok(())
             }}
-
-            Ok(())
-        }}"##, cmd, bits)?;
+        }}"##, cmd, bits, units)?;
     } else {
         writeln!(&mut s, r##"
         fn mutate(
@@ -1175,15 +1220,26 @@ pub mod {} {{
             );
             let val = Value(self.get()?, self.0.into());
 
-            if let Some(_replacement) = iter(&field, &val) {{
-                panic!("not yet dunno");
+            if let Some(replacement) = iter(&field, &val) {{
+                if let Replacement::Float(f) = replacement {{
+                    self.set({}(f))
+                }} else {{
+                    Err(Error::InvalidReplacement)
+                }}
+            }} else {{
+                Ok(())
             }}
-
-            Ok(())
-        }}"##, cmd, bits)?;
+        }}"##, cmd, bits, units)?;
     }
 
     writeln!(&mut s, r##"
+        fn sentinels(
+            _field: super::Bitpos,
+            mut _iter: impl FnMut(&str, &str, u32) 
+        ) -> Result<(), Error> {{
+            Ok(())
+        }}
+
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
         }}
