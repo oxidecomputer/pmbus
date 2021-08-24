@@ -41,8 +41,15 @@ pub trait Field: core::fmt::Debug {
 }
 
 pub trait Value: core::fmt::Display + core::fmt::Debug {
+    /// Returns the name of this value
+    fn name(&self) -> &'static str;
+
+    /// Returns the description of this value
     fn desc(&self) -> &'static str;
+
+    /// Returns the raw value for this value
     fn raw(&self) -> u32;
+
     fn scalar(&self) -> bool;
 }
 
@@ -68,7 +75,7 @@ pub trait CommandData {
 
     fn sentinels(
         field: Bitpos,
-        iter: impl FnMut(&str, &str, u32),
+        iter: impl FnMut(&dyn Value),
     ) -> Result<(), Error>;
 
     fn raw(&self) -> (u32, Bitwidth);

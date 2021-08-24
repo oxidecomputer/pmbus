@@ -919,13 +919,14 @@ mod tests {
         data.set(units::Milliseconds(0.75)).unwrap();
         assert_eq!(data.get(), Ok(units::Milliseconds(0.75000006)));
 
-        let rval = data.mutate(mode, |field, _| {
+        data.mutate(mode, |field, _| {
             assert_eq!(field.bitfield(), false);
             assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
             Some(commands::Replacement::Float(0.25))
-        });
+        })
+        .unwrap();
 
-        std::println!("{:?}", data.get());
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.25)));
     }
 
     #[test]
@@ -1067,8 +1068,9 @@ mod tests {
         let data = CommandData::from_slice(&[0x88]).unwrap();
         dump(&data);
 
-        CommandData::sentinels(Bitpos(7), |name, desc, raw| {
-            std::println!("{}: {} = {}", name, desc, raw);
-        });
+        CommandData::sentinels(Bitpos(7), |val| {
+            std::println!("{}: {} = {}", val.name(), val.desc(), val.raw());
+        })
+        .unwrap();
     }
 }

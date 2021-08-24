@@ -427,6 +427,10 @@ fn output_scalar(name: &str, width: usize) -> Result<String> {
     pub struct {}(pub u{});
 
     impl {} {{
+        fn name(&self) -> &'static str {{
+            "scalar"
+        }}
+
         fn desc(&self) -> &'static str {{
             "(scalar value)"
         }}
@@ -475,6 +479,19 @@ fn output_value(
         writeln!(
             &mut s, "                {}::{} => \"{}\",",
             name, v, value.1
+        )?;
+    }
+
+    writeln!(&mut s, "            }}\n        }}")?;
+
+    writeln!(&mut s, r##"
+        fn name(&self) -> &'static str {{
+            match self {{"##)?;
+
+    for (v, _) in values {
+        writeln!(
+            &mut s, "                {}::{} => \"{}\",",
+            name, v, v
         )?;
     }
 
@@ -573,19 +590,19 @@ pub mod {} {{
     impl Field {{
         #[allow(unused_variables)]
         #[allow(unused_mut)]
-        fn sentinels(&self, mut sentinel: impl FnMut(&str, &str, u32)) {{
+        fn sentinels(&self, mut sentinel: impl FnMut(&dyn super::Value)) {{
             match self {{"##)?;
 
     for (f, field) in fields {
         if let Values::Sentinels(ref values) = &field.values {
             writeln!(&mut s, "                Field::{} => {{", f)?;
 
-            for (v, value) in values {
+            for (v, _) in values {
                 writeln!(
                     &mut s,
                     r##"                    sentinel(
-                        "{}", "{}", {}
-                    );"##, v, value.1, value.0
+                        &Value::{}({}::{}),
+                    );"##, f, f, v
                 )?;
             }
 
@@ -624,6 +641,17 @@ pub mod {} {{
 
     for (f, _) in fields {
         writeln!(&mut s, "                Value::{}(v) => v.desc(),", f)?;
+    }
+
+    writeln!(&mut s, "                Value::Unknown(_) => \"<unknown>\",")?;
+    writeln!(&mut s, "            }}\n        }}")?;
+
+    writeln!(&mut s, r##"
+        fn name(&self) -> &'static str {{
+            match self {{"##)?;
+
+    for (f, _) in fields {
+        writeln!(&mut s, "                Value::{}(v) => v.name(),", f)?;
     }
 
     writeln!(&mut s, "                Value::Unknown(_) => \"<unknown>\",")?;
@@ -937,7 +965,7 @@ pub mod {} {{
 
         fn sentinels(
             field: Bitpos,
-            iter: impl FnMut(&str, &str, u32) 
+            iter: impl FnMut(&dyn super::Value) 
         ) -> Result<(), Error> {{
             if let Some((field, _)) = CommandData::field(field) {{
                 field.sentinels(iter);
@@ -1000,6 +1028,10 @@ pub mod {} {{
     }}
 
     impl super::Value for Value {{
+        fn name(&self) -> &'static str {{
+            "{}"
+        }}
+
         fn desc(&self) -> &'static str {{
             "{} measurement"
         }}
@@ -1023,7 +1055,7 @@ pub mod {} {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, cmd, bits, units, u.suffix(), cmd, bytes, bytes, bits)?;
+        }}"##, cmd, bits, units, u.suffix(), cmd, cmd, bytes, bytes, bits)?;
 
     match format {
         Format::Linear11 => {
@@ -1235,7 +1267,7 @@ pub mod {} {{
     writeln!(&mut s, r##"
         fn sentinels(
             _field: super::Bitpos,
-            mut _iter: impl FnMut(&str, &str, u32) 
+            mut _iter: impl FnMut(&dyn super::Value) 
         ) -> Result<(), Error> {{
             Ok(())
         }}
