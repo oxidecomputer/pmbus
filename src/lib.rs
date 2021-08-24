@@ -684,10 +684,10 @@ mod tests {
             for i in 0..=0xff {
                 d.command(i, |cmd| {
                     std::println!(
-                        "{:?}: {:2x} {:?} R={:?} W={:?}",
+                        "{:?}: {:2x} {} R={:?} W={:?}",
                         d,
                         i,
-                        cmd,
+                        cmd.name(),
                         cmd.read_op(),
                         cmd.write_op()
                     );

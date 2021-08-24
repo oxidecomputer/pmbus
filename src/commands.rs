@@ -54,6 +54,7 @@ pub trait Value: core::fmt::Display + core::fmt::Debug {
 }
 
 pub trait Command: core::fmt::Debug {
+    fn name(&self) -> &'static str;
     fn read_op(&self) -> Operation;
     fn write_op(&self) -> Operation;
 }

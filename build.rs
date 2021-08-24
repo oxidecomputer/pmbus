@@ -210,6 +210,17 @@ pub enum CommandCode {{"##)?;
     writeln!(&mut s, r##"}}
 
 impl Command for CommandCode {{
+    fn name(&self) -> &'static str {{
+        match self {{"##)?;
+
+    for cmd in &cmds.0 {
+        writeln!(&mut s,
+            "            CommandCode::{} => \"{}\",", cmd.1, cmd.1)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}")?;
+
+    writeln!(&mut s, r##"
     fn read_op(&self) -> Operation {{
         match self {{"##)?;
 
