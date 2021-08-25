@@ -341,6 +341,77 @@ impl CommandCode {{
         writeln!(&mut s, "            _ => Ok(()),")?;
     }
 
+    writeln!(&mut s, r##"        }}
+    }}
+
+    pub fn fields(
+        &self,
+        iter: impl FnMut(&dyn Field)
+    ) -> Result<(), Error> {{
+        match self {{"##)?;
+
+    for cmd in &cmds.0 {
+        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+            continue;
+        }
+
+        writeln!(&mut s, r##"            CommandCode::{} => {{
+                {}::CommandData::fields(iter)
+            }}"##, cmd.1, cmd.1)?;
+    }
+
+    if shadowing.is_some() {
+        //
+        // For devices, we want to fallback to calling the common fields
+        // method.
+        //
+        writeln!(&mut s, r##"            _ => {{
+                let code = *self as u8;
+                match super::CommandCode::from_u8(code) {{
+                    Some(cmd) => cmd.fields(iter),
+                    None => Ok(())
+                }}
+            }}"##)?;
+    } else {
+        writeln!(&mut s, "            _ => Ok(()),")?;
+    }
+
+    writeln!(&mut s, r##"        }}
+    }}
+
+    pub fn sentinels(
+        &self,
+        field: Bitpos,
+        iter: impl FnMut(&dyn Value)
+    ) -> Result<(), Error> {{
+        match self {{"##)?;
+
+    for cmd in &cmds.0 {
+        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+            continue;
+        }
+
+        writeln!(&mut s, r##"            CommandCode::{} => {{
+                {}::CommandData::sentinels(field, iter)
+            }}"##, cmd.1, cmd.1)?;
+    }
+
+    if shadowing.is_some() {
+        //
+        // For devices, we want to fallback to calling the common fields
+        // method.
+        //
+        writeln!(&mut s, r##"            _ => {{
+                let code = *self as u8;
+                match super::CommandCode::from_u8(code) {{
+                    Some(cmd) => cmd.sentinels(field, iter),
+                    None => Ok(())
+                }}
+            }}"##)?;
+    } else {
+        writeln!(&mut s, "            _ => Ok(()),")?;
+    }
+
     writeln!(&mut s, "        }}\n    }}\n}}")?;
 
     Ok(s)
@@ -974,6 +1045,26 @@ pub mod {} {{
             Ok(())
         }}
 
+        fn fields(
+            mut iter: impl FnMut(&dyn super::Field)
+        ) -> Result<(), Error> {{
+            let mut pos: u8 = {};
+
+            loop {{
+                if let Some((field, _)) = CommandData::field(Bitpos(pos)) {{
+                    iter(&field);
+                }}
+
+                if pos == 0 {{
+                    break;
+                }}
+
+                pos -= 1;
+            }}
+
+            Ok(())
+        }}
+
         fn sentinels(
             field: Bitpos,
             iter: impl FnMut(&dyn super::Value) 
@@ -997,7 +1088,7 @@ pub mod {} {{
             cb(&super::CommandCode::{})
         }}
 
-    }}"##, bits - 1, bits - 1, bits, bits, cmd)?;
+    }}"##, bits - 1, bits - 1, bits, bits, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -1276,6 +1367,16 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        fn fields(
+            mut iter: impl FnMut(&dyn super::Field) 
+        ) -> Result<(), Error> {{
+            iter(&crate::commands::WholeField(
+                "{} measurement", Bitwidth({})
+            ));
+
+            Ok(())
+        }}
+
         fn sentinels(
             _field: super::Bitpos,
             mut _iter: impl FnMut(&dyn super::Value) 
@@ -1293,7 +1394,7 @@ pub mod {} {{
         ) {{
             cb(&super::CommandCode::{})
         }}
-    }}"##, bits, cmd)?;
+    }}"##, cmd, bits, bits, cmd)?;
 
     writeln!(&mut s, "}}")?;
 
@@ -1467,6 +1568,74 @@ impl Device {{
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
+
+    writeln!(&mut s, r##"
+    /// For this device and the given command code, iterates over the fields
+    /// in the structured register, calling the specified function for each
+    /// field.
+    pub fn fields(
+        &mut self,
+        code: u8,
+        iter: impl FnMut(&dyn Field)
+    ) -> Result<(), Error> {{
+        match self {{
+            Device::Common => match CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.fields(iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+            Device::{} => match {}::CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.fields(iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+
+    writeln!(&mut s, r##"
+    /// For this device and the given command code and field position, iterates
+    /// over the sentinels for the specified field in the structured register
+    /// (if any), calling the specified function for each sentinel value.
+    pub fn sentinels(
+        &mut self,
+        code: u8,
+        field: Bitpos,
+        iter: impl FnMut(&dyn Value)
+    ) -> Result<(), Error> {{
+        match self {{
+            Device::Common => match CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.sentinels(field, iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##)?;
+
+    for dev in devices {
+        writeln!(&mut s, r##"
+            Device::{} => match {}::CommandCode::from_u8(code) {{
+                Some(cmd) => {{
+                    cmd.sentinels(field, iter)
+                }}
+                None => {{
+                    Err(Error::InvalidCode)
+                }}
+            }},"##, name(&dev.0), dev.0)?;
+    }
+
+    writeln!(&mut s, "        }}\n    }}\n")?;
+
     writeln!(&mut s, r##"
     pub fn command(
         &self,

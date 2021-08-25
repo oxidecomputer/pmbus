@@ -1068,9 +1068,105 @@ mod tests {
         let data = CommandData::from_slice(&[0x88]).unwrap();
         dump(&data);
 
-        CommandData::sentinels(Bitpos(7), |val| {
-            std::println!("{}: {} = {}", val.name(), val.desc(), val.raw());
+        CommandData::sentinels(Bitpos(4), |val| {
+            match val.name() {
+                "VOUT_COMMAND" => {
+                    assert_eq!(val.raw(), 0);
+                }
+                "VOUT_MARGIN_LOW" => {
+                    assert_eq!(val.raw(), 1);
+                }
+                "VOUT_MARGIN_HIGH" => {
+                    assert_eq!(val.raw(), 2);
+                }
+                "AVS_VOUT_COMMAND" => {
+                    assert_eq!(val.raw(), 3);
+                }
+                _ => {
+                    panic!("unrecognized sentinel");
+                }
+            }
+
+            #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(val.raw(), {:?});
+                }}"##, "", val.name(), val.raw());
         })
         .unwrap();
+
+        assert_eq!(
+            CommandData::sentinels(Bitpos(5), |_| {}),
+            Err(Error::InvalidField)
+        );
+    }
+
+    #[test]
+    fn device_sentinels() {
+        Device::Common
+            .sentinels(1, Bitpos(4), |val| {
+                match val.name() {
+                    "VOUT_COMMAND" => {
+                        assert_eq!(val.raw(), 0);
+                    }
+                    "VOUT_MARGIN_LOW" => {
+                        assert_eq!(val.raw(), 1);
+                    }
+                    "VOUT_MARGIN_HIGH" => {
+                        assert_eq!(val.raw(), 2);
+                    }
+                    "AVS_VOUT_COMMAND" => {
+                        assert_eq!(val.raw(), 3);
+                    }
+                    _ => {
+                        panic!("unrecognized sentinel");
+                    }
+                }
+
+                #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(val.raw(), {:?});
+                }}"##, "", val.name(), val.raw());
+            })
+            .unwrap();
+
+        assert_eq!(
+            Device::Common.sentinels(1, Bitpos(5), |_| {}),
+            Err(Error::InvalidField)
+        );
+    }
+
+    #[test]
+    fn device_fields() {
+        Device::Common
+            .fields(1, |f| {
+                let bits = f.bits();
+
+                match f.name() {
+                    "OnOffState" => {
+                        assert_eq!(bits, (Bitpos(7), Bitwidth(1)));
+                    }
+                    "TurnOffBehavior" => {
+                        assert_eq!(bits, (Bitpos(6), Bitwidth(1)));
+                    }
+                    "VoltageCommandSource" => {
+                        assert_eq!(bits, (Bitpos(4), Bitwidth(2)));
+                    }
+                    "MarginFaultResponse" => {
+                        assert_eq!(bits, (Bitpos(2), Bitwidth(2)));
+                    }
+                    "TransitionControl" => {
+                        assert_eq!(bits, (Bitpos(1), Bitwidth(1)));
+                    }
+                    _ => {
+                        panic!("unrecognized field");
+                    }
+                }
+
+                #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(bits, {:?});
+                }}"##, "", f.name(), f.bits());
+            })
+            .unwrap();
     }
 }

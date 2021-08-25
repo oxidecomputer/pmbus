@@ -74,6 +74,8 @@ pub trait CommandData {
         iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>,
     ) -> Result<(), Error>;
 
+    fn fields(iter: impl FnMut(&dyn Field)) -> Result<(), Error>;
+
     fn sentinels(
         field: Bitpos,
         iter: impl FnMut(&dyn Value),
