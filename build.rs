@@ -318,7 +318,9 @@ impl CommandCode {{
         writeln!(&mut s, r##"            CommandCode::{} => {{
                 use {}::CommandData;
                 if let Some(mut data) = CommandData::from_slice(payload) {{
-                    data.mutate(mode, iter)
+                    data.mutate(mode, iter)?;
+                    data.to_slice(payload);
+                    Ok(())
                 }} else {{
                     Err(Error::ShortData)
                 }}
@@ -869,6 +871,17 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
+
+    for i in 0..bytes {
+        writeln!(&mut s,
+            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "", i, i * 8
+        )?;
+    }
+
+    writeln!(&mut s, "        }}")?;
+
+    writeln!(&mut s, r##"
         pub fn field(bit: Bitpos) -> Option<(Field, Bitwidth)> {{
             match bit.0 {{"##)?;
 
@@ -1158,6 +1171,17 @@ pub mod {} {{
                 Err(_) => None,
             }}
         }}"##, cmd, bits, units, u.suffix(), cmd, cmd, bytes, bytes, bits)?;
+
+    writeln!(&mut s, r##"
+        pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
+
+    for i in 0..bytes {
+        writeln!(&mut s,
+            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "", i, i * 8
+        )?;
+    }
+
+    writeln!(&mut s, "        }}")?;
 
     match format {
         Format::Linear11 => {
@@ -1539,7 +1563,7 @@ impl Device {{
     /// registers; *in situ* code that wishes to pull a particular value
     /// should use the direct setter function instead.
     pub fn mutate(
-        &mut self,
+        &self,
         code: u8,
         payload: &mut [u8],
         mode: impl Fn() -> VOutMode,
@@ -1574,7 +1598,7 @@ impl Device {{
     /// in the structured register, calling the specified function for each
     /// field.
     pub fn fields(
-        &mut self,
+        &self,
         code: u8,
         iter: impl FnMut(&dyn Field)
     ) -> Result<(), Error> {{
@@ -1607,7 +1631,7 @@ impl Device {{
     /// over the sentinels for the specified field in the structured register
     /// (if any), calling the specified function for each sentinel value.
     pub fn sentinels(
-        &mut self,
+        &self,
         code: u8,
         field: Bitpos,
         iter: impl FnMut(&dyn Value)

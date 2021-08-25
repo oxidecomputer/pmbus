@@ -1062,6 +1062,37 @@ mod tests {
     }
 
     #[test]
+    fn device_vout_command_mutate() {
+        let vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        let mut payload = [0x63, 0x02];
+
+        let data = CommandData::from_slice(&payload).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        let rval = Device::Common.mutate(
+            commands::CommandCode::VOUT_COMMAND as u8,
+            &mut payload[0..2],
+            || vout,
+            |field, _| {
+                assert_eq!(field.bitfield(), false);
+                assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+                Some(commands::Replacement::Float(1.20))
+            },
+        );
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(payload[0], 0x66);
+        assert_eq!(payload[1], 0x02);
+
+        let data = CommandData::from_slice(&payload).unwrap();
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+    }
+
+    #[test]
     fn sentinels() {
         use commands::OPERATION::*;
 
