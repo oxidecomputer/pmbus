@@ -1355,15 +1355,21 @@ pub mod {} {{
             let val = Value(self.get(mode)?, self.0.into());
 
             if let Some(replacement) = iter(&field, &val) {{
-                if let Replacement::Float(f) = replacement {{
-                    self.set(mode, {}(f))
-                }} else {{
-                    Err(Error::InvalidReplacement)
+                match replacement {{
+                    Replacement::Float(f) => {{
+                        self.set(mode, {}(f))
+                    }}
+                    Replacement::Integer(i) => {{
+                        self.set(mode, {}(i as f32))
+                    }}
+                    _ => {{
+                        Err(Error::InvalidReplacement)
+                    }}
                 }}
             }} else {{
                 Ok(())
             }}
-        }}"##, cmd, bits, units)?;
+        }}"##, cmd, bits, units, units)?;
     } else {
         writeln!(&mut s, r##"
         fn mutate(

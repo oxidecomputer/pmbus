@@ -1051,6 +1051,12 @@ mod tests {
         assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
 
         let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Integer(3)));
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.get(vout), Ok(units::Volts(3.0)));
+
+        let rval = data
             .mutate(|| vout, |_, _| Some(commands::Replacement::Boolean(true)));
 
         assert_eq!(rval, Err(Error::InvalidReplacement));
