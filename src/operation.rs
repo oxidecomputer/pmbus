@@ -6,6 +6,7 @@ pub enum Operation {
     ReadWord,
     WriteWord,
     ReadWord32,
+    WriteWord32,
     ReadBlock,
     WriteBlock,
     ProcessCall,

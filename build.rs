@@ -104,6 +104,7 @@ enum Format {
     SLimear16,
     Direct(Coefficients),
     VOutMode(Sign),
+    Raw,
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,6 +127,7 @@ enum Operation {
     SendByte,
     ReadWord,
     WriteWord,
+    WriteWord32,
     ReadWord32,
     ReadBlock,
     WriteBlock,
@@ -168,6 +170,7 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
             Operation::ReadBlock => Some(16),
             Operation::WriteByte
             | Operation::WriteWord
+            | Operation::WriteWord32
             | Operation::WriteBlock => {
                 bail!("illegal read operation {:?} on {}", cmd.3, cmd.1);
             }
@@ -1131,8 +1134,38 @@ pub mod {} {{
 
     use super::Error;
     use crate::commands::VOutMode;
-    use crate::commands::Replacement;
+    use crate::commands::Replacement;"##, cmd, bits)?;
 
+    if let Format::Raw = format {
+        writeln!(&mut s, r##"
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub struct Value(u32);
+
+    impl core::fmt::Display for Value {{
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
+            write!(f, "{{}}", self.0)
+        }}
+    }}
+
+    impl super::Value for Value {{
+        fn name(&self) -> &'static str {{
+            "{}"
+        }}
+
+        fn desc(&self) -> &'static str {{
+            "{} raw value"
+        }}
+
+        fn scalar(&self) -> bool {{
+            true
+        }}
+
+        fn raw(&self) -> u32 {{
+            self.0
+        }}
+    }}"##, cmd, cmd)?;
+    } else {
+        writeln!(&mut s, r##"
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct Value({}, u32);
 
@@ -1158,8 +1191,10 @@ pub mod {} {{
         fn raw(&self) -> u32 {{
             self.1
         }}
-    }}
+    }}"##, units, u.suffix(), cmd, cmd)?;
+    }
 
+    writeln!(&mut s, r##"
     impl CommandData {{
         pub fn from_slice(slice: &[u8]) -> Option<Self> {{
             use core::convert::TryInto;
@@ -1170,7 +1205,7 @@ pub mod {} {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, cmd, bits, units, u.suffix(), cmd, cmd, bytes, bytes, bits)?;
+        }}"##, bytes, bytes, bits)?;
 
     writeln!(&mut s, r##"
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
@@ -1300,6 +1335,18 @@ pub mod {} {{
         }}"##, units, c.m, c.R, c.b, units, units, c.m, c.R, c.b)?;
         }
 
+        Format::Raw => {
+            writeln!(&mut s, r##"
+        pub fn get(&self) -> Result<u{}, Error> {{
+            Ok(self.0)
+        }}
+
+        pub fn set(&mut self, val: u{}) -> Result<(), Error> {{
+            self.0 = val;
+            Ok(())
+        }}"##, bits, bits)?;
+        }
+
         _ => {
             panic!("{:?} not yet supported", format);
         }
@@ -1321,6 +1368,19 @@ pub mod {} {{
                 "{} measurement", Bitwidth({})
             );
             iter(&field, &Value(self.get(mode())?, self.0.into()));
+            Ok(())
+        }}"##, cmd, bits)?;
+    } else if let Format::Raw = format {
+        writeln!(&mut s, r##"
+        fn interpret(
+            &self,
+            _mode: impl Fn() -> VOutMode,
+            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+        ) -> Result<(), Error> {{
+            let field = crate::commands::WholeField(
+                "{} value", Bitwidth({})
+            );
+            iter(&field, &Value(self.get()?.into()));
             Ok(())
         }}"##, cmd, bits)?;
     } else {
@@ -1370,6 +1430,35 @@ pub mod {} {{
                 Ok(())
             }}
         }}"##, cmd, bits, units, units)?;
+    } else if let Format::Raw = format {
+        writeln!(&mut s, r##"
+        fn mutate(
+            &mut self,
+            _mode: impl Fn() -> VOutMode,
+            mut iter: impl FnMut(
+                &dyn super::Field, &dyn super::Value
+            ) -> Option<Replacement>
+        ) -> Result<(), Error> {{
+            let field = crate::commands::WholeField(
+                "{} value", Bitwidth({})
+            );
+            let val = Value(self.get()?.into());
+
+            if let Some(replacement) = iter(&field, &val) {{
+                if let Replacement::Integer(i) = replacement {{
+                    use core::convert::TryFrom;
+
+                    match u{}::try_from(i) {{
+                        Ok(i) => self.set(i),
+                        Err(_) => Err(Error::OverflowReplacement)
+                    }}
+                }} else {{
+                    Err(Error::InvalidReplacement)
+                }}
+            }} else {{
+                Ok(())
+            }}
+        }}"##, cmd, bits, bits)?;
     } else {
         writeln!(&mut s, r##"
         fn mutate(

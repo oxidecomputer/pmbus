@@ -1,4 +1,11 @@
 ([
+    (0xc5, "DMAFIX", WriteWord32, ReadWord32),
+    (0xc6, "DMASEQ", WriteWord32, ReadWord32),
+    (0xc7, "DMAADDR", WriteWord, ReadWord),
+    (0xcd, "PEAK_OC_LIMIT", WriteWord, ReadWord),
+    (0xce, "PEAK_UC_LIMIT", WriteWord, ReadWord),
+    (0xd0, "VMON_ON", WriteWord, ReadWord),
+    (0xd1, "VMON_OFF", WriteWord, ReadWord),
 ], [
     ("VOUT_TRANSITION_RATE", Direct(( m: 1, R: 5, b: 0 )), VoltsPerMicrosecond),
     ("VOUT_SCALE_LOOP", Linear11, Unitless),
@@ -30,4 +37,11 @@
     ("READ_TEMPERATURE_3", Direct(( m: 1, R: 0, b: 0 )), Celsius),
     ("READ_POUT", Direct(( m: 1, R: 0, b: 0 )), Watts),
     ("READ_PIN", Direct(( m: 1, R: 0, b: 0 )), Watts),
+    ("DMAFIX", Raw, Unitless),
+    ("DMASEQ", Raw, Unitless),
+    ("DMAADDR", Raw, Unitless),
+    ("PEAK_OC_LIMIT", Direct(( m: 1, R: 1, b: 0 )), Amperes),
+    ("PEAK_UC_LIMIT", Direct(( m: 1, R: 1, b: 0 )), Amperes),
+    ("VMON_ON", Direct(( m: 1, R: 2, b: 0 )), Volts),
+    ("VMON_OFF", Direct(( m: 1, R: 2, b: 0 )), Volts),
 ], {})

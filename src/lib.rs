@@ -1206,4 +1206,32 @@ mod tests {
             })
             .unwrap();
     }
+
+    #[test]
+    fn raw() {
+        use commands::isl68224::DMAFIX::*;
+
+        let input = [0xef, 0xbe, 0xad, 0xde];
+
+        let mut data = CommandData::from_slice(&input).unwrap();
+        assert_eq!(data.get(), Ok(0xdeadbeef));
+
+        let rval = data.mutate(mode, |field, _| {
+            assert_eq!(field.bitfield(), false);
+            Some(commands::Replacement::Integer(0xbaddcafe))
+        });
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.0, 0xbaddcafe);
+
+        let rval = data
+            .mutate(mode, |_, _| Some(commands::Replacement::Boolean(true)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+
+        let rval =
+            data.mutate(mode, |_, _| Some(commands::Replacement::Float(1.2)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+    }
 }
