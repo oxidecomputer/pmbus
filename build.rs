@@ -272,7 +272,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+        if cmds.structured.get(&cmd.1).is_none()
+            && numerics.get(&cmd.1).is_none()
+        {
             continue;
         }
 
@@ -314,7 +316,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+        if cmds.structured.get(&cmd.1).is_none()
+            && numerics.get(&cmd.1).is_none()
+        {
             continue;
         }
 
@@ -356,7 +360,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+        if cmds.structured.get(&cmd.1).is_none()
+            && numerics.get(&cmd.1).is_none()
+        {
             continue;
         }
 
@@ -392,7 +398,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+        if cmds.structured.get(&cmd.1).is_none()
+            && numerics.get(&cmd.1).is_none()
+        {
             continue;
         }
 
