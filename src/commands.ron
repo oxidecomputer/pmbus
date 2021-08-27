@@ -233,6 +233,8 @@
     ("VOUT_MARGIN_LOW", VOutMode(Unsigned), Volts),
     ("VOUT_MIN", VOutMode(Unsigned), Volts),
     ("READ_VOUT", VOutMode(Unsigned), Volts),
+    ("POWER_GOOD_ON", VOutMode(Unsigned), Volts),
+    ("POWER_GOOD_OFF", VOutMode(Unsigned), Volts),
 ], {
     "OPERATION": {
         "OnOffState": (
@@ -379,8 +381,8 @@
             name: "VOUT mode",
             bits: Bitrange(High(6), Low(5)),
             values: Sentinels({
-                "ULINEAR16": (0b00, "parameter is ULINEAR16 exponent"),
-                "VID": (0b01, "parameter is VID code"),
+                "ULINEAR16": (0b00, "ULINEAR16 exponent parameter"),
+                "VID": (0b01, "VID code parameter"),
                 "Direct": (0b10, "DIRECT format"),
                 "IEEEHalf": (0b11, "IEEE Half Precision format"),
             }),
