@@ -1,195 +1,201 @@
-([
-    (0xcc, "RESTART_TIME", WriteByte, ReadByte),
-    (0xd0, "PEAK_IOUT", WriteWord, ReadWord),
-    (0xd1, "PEAK_VIN", WriteWord, ReadWord),
-    (0xd2, "PEAK_VOUT", WriteWord, ReadWord),
-    (0xd3, "PMON_CONTROL", WriteByte, ReadByte),
-    (0xd4, "PMON_CONFIG", WriteWord, ReadWord),
-    (0xd5, "ALERT1_CONFIG", WriteWord, ReadWord),
-    (0xd6, "ALERT2_CONFIG", WriteWord, ReadWord),
-    (0xd7, "PEAK_TEMPERATURE", WriteWord, ReadWord),
-    (0xd8, "DEVICE_CONFIG", WriteWord, ReadWord),
-    (0xd9, "POWER_CYCLE", SendByte, Illegal),
-    (0xda, "PEAK_PIN", WriteWord, ReadWord),
-    (0xdb, "READ_PIN_EXT", Illegal, Illegal), // Fix this
-    (0xdc, "READ_EIN_EXT", Illegal, Illegal), // Fix this
-    (0xf2, "HYSTERESIS_LOW", WriteWord, ReadWord),
-    (0xf3, "HYSTERESIS_HIGH", WriteWord, ReadWord),
-    (0xf4, "STATUS_HYSTERESIS", WriteByte, ReadByte),
-    (0xf5, "STATUS_GPIO", WriteByte, ReadByte),
-    (0xf6, "STRT_UP_IOUT_LIM", WriteWord, ReadWord),
-], [], {
-    "STATUS_MFR_SPECIFIC": {
-        "FETHealthFault": (
-            name: "FET health fault",
-            bits: Bit(7),
-            values: Sentinels({
-                "NoFault": (0b0, "no fault"),
-                "Fault": (0b1, "fault"),
-            }),
-        ),
-        "UndervoltageComparatorFault": (
-            name: "UV input comparator fault output",
-            bits: Bit(6),
-            values: Sentinels({
-                "Above": (0b0, "above threshold"),
-                "Below": (0b1, "below threshold"),
-            }),
-        ),
-        "OvervoltageComparatorFault": (
-            name: "Overvoltage comparator fault output",
-            bits: Bit(5),
-            values: Sentinels({
-                "Below": (0b0, "below threshold"),
-                "Above": (0b1, "above threshold"),
-            }),
-        ),
-        "SevereOvercurrentFault": (
-            name: "Severe overcurrent fault",
-            bits: Bit(4),
-            values: Sentinels({
-                "NoFault": (0b0, "no fault"),
-                "Fault": (0b1, "fault"),
-            }),
-        ),
-        "HotswapLimitFault": (
-            name: "Hot swap in limit fault",
-            bits: Bit(3),
-            values: Sentinels({
-                "NoFault": (0b0, "no fault"),
-                "Fault": (0b1, "fault"),
-            }),
-        ),
-        "HotswapShutdownCause": (
-            name: "Cause of last how swap shutdown",
-            bits: Bitrange(High(2), Low(0)),
-            values: Sentinels({
-                "Operational": (0b000, "oeprational"),
-                "OvertempFault": (0b001, "OT_FAULT"),
-                "OvercurrentFault": (0b010, "IOUT_OC_FAULT"),
-                "FETHealthFault": (0b011, "FET HEALTH_FAULT"),
-                "UndervoltageFault": (0b100, "VIN_UV_FAULT"),
-                "OvervoltageFault": (0b110, "VIN_OV_FAULT"),
-            }),
-        ),
-    },
+(
+    all: [
+        (0xcc, "RESTART_TIME", WriteByte, ReadByte),
+        (0xd0, "PEAK_IOUT", WriteWord, ReadWord),
+        (0xd1, "PEAK_VIN", WriteWord, ReadWord),
+        (0xd2, "PEAK_VOUT", WriteWord, ReadWord),
+        (0xd3, "PMON_CONTROL", WriteByte, ReadByte),
+        (0xd4, "PMON_CONFIG", WriteWord, ReadWord),
+        (0xd5, "ALERT1_CONFIG", WriteWord, ReadWord),
+        (0xd6, "ALERT2_CONFIG", WriteWord, ReadWord),
+        (0xd7, "PEAK_TEMPERATURE", WriteWord, ReadWord),
+        (0xd8, "DEVICE_CONFIG", WriteWord, ReadWord),
+        (0xd9, "POWER_CYCLE", SendByte, Illegal),
+        (0xda, "PEAK_PIN", WriteWord, ReadWord),
+        (0xdb, "READ_PIN_EXT", Illegal, Illegal), // Fix this
+        (0xdc, "READ_EIN_EXT", Illegal, Illegal), // Fix this
+        (0xf2, "HYSTERESIS_LOW", WriteWord, ReadWord),
+        (0xf3, "HYSTERESIS_HIGH", WriteWord, ReadWord),
+        (0xf4, "STATUS_HYSTERESIS", WriteByte, ReadByte),
+        (0xf5, "STATUS_GPIO", WriteByte, ReadByte),
+        (0xf6, "STRT_UP_IOUT_LIM", WriteWord, ReadWord),
+    ],
 
-    "RESTART_TIME": {
-        "RestartTime": (
-            name: "Length of hot swap restart",
-            bits: Bitrange(High(7), Low(0)),
-            values: Sentinels({
-                "ZeroPoint1": (0x00, "0.1 seconds"),
-                "ZeroPoint2": (0x01, "0.2 seconds"),
-                "TenPoint1": (0x64, "10.1 seconds"),
-                "TwentyFivePoint6": (0xff, "25.6 seconds"),
-            })
-        )
-    },
+    numerics: [],
 
-    "PMON_CONTROL": {
-        "Convert": (
-            name: "Convert enable",
-            bits: Bit(0),
-            values: Sentinels({
-                "NotRunning": (0b0, "monitor not running"),
-                "Sampling": (0b1, "monitor is sampling"),
-            })
-        )
-    },
+    structured: {
+        "STATUS_MFR_SPECIFIC": {
+            "FETHealthFault": (
+                name: "FET health fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "UndervoltageComparatorFault": (
+                name: "UV input comparator fault output",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Above": (0b0, "above threshold"),
+                    "Below": (0b1, "below threshold"),
+                }),
+            ),
+            "OvervoltageComparatorFault": (
+                name: "Overvoltage comparator fault output",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Below": (0b0, "below threshold"),
+                    "Above": (0b1, "above threshold"),
+                }),
+            ),
+            "SevereOvercurrentFault": (
+                name: "Severe overcurrent fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "HotswapLimitFault": (
+                name: "Hot swap in limit fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "HotswapShutdownCause": (
+                name: "Cause of last how swap shutdown",
+                bits: Bitrange(High(2), Low(0)),
+                values: Sentinels({
+                    "Operational": (0b000, "oeprational"),
+                    "OvertempFault": (0b001, "OT_FAULT"),
+                    "OvercurrentFault": (0b010, "IOUT_OC_FAULT"),
+                    "FETHealthFault": (0b011, "FET HEALTH_FAULT"),
+                    "UndervoltageFault": (0b100, "VIN_UV_FAULT"),
+                    "OvervoltageFault": (0b110, "VIN_OV_FAULT"),
+                }),
+            ),
+        },
 
-    "PMON_CONFIG": {
-        "TSFilt": (
-            name: "Temp sensor filter enable",
-            bits: Bit(15),
-            values: Sentinels({
-                "Disabled": (0b0, "disabled"),
-                "Enabled": (0b1, "enabled"),
-            })
-        ),
-        "Simultanous": (
-            name: "Simultanous Vin/Iout sampling",
-            bits: Bit(14),
-            values: Sentinels({
-                "Disabled": (0b0, "disabled"),
-                "Enabled": (0b1, "enabled"),
-            })
-        ),
-        "PwrAvg": (
-            name: "Pin averaging",
-            bits: Bitrange(High(13), Low(11)),
-            values: Sentinels({
-                "Disabled": (0b000, "disabled"),
-                "Avg2": (0b001, "2 samples/average"),
-                "Avg4": (0b010, "4 samples/average"),
-                "Avg8": (0b011, "8 samples/average"),
-                "Avg16": (0b100, "16 samples/average"),
-                "Avg32": (0b101, "32 samples/average"),
-                "Avg64": (0b110, "64 samples/average"),
-                "Avg128": (0b111, "128 samples/average"),
-            })
-        ),
-        "VIAvg": (
-            name: "Vin/Vout/Iout averaging",
-            bits: Bitrange(High(10), Low(8)),
-            values: Sentinels({
-                "Disabled": (0b000, "disabled"),
-                "Avg2": (0b001, "2 samples/average"),
-                "Avg4": (0b010, "4 samples/average"),
-                "Avg8": (0b011, "8 samples/average"),
-                "Avg16": (0b100, "16 samples/average"),
-                "Avg32": (0b101, "32 samples/average"),
-                "Avg64": (0b110, "64 samples/average"),
-                "Avg128": (0b111, "128 samples/average"),
-            })
-        ),
-        "VRange": (
-            name: "Voltage range",
-            bits: Bit(5),
-            values: Sentinels({
-                "Range60V": (0b0, "60V range"),
-                "Range100V": (0b1, "100V range"),
-            })
-        ),
-        "PMonMode": (
-            name: "Conversion mode",
-            bits: Bit(4),
-            values: Sentinels({
-                "SingleShot": (0b0, "single-shot sampling"),
-                "Continuous": (0b1, "continuous sampling"),
-            })
-        ),
-        "Temp1Enable": (
-            name: "Enable temperature sampling",
-            bits: Bit(3),
-            values: Sentinels({
-                "Disabled": (0b0, "disabled"),
-                "Enabled": (0b1, "enabled"),
-            })
-        ),
-        "VInEnable": (
-            name: "Enable Vin sampling",
-            bits: Bit(2),
-            values: Sentinels({
-                "Disabled": (0b0, "disabled"),
-                "Enabled": (0b1, "enabled"),
-            })
-        ),
-        "VOutEnable": (
-            name: "Enable Vout sampling",
-            bits: Bit(1),
-            values: Sentinels({
-                "Disabled": (0b0, "disabled"),
-                "Enabled": (0b1, "enabled"),
-            })
-        ),
-        "IRange": (
-            name: "Vin sense range",
-            bits: Bit(0),
-            values: Sentinels({
-                "Range15mV": (0b0, "15 mV range"),
-                "Range30mV": (0b1, "30 mV range"),
-            })
-        ),
-    },
-})
+        "RESTART_TIME": {
+            "RestartTime": (
+                name: "Length of hot swap restart",
+                bits: Bitrange(High(7), Low(0)),
+                values: Sentinels({
+                    "ZeroPoint1": (0x00, "0.1 seconds"),
+                    "ZeroPoint2": (0x01, "0.2 seconds"),
+                    "TenPoint1": (0x64, "10.1 seconds"),
+                    "TwentyFivePoint6": (0xff, "25.6 seconds"),
+                })
+            )
+        },
+
+        "PMON_CONTROL": {
+            "Convert": (
+                name: "Convert enable",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NotRunning": (0b0, "monitor not running"),
+                    "Sampling": (0b1, "monitor is sampling"),
+                })
+            )
+        },
+
+        "PMON_CONFIG": {
+            "TSFilt": (
+                name: "Temp sensor filter enable",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "Simultanous": (
+                name: "Simultanous Vin/Iout sampling",
+                bits: Bit(14),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "PwrAvg": (
+                name: "Pin averaging",
+                bits: Bitrange(High(13), Low(11)),
+                values: Sentinels({
+                    "Disabled": (0b000, "disabled"),
+                    "Avg2": (0b001, "2 samples/average"),
+                    "Avg4": (0b010, "4 samples/average"),
+                    "Avg8": (0b011, "8 samples/average"),
+                    "Avg16": (0b100, "16 samples/average"),
+                    "Avg32": (0b101, "32 samples/average"),
+                    "Avg64": (0b110, "64 samples/average"),
+                    "Avg128": (0b111, "128 samples/average"),
+                })
+            ),
+            "VIAvg": (
+                name: "Vin/Vout/Iout averaging",
+                bits: Bitrange(High(10), Low(8)),
+                values: Sentinels({
+                    "Disabled": (0b000, "disabled"),
+                    "Avg2": (0b001, "2 samples/average"),
+                    "Avg4": (0b010, "4 samples/average"),
+                    "Avg8": (0b011, "8 samples/average"),
+                    "Avg16": (0b100, "16 samples/average"),
+                    "Avg32": (0b101, "32 samples/average"),
+                    "Avg64": (0b110, "64 samples/average"),
+                    "Avg128": (0b111, "128 samples/average"),
+                })
+            ),
+            "VRange": (
+                name: "Voltage range",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Range60V": (0b0, "60V range"),
+                    "Range100V": (0b1, "100V range"),
+                })
+            ),
+            "PMonMode": (
+                name: "Conversion mode",
+                bits: Bit(4),
+                values: Sentinels({
+                    "SingleShot": (0b0, "single-shot sampling"),
+                    "Continuous": (0b1, "continuous sampling"),
+                })
+            ),
+            "Temp1Enable": (
+                name: "Enable temperature sampling",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInEnable": (
+                name: "Enable Vin sampling",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VOutEnable": (
+                name: "Enable Vout sampling",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "IRange": (
+                name: "Vin sense range",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Range15mV": (0b0, "15 mV range"),
+                    "Range30mV": (0b1, "30 mV range"),
+                })
+            ),
+        },
+    }
+)

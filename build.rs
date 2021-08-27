@@ -145,11 +145,11 @@ struct Command(u8, String, Operation, Operation);
 struct CommandNumericFormat(String, Format, Units);
 
 #[derive(Debug, Deserialize)]
-struct Commands(
-    Vec<Command>,
-    Vec<CommandNumericFormat>,
-    HashMap<String, HashMap<String, Field>>,
-);
+struct Commands {
+    all: Vec<Command>,
+    numerics: Vec<CommandNumericFormat>,
+    structured: HashMap<String, HashMap<String, Field>>,
+}
 
 #[derive(Debug, Deserialize)]
 struct Device(String, String, Option<Coefficients>);
@@ -206,7 +206,7 @@ use super::Replacement;"##)?;
 #[repr(u8)]
 pub enum CommandCode {{"##)?;
 
-    for cmd in &cmds.0 {
+    for cmd in &cmds.all {
         writeln!(&mut s, "    {} = 0x{:x},", cmd.1, cmd.0)?;
     }
 
@@ -216,7 +216,7 @@ impl Command for CommandCode {{
     fn name(&self) -> &'static str {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
+    for cmd in &cmds.all {
         writeln!(&mut s,
             "            CommandCode::{} => \"{}\",", cmd.1, cmd.1)?;
     }
@@ -227,7 +227,7 @@ impl Command for CommandCode {{
     fn read_op(&self) -> Operation {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
+    for cmd in &cmds.all {
         writeln!(&mut s,
             "            CommandCode::{} => Operation::{:?},", cmd.1, cmd.3)?;
     }
@@ -238,7 +238,7 @@ impl Command for CommandCode {{
     fn write_op(&self) -> Operation {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
+    for cmd in &cmds.all {
         writeln!(&mut s,
             "            CommandCode::{} => Operation::{:?},", cmd.1, cmd.2)?;
     }
@@ -247,7 +247,7 @@ impl Command for CommandCode {{
 
     let mut numerics = HashSet::new();
 
-    for cmd in &cmds.1 {
+    for cmd in &cmds.numerics {
         numerics.insert(&cmd.0);
     }
 
@@ -256,7 +256,7 @@ impl Command for CommandCode {{
     // shadowing as well, as they will have a device-local definition.
     //
     if let Some(shadowing) = shadowing {
-        for cmd in &shadowing.1 {
+        for cmd in &shadowing.numerics {
             numerics.insert(&cmd.0);
         }
     }
@@ -271,8 +271,8 @@ impl CommandCode {{
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
-        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+    for cmd in &cmds.all {
+        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
         }
 
@@ -313,8 +313,8 @@ impl CommandCode {{
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
-        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+    for cmd in &cmds.all {
+        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
         }
 
@@ -355,8 +355,8 @@ impl CommandCode {{
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
-        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+    for cmd in &cmds.all {
+        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
         }
 
@@ -391,8 +391,8 @@ impl CommandCode {{
     ) -> Result<(), Error> {{
         match self {{"##)?;
 
-    for cmd in &cmds.0 {
-        if cmds.2.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
+    for cmd in &cmds.all {
+        if cmds.structured.get(&cmd.1).is_none() && numerics.get(&cmd.1).is_none() {
             continue;
         }
 
@@ -1860,8 +1860,8 @@ fn codegen() -> Result<()> {
         }
     };
 
-    let sizes = reg_sizes(&cmds.0)?;
-    let dbs = &cmds.2;
+    let sizes = reg_sizes(&cmds.all)?;
+    let dbs = &cmds.structured;
 
     let out_dir = env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("commands.rs");
@@ -1877,7 +1877,7 @@ fn codegen() -> Result<()> {
         file.write_all(out.as_bytes())?;
     }
 
-    let out = output_numerics(&cmds.1, &sizes, &mut units, None)?;
+    let out = output_numerics(&cmds.numerics, &sizes, &mut units, None)?;
     file.write_all(out.as_bytes())?;
 
     let f = open_file("devices.ron")?;
@@ -1919,32 +1919,32 @@ fn codegen() -> Result<()> {
         //
         let mut h: HashSet<u8> = HashSet::new();
 
-        for cmd in &dcmds.0 {
+        for cmd in &dcmds.all {
             h.insert(cmd.0);
         }
 
-        for cmd in &cmds.0 {
+        for cmd in &cmds.all {
             if h.get(&cmd.0).is_none() {
-                dcmds.0.push(cmd.clone());
+                dcmds.all.push(cmd.clone());
             }
         }
 
         let out = output_commands(&dcmds, Some(&cmds))?;
         file.write_all(out.as_bytes())?;
 
-        let dsizes = reg_sizes(&dcmds.0)?;
+        let dsizes = reg_sizes(&dcmds.all)?;
 
         //
         // Now emit data payloads, allowing the device definition to
         // override any common payload.
         //
         for (cmd, fields) in dbs {
-            if let Some(fields) = dcmds.2.get(cmd) {
+            if let Some(fields) = dcmds.structured.get(cmd) {
                 let (bits, bytes) =
                     validate(&cmd, &fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
-                dcmds.2.remove(cmd);
+                dcmds.structured.remove(cmd);
             } else {
                 let (bits, bytes) =
                     validate(&cmd, &fields, &sizes, &mut units)?;
@@ -1953,16 +1953,16 @@ fn codegen() -> Result<()> {
             }
         }
 
-        for (cmd, fields) in &dcmds.2 {
+        for (cmd, fields) in &dcmds.structured {
             let (bits, bytes) = validate(&cmd, &fields, &dsizes, &mut units)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
         }
 
-        let out = output_numerics(&dcmds.1, &dsizes, &mut units, dev.2)?;
+        let out = output_numerics(&dcmds.numerics, &dsizes, &mut units, dev.2)?;
         file.write_all(out.as_bytes())?;
 
-        let out = output_numerics(&cmds.1, &sizes, &mut units, dev.2)?;
+        let out = output_numerics(&cmds.numerics, &sizes, &mut units, dev.2)?;
         file.write_all(out.as_bytes())?;
 
         let out = output_device(&dev.0)?;
