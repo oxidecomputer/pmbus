@@ -784,6 +784,26 @@ mod tests {
     }
 
     #[test]
+    fn bmr491_default() {
+        use commands::bmr491::*;
+
+        let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
+        dump(&data.unwrap());
+
+        let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
+        dump(&data.unwrap());
+
+        let data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
+            0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_trim_limit(), units::Millivolts(170.0));
+
+        dump(&data);
+    }
+
+    #[test]
     fn bmr480_iout() {
         use commands::bmr480::*;
 
@@ -886,6 +906,20 @@ mod tests {
             })
             .unwrap();
         }
+    }
+
+    #[test]
+    fn bmr491_rc_level() {
+        use commands::bmr491::*;
+        let rc = MFR_RC_LEVEL::CommandData::from_slice(&[0xc8]).unwrap();
+        assert_eq!(rc.get(), Ok(units::Volts(20.0)));
+    }
+
+    #[test]
+    fn bmr491_ks_pretrig() {
+        use commands::bmr491::*;
+        let ks = MFR_KS_PRETRIG::CommandData::from_slice(&[0x89]).unwrap();
+        assert_eq!(ks.get(), Ok(units::Microseconds(61.649998)));
     }
 
     #[test]

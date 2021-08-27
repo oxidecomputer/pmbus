@@ -100,7 +100,7 @@
         (0xd3, "MFR_VIN_SCALE_MONITOR", Illegal, ReadBlock),
         (0xd4, "MFR_PREBIAS_DVDT_CFG", WriteBlock, ReadBlock),
         (0xd5, "MFR_FILTER_SELECT", WriteByte, ReadByte),
-        (0xd7, "MFR_GET_SNAPSHOT", Illegal, ReadBlock),
+        (0xd7, "MFR_READ_EVENT", Illegal, ReadBlock),
         (0xd8, "MFR_TEMP_COMPENSATION", Illegal, ReadBlock),
         (0xd9, "MFR_SET_ROM_MODE", WriteBlock, Illegal),
         (0xda, "MFR_ISHARE_THRESHOLD", WriteBlock, ReadBlock),
@@ -168,41 +168,21 @@
 
         ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
 
+        // The datasheet says only that MFR_RC_LEVEL is fixed-point, but
+        // its factor appears to be 10
+        ("MFR_RC_LEVEL", FixedPoint(Unsigned, Factor(10)), Volts),
+
+        // Strangely, each unit is 450ns
+        (
+            "MFR_KS_PRETRIG",
+            FixedPoint(Unsigned, Factor(2.22222222222)),
+            Microseconds
+        ),
+
+        ("MFR_EVENT_INDEX", Raw, Unitless),
     ],
 
     structured: {
-        "MFR_VIN_OV_WARN_RESPONSE": {
-            "Response": (
-                name: "Vin overvoltage response",
-                bits: Bitrange(High(7), Low(6)),
-                values: Sentinels({
-                    "Ignore": (0b00, "ignore fault"),
-                    "OperateAndRetry": (0b01, "operate and retry"),
-                    "DisableAndRetry": (0b10, "disable and retry"),
-                    "DisableUntilClear": (0b11, "disable until cleared"),
-                }),
-            ),
-            "Retries": (
-                name: "Retry disposition",
-                bits: Bitrange(High(5), Low(3)),
-                values: Sentinels({
-                    "DoNotRetry": (0b000, "do not retry"),
-                    "RetryOnce": (0b001, "retry once"),
-                    "RetryTwice": (0b010, "retry twice"),
-                    "Retry3Times": (0b011, "retry 3 times"),
-                    "Retry4Times": (0b100, "retry 4 times"),
-                    "Retry5Times": (0b101, "retry 5 times"),
-                    "Retry6Times": (0b110, "retry 6 times"),
-                    "RetryContinuously": (0b111, "retry continuously"),
-                }),
-            ),
-            "RetryTime": (
-                name: "Retry/delay time (log)",
-                bits: Bitrange(High(2), Low(0)),
-                values: Scalar(Unsigned),
-            ),
-        },
-
         "MFR_PGOOD_POLARITY": {
             "Polarity": (
                 name: "Power good polarity",
@@ -279,10 +259,28 @@
         },
 
         "MFR_ISHARE_THRESHOLD": {
+            "EnableDisable": (
+                name: "Enable/disable current share",
+                bits: Bit(56),
+                values: Sentinels({
+                    "Disable": (0b0, "Active current share disabled"),
+                    "Enable": (0b1, "Active current share enabled"),
+                })
+            ),
             "TrimLimit": (
                 name: "Output voltage trim limit",
                 bits: Bitrange(High(31), Low(24)),
                 values: ScaledUnits(Millivolts, Factor(1.7)),
+            ),
+            "PositiveThreshold": (
+                name: "Positive threshold level",
+                bits: Bitrange(High(15), Low(8)),
+                values: ScaledUnits(Milliamps, Factor(50)),
+            ),
+            "NegativeThreshold": (
+                name: "Negative threshold level",
+                bits: Bitrange(High(7), Low(0)),
+                values: ScaledUnits(Milliamps, Factor(50)),
             )
         },
 
@@ -306,5 +304,9 @@
                 Milliamps(
 */
 
-    }
+    },
+
+    synonyms: Some([
+        ("MFR_VIN_OV_WARN_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+    ]),
 )

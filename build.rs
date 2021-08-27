@@ -17,7 +17,7 @@ struct High(u8);
 #[derive(Debug, Deserialize)]
 struct Low(u8);
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Factor(f32);
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +33,7 @@ struct Value(u16, String);
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Hash)]
 enum Units {
     Nanoseconds,
+    Microseconds,
     Milliseconds,
     Seconds,
     Amperes,
@@ -55,6 +56,7 @@ impl Units {
     fn suffix(&self) -> &str {
         match self {
             Units::Nanoseconds => "ns",
+            Units::Microseconds => "μs",
             Units::Milliseconds => "ms",
             Units::Seconds => "s",
             Units::Amperes => "A",
@@ -104,6 +106,7 @@ enum Format {
     SLimear16,
     Direct(Coefficients),
     VOutMode(Sign),
+    FixedPoint(Sign, Factor),
     Raw,
 }
 
@@ -145,10 +148,14 @@ struct Command(u8, String, Operation, Operation);
 struct CommandNumericFormat(String, Format, Units);
 
 #[derive(Debug, Deserialize)]
+struct CommandSynonym(String, String);
+
+#[derive(Debug, Deserialize)]
 struct Commands {
     all: Vec<Command>,
     numerics: Vec<CommandNumericFormat>,
     structured: HashMap<String, HashMap<String, Field>>,
+    synonyms: Option<Vec<CommandSynonym>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -826,7 +833,7 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{}}{}",
-                        super::Value::raw(self) as f32 * {}
+                        super::Value::raw(self) as f32 * ({} as f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
             }
@@ -972,7 +979,7 @@ pub mod {} {{
             Values::ScaledUnits(unit, Factor(factor)) => {
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(self.get_val(Field::{}) as f32 * {})
+            crate::units::{:?}(self.get_val(Field::{}) as f32 * ({} as f32))
         }}"##, method, unit, unit, f, factor)?;
             }
 
@@ -1341,6 +1348,30 @@ pub mod {} {{
 
             Ok(())
         }}"##, units, c.m, c.R, c.b, units, units, c.m, c.R, c.b)?;
+        }
+
+        Format::FixedPoint(Sign::Unsigned, Factor(factor)) => {
+            writeln!(&mut s, r##"
+        pub fn get(&self) -> Result<{}, Error> {{
+            Ok({}((self.0 as f32) / ({} as f32)))
+        }}
+
+        pub fn set(&mut self, val: {}) -> Result<(), Error> {{
+            self.0 = (val.0 * ({} as f32)) as u{};
+            Ok(())
+        }}"##, units, units, factor, units, factor, bits)?;
+        }
+
+        Format::FixedPoint(Sign::Signed, Factor(factor)) => {
+            writeln!(&mut s, r##"
+        pub fn get(&self) -> Result<{}, Error> {{
+            Ok({}(((self.0 as i{}) as f32) / ({} as f32)))
+        }}
+
+        pub fn set(&mut self, val: {}) -> Result<(), Error> {{
+            self.0 = (val.0 * ({} as f32)) as u{};
+            Ok(())
+        }}"##, units, units, bits, factor, units, factor, bits)?;
         }
 
         Format::Raw => {
@@ -1850,6 +1881,7 @@ fn open_file(filename: &str) -> Result<File> {
     }
 }
 
+#[rustfmt::skip::macros(bail)]
 fn codegen() -> Result<()> {
     use std::io::Write;
 
@@ -1883,6 +1915,28 @@ fn codegen() -> Result<()> {
         let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
         let out = output_command_data(cmd, fields, bits, bytes)?;
         file.write_all(out.as_bytes())?;
+    }
+
+    if let Some(ref synonyms) = cmds.synonyms {
+        for synonym in synonyms {
+            let cmd = &synonym.0;
+
+            //
+            // We must have a structured definition for the command for
+            // which we're a synonym.
+            //
+            if let Some(fields) = dbs.get(&synonym.1) {
+                let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
+                let out = output_command_data(cmd, fields, bits, bytes)?;
+                file.write_all(out.as_bytes())?;
+            } else {
+                bail!(
+                    "command {} is a synonym for {}, \
+                    but {} lacks a structured definition",
+                    cmd, synonym.1, synonym.1
+                );
+            }
+        }
     }
 
     let out = output_numerics(&cmds.numerics, &sizes, &mut units, None)?;
@@ -1965,6 +2019,36 @@ fn codegen() -> Result<()> {
             let (bits, bytes) = validate(&cmd, &fields, &dsizes, &mut units)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
+        }
+
+        if let Some(ref synonyms) = dcmds.synonyms {
+            for synonym in synonyms {
+                let cmd = &synonym.0;
+                let s = &dsizes;
+
+                //
+                // We must have a structured definition for the command for
+                // which we're a synonym -- or there must be one in the common
+                // definition.
+                //
+                let fields = match dcmds.structured.get(&synonym.1) {
+                    Some(fields) => fields,
+                    None => match dbs.get(&synonym.1) {
+                        Some(fields) => fields,
+                        None => {
+                            bail!(
+                                "command {} is a synonym for {}, \
+                                but {} lacks a structured definition",
+                                cmd, synonym.1, synonym.1
+                            );
+                        }
+                    },
+                };
+
+                let (bits, bytes) = validate(cmd, fields, &s, &mut units)?;
+                let out = output_command_data(cmd, fields, bits, bytes)?;
+                file.write_all(out.as_bytes())?;
+            }
         }
 
         let out = output_numerics(&dcmds.numerics, &dsizes, &mut units, dev.2)?;

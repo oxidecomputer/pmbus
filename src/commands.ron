@@ -399,6 +399,70 @@
             ),
         },
 
+        "VOUT_OV_FAULT_RESPONSE": {
+            "Response": (
+                name: "Fault response",
+                bits: Bitrange(High(7), Low(6)),
+                values: Sentinels({
+                    "Ignore": (0b00, "ignore fault"),
+                    "OperateAndRetry": (0b01, "operate and retry"),
+                    "DisableAndRetry": (0b10, "disable and retry"),
+                    "DisableUntilClear": (0b11, "disable until cleared"),
+                }),
+            ),
+            "Retries": (
+                name: "Retry disposition",
+                bits: Bitrange(High(5), Low(3)),
+                values: Sentinels({
+                    "DoNotRetry": (0b000, "do not retry"),
+                    "RetryOnce": (0b001, "retry once"),
+                    "RetryTwice": (0b010, "retry twice"),
+                    "Retry3Times": (0b011, "retry 3 times"),
+                    "Retry4Times": (0b100, "retry 4 times"),
+                    "Retry5Times": (0b101, "retry 5 times"),
+                    "Retry6Times": (0b110, "retry 6 times"),
+                    "RetryContinuously": (0b111, "retry continuously"),
+                }),
+            ),
+            "RetryTime": (
+                name: "Retry/delay time",
+                bits: Bitrange(High(2), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
+        "IOUT_OC_FAULT_RESPONSE": {
+            "Response": (
+                name: "Fault response",
+                bits: Bitrange(High(7), Low(6)),
+                values: Sentinels({
+                    "OperateRegardless": (0b00, "continue operating"),
+                    "OperateConditionally": (0b01, "operate if output voltage high"),
+                    "OperateAndRecheck": (0b10, "operate but recheck after delay"),
+                    "ShutdownAndRetry": (0b11, "shutdown and retry"),
+                }),
+            ),
+            "Retries": (
+                name: "Retry disposition",
+                bits: Bitrange(High(5), Low(3)),
+                values: Sentinels({
+                    "DoNotRetry": (0b000, "do not retry"),
+                    "RetryOnce": (0b001, "retry once"),
+                    "RetryTwice": (0b010, "retry twice"),
+                    "Retry3Times": (0b011, "retry 3 times"),
+                    "Retry4Times": (0b100, "retry 4 times"),
+                    "Retry5Times": (0b101, "retry 5 times"),
+                    "Retry6Times": (0b110, "retry 6 times"),
+                    "RetryContinuously": (0b111, "retry continuously"),
+                }),
+            ),
+            "RetryTime": (
+                name: "Retry/delay time",
+                bits: Bitrange(High(2), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
         "STATUS_BYTE": {
             "Busy": (
                 name: "Busy device fault",
@@ -942,5 +1006,18 @@
                 }),
             ),
         },
-    }
+    },
+
+    synonyms: Some([
+        ("VOUT_UV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("OT_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("UT_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("VIN_OV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("VIN_UV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("TON_MAX_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("POUT_OP_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("IOUT_OC_LV_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+        ("IOUT_UC_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+        ("IIN_OC_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+    ]),
 )
