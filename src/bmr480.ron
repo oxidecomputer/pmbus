@@ -167,8 +167,6 @@
         // READ_FREQUENCY claims to be direct, but appears to in fact be linear
         ("READ_FREQUENCY", Linear11, Kilohertz),
 
-        ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
-
         // The datasheet says only that MFR_RC_LEVEL is fixed-point, but
         // its factor appears to be 10
         ("MFR_RC_LEVEL", FixedPoint(Unsigned, Factor(10)), Volts),
@@ -179,6 +177,10 @@
             FixedPoint(Unsigned, Factor(2.22222222222)),
             Microseconds
         ),
+
+        ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
+        ("MFR_TEMP_OFFSET_INT", Direct(( m: 1, R: 1, b: 0 )), Celsius),
+
     ],
 
     structured: {
@@ -269,26 +271,26 @@
             "TrimLimit": (
                 name: "Output voltage trim limit",
                 bits: Bitrange(High(31), Low(24)),
-                values: ScaledUnits(Millivolts, Factor(1.7)),
+                values: FixedPointUnits(Unsigned, Factor(588.235294118), Volts),
             ),
             "PositiveThreshold": (
                 name: "Positive threshold level",
                 bits: Bitrange(High(15), Low(8)),
-                values: ScaledUnits(Milliamps, Factor(50)),
+                values: FixedPointUnits(Unsigned, Factor(20), Amperes),
             ),
             "NegativeThreshold": (
                 name: "Negative threshold level",
                 bits: Bitrange(High(7), Low(0)),
-                values: ScaledUnits(Milliamps, Factor(50)),
+                values: FixedPointUnits(Unsigned, Factor(50), Amperes),
             )
         },
 
 /*
         "MFR_TEMP_COMPENSATION": {
-            "TempThreshold2Deadtime": (
-                name: "Temp threshold 2 dead time (ns)",
+            "DeadtimeAdd2": (
+                name: "Dead time at levels below threshold 2",
                 bits: Bitrange(High(63), Low(56)),
-                values: Units(Nanoseconds)
+                values: Units(Nanoseconds),
                 Scaled(Nanoseconds, 0.10),
                 ScaledOffset(
                 Scaled(Amperes, 0.050)

@@ -270,17 +270,17 @@
             "TrimLimit": (
                 name: "Output voltage trim limit",
                 bits: Bitrange(High(31), Low(24)),
-                values: ScaledUnits(Millivolts, Factor(1.7)),
+                values: FixedPointUnits(Unsigned, Factor(588.235294118), Volts),
             ),
             "PositiveThreshold": (
                 name: "Positive threshold level",
                 bits: Bitrange(High(15), Low(8)),
-                values: ScaledUnits(Milliamps, Factor(50)),
+                values: FixedPointUnits(Unsigned, Factor(20), Amperes),
             ),
             "NegativeThreshold": (
                 name: "Negative threshold level",
                 bits: Bitrange(High(7), Low(0)),
-                values: ScaledUnits(Milliamps, Factor(50)),
+                values: FixedPointUnits(Unsigned, Factor(50), Amperes),
             )
         },
 

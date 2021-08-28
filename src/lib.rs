@@ -778,7 +778,7 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(data.get_trim_limit(), units::Millivolts(170.0));
+        assert_eq!(data.get_trim_limit(), units::Volts(0.170));
 
         dump(&data);
     }
@@ -793,12 +793,15 @@ mod tests {
         let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
         dump(&data.unwrap());
 
-        let data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
+        let mut data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
             0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
         ])
         .unwrap();
 
-        assert_eq!(data.get_trim_limit(), units::Millivolts(170.0));
+        assert_eq!(data.get_trim_limit(), units::Volts(0.170));
+
+        assert_eq!(data.set_trim_limit(units::Volts(0.136)), Ok(()));
+        assert_eq!(data.get_trim_limit(), units::Volts(0.136));
 
         dump(&data);
     }
@@ -1038,11 +1041,13 @@ mod tests {
         //
         // Now crank our resolution up
         //
-        vout.set_parameter(commands::VOUT_MODE::Parameter(-12i8 as u8));
+        vout.set_parameter(-12).unwrap();
+        assert_eq!(vout.get_parameter(), -12);
         data.set(vout, units::Volts(1.20)).unwrap();
         std::println!("{:?}", data.get(vout).unwrap());
 
-        vout.set_parameter(commands::VOUT_MODE::Parameter(-15i8 as u8));
+        vout.set_parameter(-15).unwrap();
+        assert_eq!(vout.get_parameter(), -15);
         data.set(vout, units::Volts(1.20)).unwrap();
         assert_eq!(data.get(vout), Ok(units::Volts(1.2000122)));
 
@@ -1050,7 +1055,12 @@ mod tests {
         // With our exponent cranked to its maximum, there is no room
         // left for anything greater than 1.
         //
-        vout.set_parameter(commands::VOUT_MODE::Parameter(-16i8 as u8));
+        vout.set_parameter(-16);
+        assert_eq!(vout.get_parameter(), -16);
+
+        assert_eq!(vout.set_parameter(-101), Err(Error::ValueOutOfRange));
+        std::println!("{:?}", vout.get_parameter());
+
         data.set(vout, units::Volts(0.20)).unwrap();
         assert_eq!(data.get(vout), Ok(units::Volts(0.19999695)));
 

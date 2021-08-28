@@ -37,9 +37,7 @@ enum Units {
     Milliseconds,
     Seconds,
     Amperes,
-    Milliamps,
     Volts,
-    Millivolts,
     Celsius,
     Kilohertz,
     RPM,
@@ -60,10 +58,8 @@ impl Units {
             Units::Milliseconds => "ms",
             Units::Seconds => "s",
             Units::Amperes => "A",
-            Units::Milliamps => "mA",
             Units::Milliohms => "mΩ",
             Units::Volts => "V",
-            Units::Millivolts => "mV",
             Units::Celsius => "°C",
             Units::RPM => "RPM",
             Units::Watts => "W",
@@ -87,8 +83,7 @@ enum Sign {
 enum Values<T> {
     Scalar(Sign),
     Sentinels(T),
-    Units(Units),
-    ScaledUnits(Units, Factor),
+    FixedPointUnits(Sign, Factor, Units),
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -496,10 +491,7 @@ fn validate(
         }
 
         match field.values {
-            Values::Units(unit) => {
-                units.insert(unit);
-            }
-            Values::ScaledUnits(unit, _) => {
+            Values::FixedPointUnits(_, _, unit) => {
                 units.insert(unit);
             }
             _ => {}
@@ -552,7 +544,7 @@ fn output_value(
 
     let values = match values {
         Values::Sentinels(ref v) => v,
-        Values::Scalar(_) | Values::Units(_) | Values::ScaledUnits(..) => {
+        Values::Scalar(_) | Values::FixedPointUnits(..) => {
             return output_scalar(name, width);
         }
     };
@@ -623,7 +615,10 @@ pub mod {} {{
     use num_derive::FromPrimitive;
     use num_derive::ToPrimitive;
 
+    #[allow(unused_imports)]
     use num_traits::FromPrimitive;
+
+    #[allow(unused_imports)]
     use num_traits::ToPrimitive;
 
     #[derive(Copy, Clone, Debug, PartialEq)]
@@ -765,7 +760,7 @@ pub mod {} {{
 
     for (f, field) in fields {
         match field.values {
-            Values::Scalar(_) | Values::Units(_) | Values::ScaledUnits(..) => {
+            Values::Scalar(_) | Values::FixedPointUnits(..) => {
                 writeln!(&mut s, "                Value::{}(_) => true,", f)?;
             }
             _ => {}
@@ -788,7 +783,7 @@ pub mod {} {{
                     f
                 )?;
             }
-            Values::Scalar(_) | Values::Units(_) | Values::ScaledUnits(..) => {
+            Values::Scalar(_) | Values::FixedPointUnits(..) => {
                 writeln!(
                     &mut s,
                     "                Value::{}(v) => v.0 as u32,",
@@ -818,22 +813,12 @@ pub mod {} {{
                 }}"##, f)?;
             }
 
-            Values::Units(u) => {
-                writeln!(&mut s, r##"
-                Value::{}(_) => {{
-                    write!(
-                        f, "{{}} {}",
-                        super::Value::raw(self)
-                    )
-                }}"##, f, u.suffix())?;
-            }
-
-            Values::ScaledUnits(u, Factor(factor)) => {
+            Values::FixedPointUnits(_, Factor(factor), u) => {
                 writeln!(&mut s, r##"
                 Value::{}(_) => {{
                     write!(
                         f, "{{}}{}",
-                        super::Value::raw(self) as f32 * ({} as f32)
+                        super::Value::raw(self) as f32 / ({} as f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
             }
@@ -940,13 +925,43 @@ pub mod {} {{
     writeln!(&mut s, "            }}\n        }}")?;
 
     writeln!(&mut s, r##"
-        fn set_val(&mut self, field: Field, raw: u{}) {{
+        #[allow(dead_code)]
+        fn set_val(&mut self, field: Field, raw: u{}) -> Result<(), Error> {{
             use super::Field;
             let (pos, width) = field.bits();
             let mask = (1 << width.0) - 1;
-            self.0 &= !(mask << pos.0);
-            self.0 |= (raw & mask) << pos.0;
-        }}"##, bits)?;
+
+            if width.0 < {} && raw > mask {{
+                Err(Error::ValueOutOfRange)
+            }} else {{
+                self.0 &= !(mask << pos.0);
+                self.0 |= (raw & mask) << pos.0;
+                Ok(())
+            }}
+        }}
+
+        #[allow(dead_code)]
+        fn set_val_signed(
+            &mut self,
+            field: Field,
+            raw: i{},
+        ) -> Result<(), Error> {{
+            use super::Field;
+            let (pos, width) = field.bits();
+            let mask = (1 << width.0) - 1;
+            let max = (mask >> 1) as i{};
+            let min = !(max as u{}) as i{};
+
+            if width.0 < {} && (raw > max || raw < min) {{
+                Err(Error::ValueOutOfRange)
+            }} else {{
+                self.0 &= !(mask << pos.0);
+                self.0 |= ((raw as u{}) & mask) << pos.0;
+                Ok(())
+            }}
+        }}
+    
+    "##, bits, bits, bits, bits, bits, bits, bits, bits)?;
 
     for (f, field) in fields {
         let method = f.from_case(Case::Camel).to_case(Case::Snake);
@@ -956,6 +971,11 @@ pub mod {} {{
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> u{} {{
             self.get_val(Field::{})
+        }}"##, method, bits, f)?;
+
+                writeln!(&mut s, r##"
+        pub fn set_{}(&mut self, val: u{}) -> Result<(), Error> {{
+            self.set_val(Field::{}, val)
         }}"##, method, bits, f)?;
             }
 
@@ -967,20 +987,26 @@ pub mod {} {{
         pub fn get_{}(&self) -> i{} {{
             ((self.get_val(Field::{}) << {}) as i{}) >> {}
         }}"##, method, bits, f, shift, bits, shift)?;
+
+                writeln!(&mut s, r##"
+        pub fn set_{}(&mut self, val: i{}) -> Result<(), Error> {{
+            self.set_val_signed(Field::{}, val)
+        }}"##, method, bits, f)?;
             }
 
-            Values::Units(unit) => {
+            Values::FixedPointUnits(_, Factor(factor), unit) => {
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(self.get_val(Field::{}) as f32)
-        }}"##, method, unit, unit, f)?;
-            }
-
-            Values::ScaledUnits(unit, Factor(factor)) => {
-                writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(self.get_val(Field::{}) as f32 * ({} as f32))
+            crate::units::{:?}(self.get_val(Field::{}) as f32 / ({} as f32))
         }}"##, method, unit, unit, f, factor)?;
+
+                writeln!(&mut s, r##"
+        pub fn set_{}(
+            &mut self,
+            val: crate::units::{:?}
+        ) -> Result<(), Error> {{
+            self.set_val(Field::{}, (val.0 * ({} as f32)) as u{})
+        }}"##, method, unit, f, factor, bits)?;
             }
 
             Values::Sentinels(_) => {
@@ -993,14 +1019,15 @@ pub mod {} {{
                 Ok(Value::{}(v)) => Some(v),
                 _ => None,
             }}
-        }}"##, field.name, f, f,method, f, f, f)?;
+        }}
+
+        /// Sets the value of the {} field to the specified value.
+        pub fn set_{}(&mut self, val: {}) {{
+            self.set_val(Field::{}, val.to_u{}().unwrap()).unwrap();
+        }}"##, field.name, f, f, method, f, f, f,
+            field.name, method, f, f, bits)?;
             }
         }
-
-        writeln!(&mut s, r##"
-        pub fn set_{}(&mut self, val: {}) {{
-            self.set_val(Field::{}, val.to_u{}().unwrap());
-        }}"##, method, f, f, bits)?;
     }
 
     writeln!(&mut s, "    }}")?;
@@ -1045,19 +1072,13 @@ pub mod {} {{
                         match replacement {{
                             Replacement::Boolean(b) => {{
                                 let v = if b {{ 1 }} else {{ 0 }};
-                                self.set_val(field, v);
+                                self.set_val(field, v).unwrap();
                             }}
 
                             Replacement::Integer(i) => {{
-                                use super::Field;
-
-                                let width = field.bits().1.0;
-
-                                if i >= 1 << width as u32 {{
+                                if let Err(_) = self.set_val(field, i as u{}) {{
                                     return Err(Error::OverflowReplacement);
                                 }}
-
-                                self.set_val(field, i as u{});
                             }}
 
                             _ => {{
@@ -1353,11 +1374,11 @@ pub mod {} {{
         Format::FixedPoint(Sign::Unsigned, Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}((self.0 as f32) / ({} as f32)))
+            Ok({}((self.0 as f32) / ({:32} as f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({} as f32)) as u{};
+            self.0 = (val.0 * ({:32} as f32)) as u{};
             Ok(())
         }}"##, units, units, factor, units, factor, bits)?;
         }
@@ -1365,11 +1386,11 @@ pub mod {} {{
         Format::FixedPoint(Sign::Signed, Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}(((self.0 as i{}) as f32) / ({} as f32)))
+            Ok({}(((self.0 as i{}) as f32) / ({:32} as f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({} as f32)) as u{};
+            self.0 = (val.0 * ({:32} as f32)) as u{};
             Ok(())
         }}"##, units, units, bits, factor, units, factor, bits)?;
         }
