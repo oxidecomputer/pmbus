@@ -9,4 +9,5 @@
         // Coefficients for VOUT_MODE Direct
         Some(( m: 1, R: 3, b: 0 ))
     ),
+    ("mwocp68", "Murata MWOCP68-3600W Front End Power Module", None),
 ]

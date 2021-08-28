@@ -1055,7 +1055,7 @@ mod tests {
         // With our exponent cranked to its maximum, there is no room
         // left for anything greater than 1.
         //
-        vout.set_parameter(-16);
+        vout.set_parameter(-16).unwrap();
         assert_eq!(vout.get_parameter(), -16);
 
         assert_eq!(vout.set_parameter(-101), Err(Error::ValueOutOfRange));
