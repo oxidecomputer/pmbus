@@ -10,6 +10,7 @@
         ("READ_VIN", Linear11, Volts),
         ("READ_IIN", Linear11, Amperes),
         ("READ_VCAP", VOutMode(Unsigned), Volts),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Linear11, Amperes),
         ("READ_TEMPERATURE_1", Linear11, Celsius),
         ("READ_TEMPERATURE_2", Linear11, Celsius),

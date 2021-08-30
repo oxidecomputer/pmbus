@@ -42,6 +42,7 @@
         ("TOFF_DELAY", Linear11, Milliseconds),
         ("TOFF_FALL", Linear11, Milliseconds),
         ("READ_VIN", Linear11, Volts),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Linear11, Amperes),
         ("READ_TEMPERATURE_1", Linear11, Celsius),
     ],

@@ -38,6 +38,7 @@
         ("TOFF_FALL", Direct (( m: 1, R: 3, b: 0 )), Milliseconds),
         ("READ_VIN", Direct(( m: 1, R: 2, b: 0 )), Volts),
         ("READ_IIN", Direct(( m: 1, R: 2, b: 0 )), Amperes),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Direct(( m: 1, R: 1, b: 0 )), Amperes),
         ("READ_TEMPERATURE_1", Direct(( m: 1, R: 0, b: 0 )), Celsius),
         ("READ_TEMPERATURE_2", Direct(( m: 1, R: 0, b: 0 )), Celsius),

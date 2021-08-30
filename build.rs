@@ -100,6 +100,7 @@ enum Format {
     ULinear16,
     SLimear16,
     Direct(Coefficients),
+    RuntimeDirect,
     VOutMode(Sign),
     FixedPoint(Sign, Factor),
     Raw,
@@ -840,7 +841,15 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl CommandData {{
-        pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##)?;
+        pub const fn len() -> usize {{
+            {}
+        }}
+
+        pub const fn code() -> u8 {{
+            super::CommandCode::{} as u8
+        }}
+
+        pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##, bytes, cmd)?;
 
     if bits == bytes * 8 {
         writeln!(&mut s, r##"
@@ -1170,7 +1179,10 @@ pub mod {} {{
 
     use super::Error;
     use crate::commands::VOutMode;
-    use crate::commands::Replacement;"##, cmd, bits)?;
+    use crate::commands::Replacement;
+
+    #[allow(unused_imports)]
+    use crate::Coefficients;"##, cmd, bits)?;
 
     if let Format::Raw = format {
         writeln!(&mut s, r##"
@@ -1232,6 +1244,14 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl CommandData {{
+        pub const fn len() -> usize {{
+            {}
+        }}
+
+        pub const fn code() -> u8 {{
+            super::CommandCode::{} as u8
+        }}
+
         pub fn from_slice(slice: &[u8]) -> Option<Self> {{
             use core::convert::TryInto;
 
@@ -1241,7 +1261,7 @@ pub mod {} {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, bytes, bytes, bits)?;
+        }}"##, bytes, cmd, bytes, bytes, bits)?;
 
     writeln!(&mut s, r##"
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
@@ -1287,7 +1307,7 @@ pub mod {} {{
             match coeff {
                 Some(coeff) => {
                     writeln!(&mut s, r##"
-                    let coefficients = crate::Coefficients {{
+                    let coefficients = Coefficients {{
                         m: {}, R: {}, b: {},
                     }};
 
@@ -1327,7 +1347,7 @@ pub mod {} {{
             match coeff {
                 Some(coeff) => {
                     writeln!(&mut s, r##"
-                    let coefficients = crate::Coefficients {{
+                    let coefficients = Coefficients {{
                         m: {}, R: {}, b: {},
                     }};
 
@@ -1353,7 +1373,7 @@ pub mod {} {{
         Format::Direct(c) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            let coefficients = crate::Coefficients {{
+            let coefficients = Coefficients {{
                 m: {}, R: {}, b: {},
             }};
 
@@ -1361,7 +1381,7 @@ pub mod {} {{
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            let coefficients = crate::Coefficients {{
+            let coefficients = Coefficients {{
                 m: {}, R: {}, b: {},
             }};
 
@@ -1369,6 +1389,23 @@ pub mod {} {{
 
             Ok(())
         }}"##, units, c.m, c.R, c.b, units, units, c.m, c.R, c.b)?;
+        }
+
+        Format::RuntimeDirect => {
+            writeln!(&mut s, r##"
+        pub fn get(&self, coefficients: &Coefficients) -> Result<{}, Error> {{
+            Ok({}(crate::Direct(self.0, *coefficients).to_real()))
+        }}
+
+        pub fn set(
+            &mut self,
+            coefficients: &Coefficients,
+            val: {}
+        ) -> Result<(), Error> {{
+            self.0 = crate::Direct::from_real(val.0, *coefficients).0;
+
+            Ok(())
+        }}"##, units, units, units)?;
         }
 
         Format::FixedPoint(Sign::Unsigned, Factor(factor)) => {
@@ -1443,6 +1480,15 @@ pub mod {} {{
             iter(&field, &Value(self.get()?.into()));
             Ok(())
         }}"##, cmd, bits)?;
+    } else if let Format::RuntimeDirect = format {
+        writeln!(&mut s, r##"
+        fn interpret(
+            &self,
+            _mode: impl Fn() -> VOutMode,
+            mut _iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+        ) -> Result<(), Error> {{
+            Ok(())
+        }}"##)?;
     } else {
         writeln!(&mut s, r##"
         fn interpret(
@@ -1519,6 +1565,17 @@ pub mod {} {{
                 Ok(())
             }}
         }}"##, cmd, bits, bits)?;
+    } else if let Format::RuntimeDirect = format {
+        writeln!(&mut s, r##"
+        fn mutate(
+            &mut self,
+            _mode: impl Fn() -> VOutMode,
+            mut _iter: impl FnMut(
+                &dyn super::Field, &dyn super::Value
+            ) -> Option<Replacement>
+        ) -> Result<(), Error> {{
+            Ok(())
+        }}"##)?;
     } else {
         writeln!(&mut s, r##"
         fn mutate(

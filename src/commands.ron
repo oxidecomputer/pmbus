@@ -235,7 +235,6 @@
         ("VOUT_MARGIN_HIGH", VOutMode(Unsigned), Volts),
         ("VOUT_MARGIN_LOW", VOutMode(Unsigned), Volts),
         ("VOUT_MIN", VOutMode(Unsigned), Volts),
-        ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("POWER_GOOD_ON", VOutMode(Unsigned), Volts),
         ("POWER_GOOD_OFF", VOutMode(Unsigned), Volts),
     ],

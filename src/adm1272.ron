@@ -1,5 +1,6 @@
 (
     all: [
+        (0x20, "VOUT_MODE", Illegal, Illegal),
         (0xcc, "RESTART_TIME", WriteByte, ReadByte),
         (0xd0, "PEAK_IOUT", WriteWord, ReadWord),
         (0xd1, "PEAK_VIN", WriteWord, ReadWord),
@@ -21,7 +22,26 @@
         (0xf6, "STRT_UP_IOUT_LIM", WriteWord, ReadWord),
     ],
 
-    numerics: [],
+    numerics: [
+        ("VOUT_OV_WARN_LIMIT", RuntimeDirect, Volts),
+        ("VOUT_UV_WARN_LIMIT", RuntimeDirect, Volts),
+        ("IOUT_OC_WARN_LIMIT", RuntimeDirect, Amperes),
+        ("OT_FAULT_LIMIT", Direct(( m: 42, b: 31871, R: -1 )), Celsius),
+        ("OT_WARN_LIMIT", Direct(( m: 42, b: 31871, R: -1 )), Celsius),
+        ("VIN_OV_WARN_LIMIT", RuntimeDirect, Volts),
+        ("VIN_UV_WARN_LIMIT", RuntimeDirect, Volts),
+        ("PIN_OP_WARN_LIMIT", RuntimeDirect, Watts),
+        ("READ_VIN", RuntimeDirect, Volts),
+        ("READ_VOUT", RuntimeDirect, Volts),
+        ("READ_IOUT", RuntimeDirect, Amperes),
+        ("READ_TEMPERATURE_1", Direct(( m: 42, b: 31871, R: -1 )), Celsius),
+        ("READ_PIN", RuntimeDirect, Watts),
+        ("PEAK_IOUT", RuntimeDirect, Amperes),
+        ("PEAK_VIN", RuntimeDirect, Volts),
+        ("PEAK_VOUT", RuntimeDirect, Volts),
+        ("PEAK_TEMPERATURE", Direct(( m: 42, b: 31871, R: -1 )), Celsius),
+        ("PEAK_PIN", RuntimeDirect, Watts),
+    ],
 
     structured: {
         "STATUS_MFR_SPECIFIC": {
@@ -112,8 +132,8 @@
                     "Enabled": (0b1, "enabled"),
                 })
             ),
-            "Simultanous": (
-                name: "Simultanous Vin/Iout sampling",
+            "Simultaneous": (
+                name: "Simultaneous Vin/Iout sampling",
                 bits: Bit(14),
                 values: Sentinels({
                     "Disabled": (0b0, "disabled"),
