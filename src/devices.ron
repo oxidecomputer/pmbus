@@ -1,13 +1,33 @@
-[
-    ("adm1272", "Analog Devices Positive Hot Swap Controller", None),
-    ("tps546b24a", "Texas Instruments 2.95V-18V 20A Stackable Buck Converter", None),
-    ("bmr480", "Flex DC-DC Converter", None),
-    ("bmr491", "Flex DC-DC Converter", None),
-    (
-        "isl68224",
-        "Renesas Digital Triple Output, 6-Phase PWM Controller",
-        // Coefficients for VOUT_MODE Direct
-        Some(( m: 1, R: 3, b: 0 ))
+{
+    "adm1272": (
+        manufacturer: "Analog Devices",
+        part: "ADM1272",
+        description: "Postive Hot Swap Controller",
     ),
-    ("mwocp68", "Murata MWOCP68-3600W Front End Power Module", None),
-]
+    "tps546b24a": (
+        manufacturer: "Texas Instruments",
+        part: "TPS546B24a",
+        description: "2.95V-18V 20A Stackable Buck Converter",
+    ),
+    "bmr480": (
+        manufacturer: "Flex",
+        part: "BMR480 series",
+        description: "DC-DC Converter, Input 40-60V, Output to 1000W",
+    ),
+    "bmr491": (
+        manufacturer: "Flex",
+        part: "BMR491 series",
+        description: "DC-DC Converter, Input 40-60V, Output to 1300W",
+    ),
+    "isl68224": (
+        manufacturer: "Renesas",
+        part: "ISL68224",
+        description: "Digital Triple Output, 6-Phase PWM Controller",
+        coefficients: Some(( m: 1, R: 3, b: 0 ))
+    ),
+    "mwocp68": (
+        manufacturer: "Murata",
+        part: "MWOCP68-3600W",
+        description: "Front End Power Module"
+    )
+}

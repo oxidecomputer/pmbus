@@ -155,7 +155,12 @@ struct Commands {
 }
 
 #[derive(Debug, Deserialize)]
-struct Device(String, String, Option<Coefficients>);
+struct Device {
+    manufacturer: String,
+    part: String,
+    description: String,
+    coefficients: Option<Coefficients>,
+}
 
 fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
@@ -1668,7 +1673,7 @@ fn output_numerics(
 
 #[rustfmt::skip::macros(writeln)]
 #[rustfmt::skip::macros(write)]
-fn output_devices(devices: &Vec<Device>) -> Result<String> {
+fn output_devices(devices: &HashMap<String, Device>) -> Result<String> {
     let mut s = String::new();
 
     let name = |str: &str| str.to_case(Case::UpperCamel);
@@ -1716,9 +1721,10 @@ impl Device {{
         match self {{
             Device::Common => "<common>","##)?;
 
-    for dev in devices {
+    for (dev, device) in devices {
         writeln!(&mut s,
-            "            Device::{} => \"{}\",", name(&dev.0), dev.1)?;
+            "            Device::{} => \"{}\",",
+            name(&dev), device.description)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -1727,7 +1733,7 @@ impl Device {{
     /// For this device and the given command code, iterates over the fields
     /// in the structured register (if any), calling the specified function
     /// for each field and its value.  The current VOUT_MODE is required to
-    /// interpret some command data bytes; this must be provded as a
+    /// interpret some command data bytes; this must be provided as a
     /// paramater.  In general, this should only be used by agnostic code that
     /// is attmpting to make sense of PMBus data; *in situ* code that wishes
     /// to pull a particular value should use the direct accessor function
@@ -1770,9 +1776,9 @@ impl Device {{
     /// field and its value, which should return a value that should serve as
     /// a replacement for the passed field.  The current VOUT_MODE is required
     /// to interpret some command data bytes; this must be provided via a
-    /// closure that returns it.  In general -- as with [`interpret`] -- this
+    /// closure that returns it.  In general -- as with `interpret` -- this
     /// should only be used by agnostic code that is attmpting to modify PMBus
-    /// registers; *in situ* code that wishes to pull a particular value
+    /// registers; *in situ* code that wishes to set a particular value
     /// should use the direct setter function instead.
     pub fn mutate(
         &self,
@@ -2022,7 +2028,7 @@ fn codegen() -> Result<()> {
 
     let f = open_file("devices.ron")?;
 
-    let devices: Vec<Device> = match from_reader(f) {
+    let devices: HashMap<String, Device> = match from_reader(f) {
         Ok(devices) => devices,
         Err(e) => {
             bail!("failed to parse devices.ron: {}", e);
@@ -2040,11 +2046,11 @@ fn codegen() -> Result<()> {
     // our flattened module, and then include it in our flattened file of
     // all devices.
     //
-    for dev in &devices {
-        let dest_path = Path::new(&out_dir).join(format!("{}.rs", dev.0));
+    for (name, device) in &devices {
+        let dest_path = Path::new(&out_dir).join(format!("{}.rs", name));
         let mut file = File::create(&dest_path)?;
 
-        let fname = format!("{}.ron", &dev.0);
+        let fname = format!("{}.ron", &name);
         let f = open_file(&fname)?;
 
         let mut dcmds: Commands = match from_reader(f) {
@@ -2129,13 +2135,14 @@ fn codegen() -> Result<()> {
             }
         }
 
-        let out = output_numerics(&dcmds.numerics, &dsizes, &mut units, dev.2)?;
+        let coeff = device.coefficients;
+        let out = output_numerics(&dcmds.numerics, &dsizes, &mut units, coeff)?;
         file.write_all(out.as_bytes())?;
 
-        let out = output_numerics(&cmds.numerics, &sizes, &mut units, dev.2)?;
+        let out = output_numerics(&cmds.numerics, &sizes, &mut units, coeff)?;
         file.write_all(out.as_bytes())?;
 
-        let out = output_device(&dev.0)?;
+        let out = output_device(&name)?;
         dfile.write_all(out.as_bytes())?;
     }
 
