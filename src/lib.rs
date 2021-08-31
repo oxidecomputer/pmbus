@@ -55,7 +55,8 @@
 //!
 //! If it needs to be said:  all of this adds up to specifications almost
 //! entirely via RON definitions -- and an absolutely unholy `build.rs` to
-//! assemble it all at build time.  Paraphrasing the late Roger Faulker,
+//! assemble it all at build time.  Paraphrasing [the late Roger
+//! Faulker](https://www.usenix.org/memoriam-roger-faulkner),
 //! terrible things are sometimes required for beautiful abstractions.
 //!
 

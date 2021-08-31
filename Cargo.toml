@@ -3,6 +3,7 @@ name = "pmbus"
 version = "0.1.0"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
+license = "MPL-2.0"
 
 [build-dependencies]
 ron = "0.6"

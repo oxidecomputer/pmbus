@@ -609,6 +609,7 @@ fn output_command_data(
     let mut s = String::new();
 
     writeln!(&mut s, r##"
+/// Types and structures associated with the `{}` PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
@@ -627,13 +628,16 @@ pub mod {} {{
     #[allow(unused_imports)]
     use num_traits::ToPrimitive;
 
+    /// The data payload for the `{}` PMBus command
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct CommandData(pub u{});
 
+    /// An enum that captures all fields for the `{}` data payload
     #[derive(Copy, Clone, Debug, PartialEq)]
-    pub enum Field {{"##, cmd, bits)?;
+    pub enum Field {{"##, cmd, cmd, cmd, bits, cmd)?;
 
-    for f in fields.keys() {
+    for (f, field) in fields {
+        writeln!(&mut s, "        /// {}", field.name)?;
         writeln!(&mut s, "        {},", f)?;
     }
 
@@ -728,8 +732,10 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+    /// An enum that captures all possible field values for all of the
+    /// fields in the `{}` data payload
     #[derive(Copy, Clone, Debug, PartialEq)]
-    pub enum Value {{"##)?;
+    pub enum Value {{"##, cmd)?;
 
     for (f, _) in fields {
         writeln!(&mut s, "        {}({}),", f, f)?;
@@ -1175,11 +1181,13 @@ fn output_command_numeric(
     let units = &format!("crate::units::{:?}", u);
 
     writeln!(&mut s, r##"
+/// Types and structures associated with the `{}` PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
     use super::Bitwidth;
 
+    /// The data payload for the `{}` PMBus command
     pub struct CommandData(pub u{});
 
     use super::Error;
@@ -1187,7 +1195,7 @@ pub mod {} {{
     use crate::commands::Replacement;
 
     #[allow(unused_imports)]
-    use crate::Coefficients;"##, cmd, bits)?;
+    use crate::Coefficients;"##, cmd, cmd, cmd, bits)?;
 
     if let Format::Raw = format {
         writeln!(&mut s, r##"
