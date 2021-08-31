@@ -1,0 +1,1022 @@
+(
+    all: [
+        (0x00, "PAGE", WriteByte, ReadByte),
+        (0x01, "OPERATION", WriteByte, ReadByte),
+        (0x02, "ON_OFF_CONFIG", WriteByte, ReadByte),
+        (0x03, "CLEAR_FAULTS", SendByte, Illegal),
+        (0x04, "PHASE", WriteByte, ReadByte),
+        (0x05, "PAGE_PLUS_WRITE", WriteBlock, Illegal),
+        (0x06, "PAGE_PLUS_READ", Illegal, ProcessCall),
+        (0x07, "ZONE_CONFIG", WriteWord, ReadWord),
+        (0x08, "ZONE_ACTIVE", WriteWord, ReadWord),
+        (0x10, "WRITE_PROTECT", WriteByte, ReadByte),
+        (0x11, "STORE_DEFAULT_ALL", SendByte, Illegal),
+        (0x12, "RESTORE_DEFAULT_ALL", SendByte, Illegal),
+        (0x13, "STORE_DEFAULT_CODE", WriteByte, Illegal),
+        (0x14, "RESTORE_DEFAULT_CODE", WriteByte, Illegal),
+        (0x15, "STORE_USER_ALL", SendByte, Illegal),
+        (0x16, "RESTORE_USER_ALL", SendByte, Illegal),
+        (0x17, "STORE_USER_CODE", WriteByte, Illegal),
+        (0x18, "RESTORE_USER_CODE", WriteByte, Illegal),
+        (0x19, "CAPABILITY", Illegal, ReadByte),
+        (0x1a, "QUERY", Illegal, ProcessCall),
+        (0x1b, "SMBALERT_MASK", WriteWord, ProcessCall),
+        (0x20, "VOUT_MODE", WriteByte, ReadByte),
+        (0x21, "VOUT_COMMAND", WriteWord, ReadWord),
+        (0x22, "VOUT_TRIM", WriteWord, ReadWord),
+        (0x23, "VOUT_CAL_OFFSET", WriteWord, ReadWord),
+        (0x24, "VOUT_MAX", WriteWord, ReadWord),
+        (0x25, "VOUT_MARGIN_HIGH", WriteWord, ReadWord),
+        (0x26, "VOUT_MARGIN_LOW", WriteWord, ReadWord),
+        (0x27, "VOUT_TRANSITION_RATE", WriteWord, ReadWord),
+        (0x28, "VOUT_DROOP", WriteWord, ReadWord),
+        (0x29, "VOUT_SCALE_LOOP", WriteWord, ReadWord),
+        (0x2a, "VOUT_SCALE_MONITOR", WriteWord, ReadWord),
+        (0x2b, "VOUT_MIN", WriteWord, ReadWord),
+        (0x30, "COEFFICIENTS", Illegal, ProcessCall),
+        (0x31, "POUT_MAX", WriteWord, ReadWord),
+        (0x32, "MAX_DUTY", WriteWord, ReadWord),
+        (0x33, "FREQUENCY_SWITCH", WriteWord, ReadWord),
+        (0x34, "POWER_MODE", WriteByte, ReadByte),
+        (0x35, "VIN_ON", WriteWord, ReadWord),
+        (0x36, "VIN_OFF", WriteWord, ReadWord),
+        (0x37, "INTERLEAVE", WriteWord, ReadWord),
+        (0x38, "IOUT_CAL_GAIN", WriteWord, ReadWord),
+        (0x39, "IOUT_CAL_OFFSET", WriteWord, ReadWord),
+        (0x3a, "FAN_CONFIG_1_2", WriteByte, ReadByte),
+        (0x3b, "FAN_COMMAND_1", WriteWord, ReadWord),
+        (0x3c, "FAN_COMMAND_2", WriteWord, ReadWord),
+        (0x3d, "FAN_CONFIG_3_4", WriteByte, ReadByte),
+        (0x3e, "FAN_COMMAND_3", WriteWord, ReadWord),
+        (0x3f, "FAN_COMMAND_4", WriteWord, ReadWord),
+        (0x40, "VOUT_OV_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x41, "VOUT_OV_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x42, "VOUT_OV_WARN_LIMIT", WriteWord, ReadWord),
+        (0x43, "VOUT_UV_WARN_LIMIT", WriteWord, ReadWord),
+        (0x44, "VOUT_UV_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x45, "VOUT_UV_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x46, "IOUT_OC_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x47, "IOUT_OC_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x48, "IOUT_OC_LV_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x49, "IOUT_OC_LV_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x4a, "IOUT_OC_WARN_LIMIT", WriteWord, ReadWord),
+        (0x4b, "IOUT_UC_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x4c, "IOUT_UC_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x4f, "OT_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x50, "OT_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x51, "OT_WARN_LIMIT", WriteWord, ReadWord),
+        (0x52, "UT_WARN_LIMIT", WriteWord, ReadWord),
+        (0x53, "UT_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x54, "UT_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x55, "VIN_OV_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x56, "VIN_OV_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x57, "VIN_OV_WARN_LIMIT", WriteWord, ReadWord),
+        (0x58, "VIN_UV_WARN_LIMIT", WriteWord, ReadWord),
+        (0x59, "VIN_UV_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x5a, "VIN_UV_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x5b, "IIN_OC_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x5c, "IIN_OC_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x5d, "IIN_OC_WARN_LIMIT", WriteWord, ReadWord),
+        (0x5e, "POWER_GOOD_ON", WriteWord, ReadWord),
+        (0x5f, "POWER_GOOD_OFF", WriteWord, ReadWord),
+        (0x60, "TON_DELAY", WriteWord, ReadWord),
+        (0x61, "TON_RISE", WriteWord, ReadWord),
+        (0x62, "TON_MAX_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x63, "TON_MAX_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x64, "TOFF_DELAY", WriteWord, ReadWord),
+        (0x65, "TOFF_FALL", WriteWord, ReadWord),
+        (0x66, "TOFF_MAX_WARN_LIMIT", WriteWord, ReadWord),
+        (0x67, "Deprecated", Unknown, Unknown),
+        (0x68, "POUT_OP_FAULT_LIMIT", WriteWord, ReadWord),
+        (0x69, "POUT_OP_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x6a, "POUT_OP_WARN_LIMIT", WriteWord, ReadWord),
+        (0x6b, "PIN_OP_WARN_LIMIT", WriteWord, ReadWord),
+        (0x78, "STATUS_BYTE", WriteByte, ReadByte),
+        (0x79, "STATUS_WORD", WriteWord, ReadWord),
+        (0x7a, "STATUS_VOUT", WriteByte, ReadByte),
+        (0x7b, "STATUS_IOUT", WriteByte, ReadByte),
+        (0x7c, "STATUS_INPUT", WriteByte, ReadByte),
+        (0x7d, "STATUS_TEMPERATURE", WriteByte, ReadByte),
+        (0x7e, "STATUS_CML", WriteByte, ReadByte),
+        (0x7f, "STATUS_OTHER", WriteByte, ReadByte),
+        (0x80, "STATUS_MFR_SPECIFIC", WriteByte, ReadByte),
+        (0x81, "STATUS_FANS_1_2", WriteByte, ReadByte),
+        (0x82, "STATUS_FANS_3_4", WriteByte, ReadByte),
+        (0x83, "READ_KWH_IN", Illegal, ReadWord32),
+        (0x84, "READ_KWH_OUT", Illegal, ReadWord32),
+        (0x85, "READ_KWH_CONFIG", WriteWord, ReadWord),
+        (0x86, "READ_EIN", Illegal, ReadBlock),
+        (0x87, "READ_EOUT", Illegal, ReadBlock),
+        (0x88, "READ_VIN", Illegal, ReadWord),
+        (0x89, "READ_IIN", Illegal, ReadWord),
+        (0x8a, "READ_VCAP", Illegal, ReadWord),
+        (0x8b, "READ_VOUT", Illegal, ReadWord),
+        (0x8c, "READ_IOUT", Illegal, ReadWord),
+        (0x8d, "READ_TEMPERATURE_1", Illegal, ReadWord),
+        (0x8e, "READ_TEMPERATURE_2", Illegal, ReadWord),
+        (0x8f, "READ_TEMPERATURE_3", Illegal, ReadWord),
+        (0x90, "READ_FAN_SPEED_1", Illegal, ReadWord),
+        (0x91, "READ_FAN_SPEED_2", Illegal, ReadWord),
+        (0x92, "READ_FAN_SPEED_3", Illegal, ReadWord),
+        (0x93, "READ_FAN_SPEED_4", Illegal, ReadWord),
+        (0x94, "READ_DUTY_CYCLE", Illegal, ReadWord),
+        (0x95, "READ_FREQUENCY", Illegal, ReadWord),
+        (0x96, "READ_POUT", Illegal, ReadWord),
+        (0x97, "READ_PIN", Illegal, ReadWord),
+        (0x98, "PMBUS_REVISION", Illegal, ReadByte),
+        (0x99, "MFR_ID", WriteBlock, ReadBlock),
+        (0x9a, "MFR_MODEL", WriteBlock, ReadBlock),
+        (0x9b, "MFR_REVISION", WriteBlock, ReadBlock),
+        (0x9c, "MFR_LOCATION", WriteBlock, ReadBlock),
+        (0x9d, "MFR_DATE", WriteBlock, ReadBlock),
+        (0x9e, "MFR_SERIAL", WriteBlock, ReadBlock),
+        (0x9f, "APP_PROFILE_SUPPORT", Illegal, ReadBlock),
+        (0xa0, "MFR_VIN_MIN", Illegal, ReadWord),
+        (0xa1, "MFR_VIN_MAX", Illegal, ReadWord),
+        (0xa2, "MFR_IIN_MAX", Illegal, ReadWord),
+        (0xa3, "MFR_PIN_MAX", Illegal, ReadWord),
+        (0xa4, "MFR_VOUT_MIN", Illegal, ReadWord),
+        (0xa5, "MFR_VOUT_MAX", Illegal, ReadWord),
+        (0xa6, "MFR_IOUT_MAX", Illegal, ReadWord),
+        (0xa7, "MFR_POUT_MAX", Illegal, ReadWord),
+        (0xa8, "MFR_TAMBIENT_MAX", Illegal, ReadWord),
+        (0xa9, "MFR_TAMBIENT_MIN", Illegal, ReadWord),
+        (0xaa, "MFR_EFFICIENCY_LL", Illegal, ReadBlock),
+        (0xab, "MFR_EFFICIENCY_HL", Illegal, ReadBlock),
+        (0xac, "MFR_PIN_ACCURACY", Illegal, ReadByte),
+        (0xad, "IC_DEVICE_ID", Illegal, ReadBlock),
+        (0xae, "IC_DEVICE_REV", Illegal, ReadBlock),
+        (0xb0, "USER_DATA_00", WriteBlock, ReadBlock),
+        (0xb1, "USER_DATA_01", WriteBlock, ReadBlock),
+        (0xb2, "USER_DATA_02", WriteBlock, ReadBlock),
+        (0xb3, "USER_DATA_03", WriteBlock, ReadBlock),
+        (0xb4, "USER_DATA_04", WriteBlock, ReadBlock),
+        (0xb5, "USER_DATA_05", WriteBlock, ReadBlock),
+        (0xb6, "USER_DATA_06", WriteBlock, ReadBlock),
+        (0xb7, "USER_DATA_07", WriteBlock, ReadBlock),
+        (0xb8, "USER_DATA_08", WriteBlock, ReadBlock),
+        (0xb9, "USER_DATA_09", WriteBlock, ReadBlock),
+        (0xba, "USER_DATA_10", WriteBlock, ReadBlock),
+        (0xbb, "USER_DATA_11", WriteBlock, ReadBlock),
+        (0xbc, "USER_DATA_12", WriteBlock, ReadBlock),
+        (0xbd, "USER_DATA_13", WriteBlock, ReadBlock),
+        (0xbe, "USER_DATA_14", WriteBlock, ReadBlock),
+        (0xbf, "USER_DATA_15", WriteBlock, ReadBlock),
+        (0xc0, "MFR_MAX_TEMP_1", WriteWord, ReadWord),
+        (0xc1, "MFR_MAX_TEMP_2", WriteWord, ReadWord),
+        (0xc2, "MFR_MAX_TEMP_3", WriteWord, ReadWord),
+        (0xc4, "MFR_SPECIFIC_C4", MfrDefined, MfrDefined),
+        (0xc5, "MFR_SPECIFIC_C5", MfrDefined, MfrDefined),
+        (0xc6, "MFR_SPECIFIC_C6", MfrDefined, MfrDefined),
+        (0xc7, "MFR_SPECIFIC_C7", MfrDefined, MfrDefined),
+        (0xc8, "MFR_SPECIFIC_C8", MfrDefined, MfrDefined),
+        (0xc9, "MFR_SPECIFIC_C9", MfrDefined, MfrDefined),
+        (0xca, "MFR_SPECIFIC_CA", MfrDefined, MfrDefined),
+        (0xcb, "MFR_SPECIFIC_CB", MfrDefined, MfrDefined),
+        (0xcc, "MFR_SPECIFIC_CC", MfrDefined, MfrDefined),
+        (0xcd, "MFR_SPECIFIC_CD", MfrDefined, MfrDefined),
+        (0xce, "MFR_SPECIFIC_CE", MfrDefined, MfrDefined),
+        (0xcf, "MFR_SPECIFIC_CF", MfrDefined, MfrDefined),
+        (0xd0, "MFR_SPECIFIC_D0", MfrDefined, MfrDefined),
+        (0xd1, "MFR_SPECIFIC_D1", MfrDefined, MfrDefined),
+        (0xd2, "MFR_SPECIFIC_D2", MfrDefined, MfrDefined),
+        (0xd3, "MFR_SPECIFIC_D3", MfrDefined, MfrDefined),
+        (0xd4, "MFR_SPECIFIC_D4", MfrDefined, MfrDefined),
+        (0xd5, "MFR_SPECIFIC_D5", MfrDefined, MfrDefined),
+        (0xd6, "MFR_SPECIFIC_D6", MfrDefined, MfrDefined),
+        (0xd7, "MFR_SPECIFIC_D7", MfrDefined, MfrDefined),
+        (0xd8, "MFR_SPECIFIC_D8", MfrDefined, MfrDefined),
+        (0xd9, "MFR_SPECIFIC_D9", MfrDefined, MfrDefined),
+        (0xda, "MFR_SPECIFIC_DA", MfrDefined, MfrDefined),
+        (0xdb, "MFR_SPECIFIC_DB", MfrDefined, MfrDefined),
+        (0xdc, "MFR_SPECIFIC_DC", MfrDefined, MfrDefined),
+        (0xdd, "MFR_SPECIFIC_DD", MfrDefined, MfrDefined),
+        (0xde, "MFR_SPECIFIC_DE", MfrDefined, MfrDefined),
+        (0xdf, "MFR_SPECIFIC_DF", MfrDefined, MfrDefined),
+        (0xe0, "MFR_SPECIFIC_E0", MfrDefined, MfrDefined),
+        (0xe1, "MFR_SPECIFIC_E1", MfrDefined, MfrDefined),
+        (0xe2, "MFR_SPECIFIC_E2", MfrDefined, MfrDefined),
+        (0xe3, "MFR_SPECIFIC_E3", MfrDefined, MfrDefined),
+        (0xe4, "MFR_SPECIFIC_E4", MfrDefined, MfrDefined),
+        (0xe5, "MFR_SPECIFIC_E5", MfrDefined, MfrDefined),
+        (0xe6, "MFR_SPECIFIC_E6", MfrDefined, MfrDefined),
+        (0xe7, "MFR_SPECIFIC_E7", MfrDefined, MfrDefined),
+        (0xe8, "MFR_SPECIFIC_E8", MfrDefined, MfrDefined),
+        (0xe9, "MFR_SPECIFIC_E9", MfrDefined, MfrDefined),
+        (0xea, "MFR_SPECIFIC_EA", MfrDefined, MfrDefined),
+        (0xeb, "MFR_SPECIFIC_EB", MfrDefined, MfrDefined),
+        (0xec, "MFR_SPECIFIC_EC", MfrDefined, MfrDefined),
+        (0xed, "MFR_SPECIFIC_ED", MfrDefined, MfrDefined),
+        (0xee, "MFR_SPECIFIC_EE", MfrDefined, MfrDefined),
+        (0xef, "MFR_SPECIFIC_EF", MfrDefined, MfrDefined),
+        (0xf0, "MFR_SPECIFIC_F0", MfrDefined, MfrDefined),
+        (0xf1, "MFR_SPECIFIC_F1", MfrDefined, MfrDefined),
+        (0xf2, "MFR_SPECIFIC_F2", MfrDefined, MfrDefined),
+        (0xf3, "MFR_SPECIFIC_F3", MfrDefined, MfrDefined),
+        (0xf4, "MFR_SPECIFIC_F4", MfrDefined, MfrDefined),
+        (0xf5, "MFR_SPECIFIC_F5", MfrDefined, MfrDefined),
+        (0xf6, "MFR_SPECIFIC_F6", MfrDefined, MfrDefined),
+        (0xf7, "MFR_SPECIFIC_F7", MfrDefined, MfrDefined),
+        (0xf8, "MFR_SPECIFIC_F8", MfrDefined, MfrDefined),
+        (0xf9, "MFR_SPECIFIC_F9", MfrDefined, MfrDefined),
+        (0xfa, "MFR_SPECIFIC_FA", MfrDefined, MfrDefined),
+        (0xfb, "MFR_SPECIFIC_FB", MfrDefined, MfrDefined),
+        (0xfc, "MFR_SPECIFIC_FC", MfrDefined, MfrDefined),
+        (0xfd, "MFR_SPECIFIC_FD", MfrDefined, MfrDefined),
+        (0xfe, "MFR_SPECIFIC_COMMAND_EXT", Extended, Extended),
+        (0xff, "PMBUS_COMMAND_EXT", Extended, Extended),
+    ],
+
+    numerics: [
+        ("VOUT_COMMAND", VOutMode(Unsigned), Volts),
+        ("VOUT_TRIM", VOutMode(Signed), Volts),
+        ("VOUT_CAL_OFFSET", VOutMode(Signed), Volts),
+        ("VOUT_MAX", VOutMode(Unsigned), Volts),
+        ("VOUT_MARGIN_HIGH", VOutMode(Unsigned), Volts),
+        ("VOUT_MARGIN_LOW", VOutMode(Unsigned), Volts),
+        ("VOUT_MIN", VOutMode(Unsigned), Volts),
+        ("POWER_GOOD_ON", VOutMode(Unsigned), Volts),
+        ("POWER_GOOD_OFF", VOutMode(Unsigned), Volts),
+    ],
+
+    structured: {
+        "OPERATION": {
+            "OnOffState": (
+                name: "On/off state",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Off": (0, "output off"),
+                    "On": (1, "output on"),
+                }),
+            ),
+            "TurnOffBehavior": (
+                name: "Power down behavior",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Set": (1, "powers down based on TOFF_DELAY"),
+                    "Clear": (0, "powers down immediately"),
+                }),
+            ),
+            "VoltageCommandSource": (
+                name: "Source of output voltage",
+                bits: Bitrange(High(5), Low(4)),
+                values: Sentinels({
+                    "VOUT_COMMAND": (0b00, "set by VOUT_COMMAND"),
+                    "VOUT_MARGIN_LOW": (0b01, "set by VOUT_MARGIN_LOW"),
+                    "VOUT_MARGIN_HIGH": (0b10, "set by VOUT_MARGIN_HIGH"),
+                    "AVS_VOUT_COMMAND": (0b11, "set by AVSBus")
+                }),
+            ),
+            "MarginFaultResponse": (
+                name: "Margin fault response",
+                bits: Bitrange(High(3), Low(2)),
+                values: Sentinels({
+                    "Ignore": (0b01, "ignore margin faults" ),
+                    "ActUpon": (0b10, "act upon margin faults"),
+                }),
+            ),
+            "TransitionControl": (
+                name: "Transition control",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Clear": (0, "not set"),
+                    "Set": (1, "set"),
+                }),
+            ),
+        },
+
+        "ON_OFF_CONFIG": {
+            "PowerControl": (
+                name: "Power control source",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Regardless": (0b0, "regardless of OPERATION/CONTROL"),
+                    "Controlled": (0b1, "OPERATION/CONTROL"),
+                }),
+            ),
+            "CommandControl": (
+                name: "OPERATION disposition",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Ignore": (0b0, "ignores OPERATION on/off"),
+                    "Abides": (0b1, "abides by OPERATION on/off"),
+                }),
+            ),
+            "ControlControl": (
+                name: "CONTROL pin disposition",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Ignore": (0b0, "ignores CONTROL pin"),
+                    "Abides": (0b1, "abides by CONTROL pin"),
+                }),
+            ),
+            "ControlPolarity": (
+                name: "Polarity of CONTROL pin",
+                bits: Bit(1),
+                values: Sentinels({
+                    "ActiveLow": (0b0, "active low"),
+                    "ActiveHigh": (0b1, "active high"),
+                }),
+            ),
+            "ControlOff": (
+                name: "CONTROL pin action",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Programmed": (0b0, "use programmed delay"),
+                    "Immediate": (0b1, "turn off output immediately"),
+                }),
+            ),
+        },
+
+        "CAPABILITY": {
+            "PacketErrorChecking": (
+                name: "Packet error checking",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotSupported": (0b0, "not supported"),
+                    "Supported": (0b1, "supported"),
+                }),
+            ),
+            "MaximumBusSpeed": (
+                name: "Maximum supported bus speed",
+                bits: Bitrange(High(6), Low(5)),
+                values: Sentinels({
+                    "Speed100KHz": (0b00, "100 kHz"),
+                    "Speed400kHz": (0b01, "400 kHz"),
+                    "Speed1MHz": (0b10, "1 MHz"),
+                }),
+            ),
+            "SMBusAlert": (
+                name: "SMBus Alert Response support",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NotSupported": (0b0, "not supported"),
+                    "Supported": (0b1, "supported"),
+                }),
+            ),
+            "NumericFormat": (
+                name: "Numeric data format",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotIEEEHalf": (0b0, "not IEEE Half Precision"),
+                    "IEEEHalf": (0b1, "IEEE Half Precision"),
+                }),
+            ),
+            "AVSBusSupport": (
+                name: "Adapative Voltage Bus support",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotSupported": (0b0, "not supported"),
+                    "Supported": (0b1, "supported"),
+                }),
+            ),
+        },
+
+        "VOUT_MODE": {
+            "AbsoluteOrRelative": (
+                name: "Sense",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Absolute": (0b0, "absolute setting"),
+                    "Relative": (0b1, "relative adjustment"),
+                }),
+            ),
+            "Mode": (
+                name: "VOUT mode",
+                bits: Bitrange(High(6), Low(5)),
+                values: Sentinels({
+                    "ULINEAR16": (0b00, "ULINEAR16 exponent parameter"),
+                    "VID": (0b01, "VID code parameter"),
+                    "Direct": (0b10, "DIRECT format"),
+                    "IEEEHalf": (0b11, "IEEE Half Precision format"),
+                }),
+            ),
+            "Parameter": (
+                name: "Parameter",
+                bits: Bitrange(High(4), Low(0)),
+                values: Scalar(Signed),
+            ),
+        },
+
+        "VOUT_OV_FAULT_RESPONSE": {
+            "Response": (
+                name: "Fault response",
+                bits: Bitrange(High(7), Low(6)),
+                values: Sentinels({
+                    "Ignore": (0b00, "ignore fault"),
+                    "OperateAndRetry": (0b01, "operate and retry"),
+                    "DisableAndRetry": (0b10, "disable and retry"),
+                    "DisableUntilClear": (0b11, "disable until cleared"),
+                }),
+            ),
+            "Retries": (
+                name: "Retry disposition",
+                bits: Bitrange(High(5), Low(3)),
+                values: Sentinels({
+                    "DoNotRetry": (0b000, "do not retry"),
+                    "RetryOnce": (0b001, "retry once"),
+                    "RetryTwice": (0b010, "retry twice"),
+                    "Retry3Times": (0b011, "retry 3 times"),
+                    "Retry4Times": (0b100, "retry 4 times"),
+                    "Retry5Times": (0b101, "retry 5 times"),
+                    "Retry6Times": (0b110, "retry 6 times"),
+                    "RetryContinuously": (0b111, "retry continuously"),
+                }),
+            ),
+            "RetryTime": (
+                name: "Retry/delay time",
+                bits: Bitrange(High(2), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
+        "IOUT_OC_FAULT_RESPONSE": {
+            "Response": (
+                name: "Fault response",
+                bits: Bitrange(High(7), Low(6)),
+                values: Sentinels({
+                    "OperateRegardless": (0b00, "continue operating"),
+                    "OperateConditionally": (0b01, "operate if output voltage high"),
+                    "OperateAndRecheck": (0b10, "operate but recheck after delay"),
+                    "ShutdownAndRetry": (0b11, "shutdown and retry"),
+                }),
+            ),
+            "Retries": (
+                name: "Retry disposition",
+                bits: Bitrange(High(5), Low(3)),
+                values: Sentinels({
+                    "DoNotRetry": (0b000, "do not retry"),
+                    "RetryOnce": (0b001, "retry once"),
+                    "RetryTwice": (0b010, "retry twice"),
+                    "Retry3Times": (0b011, "retry 3 times"),
+                    "Retry4Times": (0b100, "retry 4 times"),
+                    "Retry5Times": (0b101, "retry 5 times"),
+                    "Retry6Times": (0b110, "retry 6 times"),
+                    "RetryContinuously": (0b111, "retry continuously"),
+                }),
+            ),
+            "RetryTime": (
+                name: "Retry/delay time",
+                bits: Bitrange(High(2), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
+        "STATUS_BYTE": {
+            "Busy": (
+                name: "Busy device fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Off": (
+                name: "Device not providing power",
+                bits: Bitrange(High(6), Low(6)),
+                values: Sentinels({
+                    "PowerNotOff": (0b0, "power is not off"),
+                    "PowerOff": (0b1, "power is off"),
+                }),
+            ),
+            "OutputOvervoltageFault": (
+                name: "Output overvoltage fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOvercurrentFault": (
+                name: "Output overcurrent fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputUndervoltageFault": (
+                name: "Input undervoltage fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "TemperatureFault": (
+                name: "Temperature fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CMLFault": (
+                name: "Communications/memory/logic fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "NoneOfTheAbove": (
+                name: "Unknown fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            )
+        },
+
+        "STATUS_WORD": {
+            "OutputVoltageFault": (
+                name: "Output voltage fault",
+                bits: Bit(15),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputCurrentFault": (
+                name: "Output current/power fault",
+                bits: Bit(14),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputFault": (
+                name: "Input voltage/current/power fault",
+                bits: Bit(13),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "ManufacturerFault": (
+                name: "Manufacturer-specific fault",
+                bits: Bit(12),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PowerGoodStatus": (
+                name: "POWER_GOOD signal status",
+                bits: Bit(11),
+                values: Sentinels({
+                    "PowerGood": (0b0, "POWER_GOOD set"),
+                    "NoPowerGood": (0b1, "POWER_GOOD not set"),
+                }),
+            ),
+            "FanFault": (
+                name: "Fan fault",
+                bits: Bitrange(High(10), Low(10)),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OtherFault": (
+                name: "STATUS_OTHER fault",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "UnknownFault": (
+                name: "Unknown fault",
+                bits: Bitrange(High(8), Low(8)),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Busy": (
+                name: "Busy device fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Off": (
+                name: "Device not providing power",
+                bits: Bitrange(High(6), Low(6)),
+                values: Sentinels({
+                    "PowerNotOff": (0b0, "power is not off"),
+                    "PowerOff": (0b1, "power is off"),
+                }),
+            ),
+            "OutputOvervoltageFault": (
+                name: "Output overvoltage fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOvercurrentFault": (
+                name: "Output overcurrent fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputUndervoltageFault": (
+                name: "Input undervoltage fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "TemperatureFault": (
+                name: "Temperature fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CMLFault": (
+                name: "Communications/memory/logic fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "NoneOfTheAbove": (
+                name: "Unknown fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            )
+        },
+
+        "STATUS_VOUT": {
+            "OutputOvervoltageFault": (
+                name: "Output overvoltage fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOvervoltageWarning": (
+                name: "Output overvoltage warning",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "OutputUndervoltageWarning": (
+                name: "Output overvoltage warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "OutputUndervoltageFault": (
+                name: "Output undervoltage fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "VoltageOutMaxMinWarning": (
+                name: "Voltage max/min warning",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "PowerOnMaxFault": (
+                name: "TON_MAX_FAULT_LIMIT fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PowerOffMaxWarning": (
+                name: "TOFF_MAX_WARN_LIMIT warning",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "TrackingError": (
+                name: "Device-specific error",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+        },
+
+        "STATUS_IOUT": {
+            "OutputOvercurrentFault": (
+                name: "Output overcurrent fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOvercurrentLowVoltageFault": (
+                name: "Output overcurrent/low voltage fault",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOvercurrentWarning": (
+                name: "Output overcurrent warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "OutputUndercurrentFault": (
+                name: "Output undercurrent fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CurrentShareFault": (
+                name: "Current share fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PowerLimiting": (
+                name: "In power limiting mode",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotLimiting": (0b0, "not limiting"),
+                    "Limiting": (0b1, "limiting"),
+                }),
+            ),
+            "OutputOverpowerFault": (
+                name: "Output overpower fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputOverpowerWarning": (
+                name: "Output overpower warning",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+        },
+
+        "STATUS_INPUT": {
+            "InputOvervoltageFault": (
+                name: "Input overvoltage fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputOvervoltageWarning": (
+                name: "Input overvoltage warning",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputUndervoltageWarning": (
+                name: "Input undervoltage warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputUndervoltageFault": (
+                name: "Input undervoltage fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InsufficientInputVoltage": (
+                name: "Insufficient input voltage",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotInsufficient": (0b0, "not insufficient"),
+                    "Insufficient": (0b1, "insufficient"),
+                }),
+            ),
+            "InputOvercurrentFault": (
+                name: "Input overcurrent fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputOvercurrentWarning": (
+                name: "Input overcurrent warning",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputOverpowerWarning": (
+                name: "Input overpower warning",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+        },
+
+        "STATUS_TEMPERATURE": {
+            "OvertemperatureFault": (
+                name: "Overtemperature fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OvertemperatureWarning": (
+                name: "Overtemperature warning",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "UndertemperatureWarning": (
+                name: "Overtemperature warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "UndertemperatureFault": (
+                name: "Undertemperature fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+        },
+
+        "STATUS_CML": {
+            "InvalidCommand": (
+                name: "Invalid command received",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoInvalid": (0b0, "no invalid commands"),
+                    "Invalid": (0b1, "invalid command(s)"),
+                }),
+            ),
+            "InvalidData": (
+                name: "Invalid data received",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoInvalid": (0b0, "no invalid data"),
+                    "Invalid": (0b1, "invalid data"),
+                }),
+            ),
+            "PECFailed": (
+                name: "Packet error check failed",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NotFailed": (0b0, "not failed"),
+                    "Failed": (0b1, "failed"),
+                }),
+            ),
+            "MemoryFault": (
+                name: "Memory fault detected",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "ProcessorFault": (
+                name: "Processor fault detected",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OtherCommunicationError": (
+                name: "Other communication error",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "OtherMemoryLogicError": (
+                name: "Other memory/logic error",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+        },
+
+        "STATUS_OTHER": {
+            "InputABreakerFault": (
+                name: "Input A fuse/breaker fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputBBreakerFault": (
+                name: "Input B fuse/breaker fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputADeviceFault": (
+                name: "Input A device fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputBDeviceFault": (
+                name: "Input B device fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OutputDeviceFault": (
+                name: "Output device fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "FirstSMBusAlert": (
+                name: "First to assert SMBus alert",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NotFirst": (0b0, "not first"),
+                    "First": (0b1, "first"),
+                }),
+            ),
+        },
+    },
+
+    synonyms: Some([
+        ("VOUT_UV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("OT_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("UT_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("VIN_OV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("VIN_UV_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("TON_MAX_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("POUT_OP_FAULT_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
+        ("IOUT_OC_LV_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+        ("IOUT_UC_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+        ("IIN_OC_FAULT_RESPONSE", "IOUT_OC_FAULT_RESPONSE"),
+    ]),
+)

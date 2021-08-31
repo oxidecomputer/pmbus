@@ -1,747 +1,80 @@
 #![no_std]
 
-/// pmbus: A crate for PMBus manipulation
-///
-/// This is a no_std crate that expresses the PMBus protocol, as described in
-/// the PMBus 1.3 specifcation.  This document is not proprietary, but
-/// (regrettably) it is only available on request.  This crate is intended to
-/// be generic with respect to implementation and usable by software that will
-/// directly communicate with PMBus devices via SMBus/I2C as well as by
-/// software that merely wishes to make sense of the PMBus protocol (e.g.,
-/// debuggers or analyzers running on a host).
-///
-pub use num_traits::float::FloatCore;
+//! pmbus: A crate for PMBus manipulation
+//!
+//! This is a no_std crate that expresses the PMBus protocol, as described in
+//! the PMBus 1.3 specifcation.  This crate is intended to be generic with
+//! respect to implementation and usable by software that will directly
+//! communicate with PMBus devices via SMBus/I2C as well as by software that
+//! merely wishes to make sense of the PMBus protocol (e.g., debuggers or
+//! analyzers running on a host).  For PMBus, this can be a bit of a
+//! challenge, as much of the definition is left up to a particular device
+//! (that is, much is implementation-defined).  Our two use cases are
+//! therefore divergent in their needs:
+//!
+//! 1. The embedded system that is speaking to a particular PMBus device *in
+//!    situ* is likely to know (and want to use) the special capabilities of a
+//!    given device.  That is, these use cases know their target device at
+//!    compile time, and have no need or desire to dynamically discover their
+//!    device capabilities.
+//!
+//! 2. The host-based system that is trying to make sense of PMBus is *not*
+//!    necessarily going to know the specifics of the attached devices at
+//!    compile time; it is going to want to allow the device to be specified
+//!    (or otherwise dynamically determined) and then discover that device's
+//!    capabilities dynamically -- even if only to pass those capabilities on
+//!    to the user.
+//!
+//! These use cases are in tension:  we want the first to be tight and
+//! typesafe while still allowing for the more dynamic second use case.  We
+//! balance these two cases by dynamically compiling the crate based on
+//! per-device RON files that specify the commands and their corresponding
+//! destructured data; each device is in its own module, with each PMBus
+//! command further having its own module that contains the types for the
+//! corresponding command data.
+//!
+//! As a concrete example, [`commands::OPERATION`] contains an implementation
+//! of the [`commands::CommandData`] trait for the fields for the common PMBus
+//! `OPERATION` command.  For each device, there is a device-specific
+//! `OPERATION` module -- e.g.  `[commands::adm1272::OPERATION]` -- that may
+//! extend or override the common definition.  Further, the device may define
+//! its own constants; for example, while PMBus defines the command code
+//! `0xd4` to be [`CommandCode::MFR_SPECIFIC_D4`], the ADM1272 defines this to
+//! be `PMON_CONFIG`, a device-specific power monitor configuration register.
+//! There therefore exists a [`commands::adm1272::PMON_CONFIG`] module that
+//! understands the full (ADM1272-specific) functionality.  For code that
+//! wishes to be device agnostic but still be able to display contents, there
+//! exists a [`Device::interpret`] that given a device, a code, and a payload,
+//! calls the specified closure to iterate over fields and values.  
+//!
+//! A final (crucial) constraint is that this crate remains `no_std`; it
+//! performs no dynamic allocation and in general relies on program text
+//! rather than table lookups -- with the knowledge that the compiler is very
+//! good about dead code elimination and will not include unused program text
+//! in the embedded system.
+//!
+//! If it needs to be said:  all of this adds up to specifications almost
+//! entirely via RON definitions -- and an absolutely unholy `build.rs` to
+//! assemble it all at build time.  Paraphrasing [the late Roger
+//! Faulker](https://www.usenix.org/memoriam-roger-faulkner),
+//! terrible things are sometimes required for beautiful abstractions.
+//!
 
 pub use num_derive::{FromPrimitive, ToPrimitive};
+pub use num_traits::float::FloatCore;
 pub use num_traits::{FromPrimitive, ToPrimitive};
 
-#[allow(dead_code, non_camel_case_types)]
-#[derive(Copy, Clone, PartialEq, Debug, FromPrimitive)]
-#[repr(u8)]
-pub enum Command {
-    PAGE = 0x00,
-    OPERATION = 0x01,
-    ON_OFF_CONFIG = 0x02,
-    CLEAR_FAULTS = 0x03,
-    PHASE = 0x04,
-    PAGE_PLUS_WRITE = 0x05,
-    PAGE_PLUS_READ = 0x06,
-    ZONE_CONFIG = 0x07,
-    ZONE_ACTIVE = 0x08,
-    WRITE_PROTECT = 0x10,
-    STORE_DEFAULT_ALL = 0x11,
-    RESTORE_DEFAULT_ALL = 0x12,
-    STORE_DEFAULT_CODE = 0x13,
-    RESTORE_DEFAULT_CODE = 0x14,
-    STORE_USER_ALL = 0x15,
-    RESTORE_USER_ALL = 0x16,
-    STORE_USER_CODE = 0x17,
-    RESTORE_USER_CODE = 0x18,
-    CAPABILITY = 0x19,
-    QUERY = 0x1a,
-    SMBALERT_MASK = 0x1b,
-    VOUT_MODE = 0x20,
-    VOUT_COMMAND = 0x21,
-    VOUT_TRIM = 0x22,
-    VOUT_CAL_OFFSET = 0x23,
-    VOUT_MAX = 0x24,
-    VOUT_MARGIN_HIGH = 0x25,
-    VOUT_MARGIN_LOW = 0x26,
-    VOUT_TRANSITION_RATE = 0x27,
-    VOUT_DROOP = 0x28,
-    VOUT_SCALE_LOOP = 0x29,
-    VOUT_SCALE_MONITOR = 0x2a,
-    VOUT_MIN = 0x2b,
-    COEFFICIENTS = 0x30,
-    POUT_MAX = 0x31,
-    MAX_DUTY = 0x32,
-    FREQUENCY_SWITCH = 0x33,
-    POWER_MODE = 0x34,
-    VIN_ON = 0x35,
-    VIN_OFF = 0x36,
-    INTERLEAVE = 0x37,
-    IOUT_CAL_GAIN = 0x38,
-    IOUT_CAL_OFFSET = 0x39,
-    FAN_CONFIG_1_2 = 0x3a,
-    FAN_COMMAND_1 = 0x3b,
-    FAN_COMMAND_2 = 0x3c,
-    FAN_CONFIG_3_4 = 0x3d,
-    FAN_COMMAND_3 = 0x3e,
-    FAN_COMMAND_4 = 0x3f,
-    VOUT_OV_FAULT_LIMIT = 0x40,
-    VOUT_OV_FAULT_RESPONSE = 0x41,
-    VOUT_OV_WARN_LIMIT = 0x42,
-    VOUT_UV_WARN_LIMIT = 0x43,
-    VOUT_UV_FAULT_LIMIT = 0x44,
-    VOUT_UV_FAULT_RESPONSE = 0x45,
-    IOUT_OC_FAULT_LIMIT = 0x46,
-    IOUT_OC_FAULT_RESPONSE = 0x47,
-    IOUT_OC_LV_FAULT_LIMIT = 0x48,
-    IOUT_OC_LV_FAULT_RESPONSE = 0x49,
-    IOUT_OC_WARN_LIMIT = 0x4a,
-    IOUT_UC_FAULT_LIMIT = 0x4b,
-    IOUT_UC_FAULT_RESPONSE = 0x4c,
-    OT_FAULT_LIMIT = 0x4f,
-    OT_FAULT_RESPONSE = 0x50,
-    OT_WARN_LIMIT = 0x51,
-    UT_WARN_LIMIT = 0x52,
-    UT_FAULT_LIMIT = 0x53,
-    UT_FAULT_RESPONSE = 0x54,
-    VIN_OV_FAULT_LIMIT = 0x55,
-    VIN_OV_FAULT_RESPONSE = 0x56,
-    VIN_OV_WARN_LIMIT = 0x57,
-    VIN_UV_WARN_LIMIT = 0x58,
-    VIN_UV_FAULT_LIMIT = 0x59,
-    VIN_UV_FAULT_RESPONSE = 0x5a,
-    IIN_OC_FAULT_LIMIT = 0x5b,
-    IIN_OC_FAULT_RESPONSE = 0x5c,
-    IIN_OC_WARN_LIMIT = 0x5d,
-    POWER_GOOD_ON = 0x5e,
-    POWER_GOOD_OFF = 0x5f,
-    TON_DELAY = 0x60,
-    TON_RISE = 0x61,
-    TON_MAX_FAULT_LIMIT = 0x62,
-    TON_MAX_FAULT_RESPONSE = 0x63,
-    TOFF_DELAY = 0x64,
-    TOFF_FALL = 0x65,
-    TOFF_MAX_WARN_LIMIT = 0x66,
-    Deprecated = 0x67,
-    POUT_OP_FAULT_LIMIT = 0x68,
-    POUT_OP_FAULT_RESPONSE = 0x69,
-    POUT_OP_WARN_LIMIT = 0x6a,
-    PIN_OP_WARN_LIMIT = 0x6b,
-    STATUS_BYTE = 0x78,
-    STATUS_WORD = 0x79,
-    STATUS_VOUT = 0x7a,
-    STATUS_IOUT = 0x7b,
-    STATUS_INPUT = 0x7c,
-    STATUS_TEMPERATURE = 0x7d,
-    STATUS_CML = 0x7e,
-    STATUS_OTHER = 0x7f,
-    STATUS_MFR_SPECIFIC = 0x80,
-    STATUS_FANS_1_2 = 0x81,
-    STATUS_FANS_3_4 = 0x82,
-    READ_KWH_IN = 0x83,
-    READ_KWH_OUT = 0x84,
-    READ_KWH_CONFIG = 0x85,
-    READ_EIN = 0x86,
-    READ_EOUT = 0x87,
-    READ_VIN = 0x88,
-    READ_IIN = 0x89,
-    READ_VCAP = 0x8a,
-    READ_VOUT = 0x8b,
-    READ_IOUT = 0x8c,
-    READ_TEMPERATURE_1 = 0x8d,
-    READ_TEMPERATURE_2 = 0x8e,
-    READ_TEMPERATURE_3 = 0x8f,
-    READ_FAN_SPEED_1 = 0x90,
-    READ_FAN_SPEED_2 = 0x91,
-    READ_FAN_SPEED_3 = 0x92,
-    READ_FAN_SPEED_4 = 0x93,
-    READ_DUTY_CYCLE = 0x94,
-    READ_FREQUENCY = 0x95,
-    READ_POUT = 0x96,
-    READ_PIN = 0x97,
-    PMBUS_REVISION = 0x98,
-    MFR_ID = 0x99,
-    MFR_MODEL = 0x9a,
-    MFR_REVISION = 0x9b,
-    MFR_LOCATION = 0x9c,
-    MFR_DATE = 0x9d,
-    MFR_SERIAL = 0x9e,
-    APP_PROFILE_SUPPORT = 0x9f,
-    MFR_VIN_MIN = 0xa0,
-    MFR_VIN_MAX = 0xa1,
-    MFR_IIN_MAX = 0xa2,
-    MFR_PIN_MAX = 0xa3,
-    MFR_VOUT_MIN = 0xa4,
-    MFR_VOUT_MAX = 0xa5,
-    MFR_IOUT_MAX = 0xa6,
-    MFR_POUT_MAX = 0xa7,
-    MFR_TAMBIENT_MAX = 0xa8,
-    MFR_TAMBIENT_MIN = 0xa9,
-    MFR_EFFICIENCY_LL = 0xaa,
-    MFR_EFFICIENCY_HL = 0xab,
-    MFR_PIN_ACCURACY = 0xac,
-    IC_DEVICE_ID = 0xad,
-    IC_DEVICE_REV = 0xae,
-    USER_DATA_00 = 0xb0,
-    USER_DATA_01 = 0xb1,
-    USER_DATA_02 = 0xb2,
-    USER_DATA_03 = 0xb3,
-    USER_DATA_04 = 0xb4,
-    USER_DATA_05 = 0xb5,
-    USER_DATA_06 = 0xb6,
-    USER_DATA_07 = 0xb7,
-    USER_DATA_08 = 0xb8,
-    USER_DATA_09 = 0xb9,
-    USER_DATA_10 = 0xba,
-    USER_DATA_11 = 0xbb,
-    USER_DATA_12 = 0xbc,
-    USER_DATA_13 = 0xbd,
-    USER_DATA_14 = 0xbe,
-    USER_DATA_15 = 0xbf,
-    MFR_MAX_TEMP_1 = 0xc0,
-    MFR_MAX_TEMP_2 = 0xc1,
-    MFR_MAX_TEMP_3 = 0xc2,
-    MFR_SPECIFIC_C4 = 0xc4,
-    MFR_SPECIFIC_C5 = 0xc5,
-    MFR_SPECIFIC_C6 = 0xc6,
-    MFR_SPECIFIC_C7 = 0xc7,
-    MFR_SPECIFIC_C8 = 0xc8,
-    MFR_SPECIFIC_C9 = 0xc9,
-    MFR_SPECIFIC_CA = 0xca,
-    MFR_SPECIFIC_CB = 0xcb,
-    MFR_SPECIFIC_CC = 0xcc,
-    MFR_SPECIFIC_CD = 0xcd,
-    MFR_SPECIFIC_CE = 0xce,
-    MFR_SPECIFIC_CF = 0xcf,
-    MFR_SPECIFIC_D0 = 0xd0,
-    MFR_SPECIFIC_D1 = 0xd1,
-    MFR_SPECIFIC_D2 = 0xd2,
-    MFR_SPECIFIC_D3 = 0xd3,
-    MFR_SPECIFIC_D4 = 0xd4,
-    MFR_SPECIFIC_D5 = 0xd5,
-    MFR_SPECIFIC_D6 = 0xd6,
-    MFR_SPECIFIC_D7 = 0xd7,
-    MFR_SPECIFIC_D8 = 0xd8,
-    MFR_SPECIFIC_D9 = 0xd9,
-    MFR_SPECIFIC_DA = 0xda,
-    MFR_SPECIFIC_DB = 0xdb,
-    MFR_SPECIFIC_DC = 0xdc,
-    MFR_SPECIFIC_DD = 0xdd,
-    MFR_SPECIFIC_DE = 0xde,
-    MFR_SPECIFIC_DF = 0xdf,
-    MFR_SPECIFIC_E0 = 0xe0,
-    MFR_SPECIFIC_E1 = 0xe1,
-    MFR_SPECIFIC_E2 = 0xe2,
-    MFR_SPECIFIC_E3 = 0xe3,
-    MFR_SPECIFIC_E4 = 0xe4,
-    MFR_SPECIFIC_E5 = 0xe5,
-    MFR_SPECIFIC_E6 = 0xe6,
-    MFR_SPECIFIC_E7 = 0xe7,
-    MFR_SPECIFIC_E8 = 0xe8,
-    MFR_SPECIFIC_E9 = 0xe9,
-    MFR_SPECIFIC_EA = 0xea,
-    MFR_SPECIFIC_EB = 0xeb,
-    MFR_SPECIFIC_EC = 0xec,
-    MFR_SPECIFIC_ED = 0xed,
-    MFR_SPECIFIC_EE = 0xee,
-    MFR_SPECIFIC_EF = 0xef,
-    MFR_SPECIFIC_F0 = 0xf0,
-    MFR_SPECIFIC_F1 = 0xf1,
-    MFR_SPECIFIC_F2 = 0xf2,
-    MFR_SPECIFIC_F3 = 0xf3,
-    MFR_SPECIFIC_F4 = 0xf4,
-    MFR_SPECIFIC_F5 = 0xf5,
-    MFR_SPECIFIC_F6 = 0xf6,
-    MFR_SPECIFIC_F7 = 0xf7,
-    MFR_SPECIFIC_F8 = 0xf8,
-    MFR_SPECIFIC_F9 = 0xf9,
-    MFR_SPECIFIC_FA = 0xfa,
-    MFR_SPECIFIC_FB = 0xfb,
-    MFR_SPECIFIC_FC = 0xfc,
-    MFR_SPECIFIC_FD = 0xfd,
-    MFR_SPECIFIC_COMMAND_EXT = 0xfe,
-    PMBUS_COMMAND_EXT = 0xff,
-}
+mod operation;
+pub use crate::operation::Operation;
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Operation {
-    ReadByte,
-    WriteByte,
-    SendByte,
-    ReadWord,
-    WriteWord,
-    ReadWord32,
-    ReadBlock,
-    WriteBlock,
-    ProcessCall,
-    MfrDefined,
-    Extended,
-    Illegal,
-    Unknown,
-}
+pub mod units;
 
-impl Command {
-    pub fn read_op(&self) -> Operation {
-        match self {
-            Command::PAGE
-            | Command::OPERATION
-            | Command::ON_OFF_CONFIG
-            | Command::PHASE
-            | Command::WRITE_PROTECT
-            | Command::CAPABILITY
-            | Command::VOUT_MODE
-            | Command::POWER_MODE
-            | Command::FAN_CONFIG_1_2
-            | Command::FAN_CONFIG_3_4
-            | Command::VOUT_OV_FAULT_RESPONSE
-            | Command::VOUT_UV_FAULT_RESPONSE
-            | Command::IOUT_OC_FAULT_RESPONSE
-            | Command::IOUT_OC_LV_FAULT_RESPONSE
-            | Command::IOUT_UC_FAULT_RESPONSE
-            | Command::OT_FAULT_RESPONSE
-            | Command::UT_FAULT_RESPONSE
-            | Command::VIN_OV_FAULT_RESPONSE
-            | Command::VIN_UV_FAULT_RESPONSE
-            | Command::IIN_OC_FAULT_RESPONSE
-            | Command::TON_MAX_FAULT_RESPONSE
-            | Command::POUT_OP_FAULT_RESPONSE
-            | Command::STATUS_BYTE
-            | Command::STATUS_VOUT
-            | Command::STATUS_IOUT
-            | Command::STATUS_INPUT
-            | Command::STATUS_TEMPERATURE
-            | Command::STATUS_CML
-            | Command::STATUS_OTHER
-            | Command::STATUS_MFR_SPECIFIC
-            | Command::STATUS_FANS_1_2
-            | Command::STATUS_FANS_3_4
-            | Command::PMBUS_REVISION
-            | Command::MFR_PIN_ACCURACY => Operation::ReadByte,
-
-            Command::ZONE_CONFIG
-            | Command::ZONE_ACTIVE
-            | Command::VOUT_COMMAND
-            | Command::VOUT_TRIM
-            | Command::VOUT_CAL_OFFSET
-            | Command::VOUT_MAX
-            | Command::VOUT_MARGIN_HIGH
-            | Command::VOUT_MARGIN_LOW
-            | Command::VOUT_TRANSITION_RATE
-            | Command::VOUT_DROOP
-            | Command::VOUT_SCALE_LOOP
-            | Command::VOUT_SCALE_MONITOR
-            | Command::VOUT_MIN
-            | Command::POUT_MAX
-            | Command::MAX_DUTY
-            | Command::FREQUENCY_SWITCH
-            | Command::VIN_ON
-            | Command::VIN_OFF
-            | Command::INTERLEAVE
-            | Command::IOUT_CAL_GAIN
-            | Command::IOUT_CAL_OFFSET
-            | Command::FAN_COMMAND_1
-            | Command::FAN_COMMAND_2
-            | Command::FAN_COMMAND_3
-            | Command::FAN_COMMAND_4
-            | Command::VOUT_OV_FAULT_LIMIT
-            | Command::VOUT_OV_WARN_LIMIT
-            | Command::VOUT_UV_WARN_LIMIT
-            | Command::VOUT_UV_FAULT_LIMIT
-            | Command::IOUT_OC_FAULT_LIMIT
-            | Command::IOUT_OC_LV_FAULT_LIMIT
-            | Command::IOUT_OC_WARN_LIMIT
-            | Command::IOUT_UC_FAULT_LIMIT
-            | Command::OT_FAULT_LIMIT
-            | Command::OT_WARN_LIMIT
-            | Command::UT_WARN_LIMIT
-            | Command::UT_FAULT_LIMIT
-            | Command::VIN_OV_FAULT_LIMIT
-            | Command::VIN_OV_WARN_LIMIT
-            | Command::VIN_UV_WARN_LIMIT
-            | Command::VIN_UV_FAULT_LIMIT
-            | Command::IIN_OC_FAULT_LIMIT
-            | Command::IIN_OC_WARN_LIMIT
-            | Command::POWER_GOOD_ON
-            | Command::POWER_GOOD_OFF
-            | Command::TON_DELAY
-            | Command::TON_RISE
-            | Command::TON_MAX_FAULT_LIMIT
-            | Command::TOFF_DELAY
-            | Command::TOFF_FALL
-            | Command::TOFF_MAX_WARN_LIMIT
-            | Command::POUT_OP_FAULT_LIMIT
-            | Command::POUT_OP_WARN_LIMIT
-            | Command::PIN_OP_WARN_LIMIT
-            | Command::STATUS_WORD
-            | Command::READ_KWH_CONFIG
-            | Command::READ_VIN
-            | Command::READ_IIN
-            | Command::READ_VCAP
-            | Command::READ_VOUT
-            | Command::READ_IOUT
-            | Command::READ_TEMPERATURE_1
-            | Command::READ_TEMPERATURE_2
-            | Command::READ_TEMPERATURE_3
-            | Command::READ_FAN_SPEED_1
-            | Command::READ_FAN_SPEED_2
-            | Command::READ_FAN_SPEED_3
-            | Command::READ_FAN_SPEED_4
-            | Command::READ_DUTY_CYCLE
-            | Command::READ_FREQUENCY
-            | Command::READ_POUT
-            | Command::READ_PIN
-            | Command::MFR_VIN_MIN
-            | Command::MFR_VIN_MAX
-            | Command::MFR_IIN_MAX
-            | Command::MFR_PIN_MAX
-            | Command::MFR_VOUT_MIN
-            | Command::MFR_VOUT_MAX
-            | Command::MFR_IOUT_MAX
-            | Command::MFR_POUT_MAX
-            | Command::MFR_TAMBIENT_MAX
-            | Command::MFR_TAMBIENT_MIN
-            | Command::MFR_MAX_TEMP_1
-            | Command::MFR_MAX_TEMP_2
-            | Command::MFR_MAX_TEMP_3 => Operation::ReadWord,
-
-            Command::PAGE_PLUS_READ
-            | Command::QUERY
-            | Command::SMBALERT_MASK
-            | Command::COEFFICIENTS => Operation::ProcessCall,
-
-            Command::READ_EIN
-            | Command::READ_EOUT
-            | Command::MFR_ID
-            | Command::MFR_MODEL
-            | Command::MFR_REVISION
-            | Command::MFR_LOCATION
-            | Command::MFR_DATE
-            | Command::MFR_SERIAL
-            | Command::APP_PROFILE_SUPPORT
-            | Command::MFR_EFFICIENCY_LL
-            | Command::MFR_EFFICIENCY_HL
-            | Command::IC_DEVICE_ID
-            | Command::IC_DEVICE_REV
-            | Command::USER_DATA_00
-            | Command::USER_DATA_01
-            | Command::USER_DATA_02
-            | Command::USER_DATA_03
-            | Command::USER_DATA_04
-            | Command::USER_DATA_05
-            | Command::USER_DATA_06
-            | Command::USER_DATA_07
-            | Command::USER_DATA_08
-            | Command::USER_DATA_09
-            | Command::USER_DATA_10
-            | Command::USER_DATA_11
-            | Command::USER_DATA_12
-            | Command::USER_DATA_13
-            | Command::USER_DATA_14
-            | Command::USER_DATA_15 => Operation::ReadBlock,
-
-            Command::CLEAR_FAULTS
-            | Command::PAGE_PLUS_WRITE
-            | Command::STORE_DEFAULT_ALL
-            | Command::RESTORE_DEFAULT_ALL
-            | Command::STORE_DEFAULT_CODE
-            | Command::RESTORE_DEFAULT_CODE
-            | Command::STORE_USER_ALL
-            | Command::RESTORE_USER_ALL
-            | Command::STORE_USER_CODE
-            | Command::RESTORE_USER_CODE => Operation::Illegal,
-
-            Command::READ_KWH_IN | Command::READ_KWH_OUT => {
-                Operation::ReadWord32
-            }
-
-            Command::MFR_SPECIFIC_C4
-            | Command::MFR_SPECIFIC_C5
-            | Command::MFR_SPECIFIC_C6
-            | Command::MFR_SPECIFIC_C7
-            | Command::MFR_SPECIFIC_C8
-            | Command::MFR_SPECIFIC_C9
-            | Command::MFR_SPECIFIC_CA
-            | Command::MFR_SPECIFIC_CB
-            | Command::MFR_SPECIFIC_CC
-            | Command::MFR_SPECIFIC_CD
-            | Command::MFR_SPECIFIC_CE
-            | Command::MFR_SPECIFIC_CF
-            | Command::MFR_SPECIFIC_D0
-            | Command::MFR_SPECIFIC_D1
-            | Command::MFR_SPECIFIC_D2
-            | Command::MFR_SPECIFIC_D3
-            | Command::MFR_SPECIFIC_D4
-            | Command::MFR_SPECIFIC_D5
-            | Command::MFR_SPECIFIC_D6
-            | Command::MFR_SPECIFIC_D7
-            | Command::MFR_SPECIFIC_D8
-            | Command::MFR_SPECIFIC_D9
-            | Command::MFR_SPECIFIC_DA
-            | Command::MFR_SPECIFIC_DB
-            | Command::MFR_SPECIFIC_DC
-            | Command::MFR_SPECIFIC_DD
-            | Command::MFR_SPECIFIC_DE
-            | Command::MFR_SPECIFIC_DF
-            | Command::MFR_SPECIFIC_E0
-            | Command::MFR_SPECIFIC_E1
-            | Command::MFR_SPECIFIC_E2
-            | Command::MFR_SPECIFIC_E3
-            | Command::MFR_SPECIFIC_E4
-            | Command::MFR_SPECIFIC_E5
-            | Command::MFR_SPECIFIC_E6
-            | Command::MFR_SPECIFIC_E7
-            | Command::MFR_SPECIFIC_E8
-            | Command::MFR_SPECIFIC_E9
-            | Command::MFR_SPECIFIC_EA
-            | Command::MFR_SPECIFIC_EB
-            | Command::MFR_SPECIFIC_EC
-            | Command::MFR_SPECIFIC_ED
-            | Command::MFR_SPECIFIC_EE
-            | Command::MFR_SPECIFIC_EF
-            | Command::MFR_SPECIFIC_F0
-            | Command::MFR_SPECIFIC_F1
-            | Command::MFR_SPECIFIC_F2
-            | Command::MFR_SPECIFIC_F3
-            | Command::MFR_SPECIFIC_F4
-            | Command::MFR_SPECIFIC_F5
-            | Command::MFR_SPECIFIC_F6
-            | Command::MFR_SPECIFIC_F7
-            | Command::MFR_SPECIFIC_F8
-            | Command::MFR_SPECIFIC_F9
-            | Command::MFR_SPECIFIC_FA
-            | Command::MFR_SPECIFIC_FB
-            | Command::MFR_SPECIFIC_FC
-            | Command::MFR_SPECIFIC_FD => Operation::MfrDefined,
-
-            Command::MFR_SPECIFIC_COMMAND_EXT | Command::PMBUS_COMMAND_EXT => {
-                Operation::Extended
-            }
-
-            Command::Deprecated => Operation::Unknown,
-        }
-    }
-
-    pub fn write_op(&self) -> Operation {
-        match self {
-            Command::PAGE
-            | Command::OPERATION
-            | Command::ON_OFF_CONFIG
-            | Command::PHASE
-            | Command::WRITE_PROTECT
-            | Command::STORE_DEFAULT_CODE
-            | Command::RESTORE_DEFAULT_CODE
-            | Command::STORE_USER_CODE
-            | Command::RESTORE_USER_CODE
-            | Command::VOUT_MODE
-            | Command::POWER_MODE
-            | Command::FAN_CONFIG_1_2
-            | Command::FAN_CONFIG_3_4
-            | Command::VOUT_OV_FAULT_RESPONSE
-            | Command::VOUT_UV_FAULT_RESPONSE
-            | Command::IOUT_OC_FAULT_RESPONSE
-            | Command::IOUT_OC_LV_FAULT_RESPONSE
-            | Command::IOUT_UC_FAULT_RESPONSE
-            | Command::OT_FAULT_RESPONSE
-            | Command::UT_FAULT_RESPONSE
-            | Command::VIN_OV_FAULT_RESPONSE
-            | Command::VIN_UV_FAULT_RESPONSE
-            | Command::IIN_OC_FAULT_RESPONSE
-            | Command::TON_MAX_FAULT_RESPONSE
-            | Command::POUT_OP_FAULT_RESPONSE
-            | Command::STATUS_BYTE
-            | Command::STATUS_VOUT
-            | Command::STATUS_IOUT
-            | Command::STATUS_INPUT
-            | Command::STATUS_TEMPERATURE
-            | Command::STATUS_CML
-            | Command::STATUS_OTHER
-            | Command::STATUS_MFR_SPECIFIC
-            | Command::STATUS_FANS_1_2
-            | Command::STATUS_FANS_3_4 => Operation::WriteByte,
-
-            Command::ZONE_CONFIG
-            | Command::ZONE_ACTIVE
-            | Command::SMBALERT_MASK
-            | Command::VOUT_COMMAND
-            | Command::VOUT_TRIM
-            | Command::VOUT_CAL_OFFSET
-            | Command::VOUT_MAX
-            | Command::VOUT_MARGIN_HIGH
-            | Command::VOUT_MARGIN_LOW
-            | Command::VOUT_TRANSITION_RATE
-            | Command::VOUT_DROOP
-            | Command::VOUT_SCALE_LOOP
-            | Command::VOUT_SCALE_MONITOR
-            | Command::VOUT_MIN
-            | Command::POUT_MAX
-            | Command::MAX_DUTY
-            | Command::FREQUENCY_SWITCH
-            | Command::VIN_ON
-            | Command::VIN_OFF
-            | Command::INTERLEAVE
-            | Command::IOUT_CAL_GAIN
-            | Command::IOUT_CAL_OFFSET
-            | Command::FAN_COMMAND_1
-            | Command::FAN_COMMAND_2
-            | Command::FAN_COMMAND_3
-            | Command::FAN_COMMAND_4
-            | Command::VOUT_OV_FAULT_LIMIT
-            | Command::VOUT_OV_WARN_LIMIT
-            | Command::VOUT_UV_WARN_LIMIT
-            | Command::VOUT_UV_FAULT_LIMIT
-            | Command::IOUT_OC_FAULT_LIMIT
-            | Command::IOUT_OC_LV_FAULT_LIMIT
-            | Command::IOUT_OC_WARN_LIMIT
-            | Command::IOUT_UC_FAULT_LIMIT
-            | Command::OT_FAULT_LIMIT
-            | Command::OT_WARN_LIMIT
-            | Command::UT_WARN_LIMIT
-            | Command::UT_FAULT_LIMIT
-            | Command::VIN_OV_FAULT_LIMIT
-            | Command::VIN_OV_WARN_LIMIT
-            | Command::VIN_UV_WARN_LIMIT
-            | Command::VIN_UV_FAULT_LIMIT
-            | Command::IIN_OC_FAULT_LIMIT
-            | Command::IIN_OC_WARN_LIMIT
-            | Command::POWER_GOOD_ON
-            | Command::POWER_GOOD_OFF
-            | Command::TON_DELAY
-            | Command::TON_RISE
-            | Command::TON_MAX_FAULT_LIMIT
-            | Command::TOFF_DELAY
-            | Command::TOFF_FALL
-            | Command::TOFF_MAX_WARN_LIMIT
-            | Command::POUT_OP_FAULT_LIMIT
-            | Command::POUT_OP_WARN_LIMIT
-            | Command::PIN_OP_WARN_LIMIT
-            | Command::STATUS_WORD
-            | Command::READ_KWH_CONFIG
-            | Command::MFR_MAX_TEMP_1
-            | Command::MFR_MAX_TEMP_2
-            | Command::MFR_MAX_TEMP_3 => Operation::WriteWord,
-
-            Command::PAGE_PLUS_WRITE
-            | Command::MFR_ID
-            | Command::MFR_MODEL
-            | Command::MFR_REVISION
-            | Command::MFR_LOCATION
-            | Command::MFR_DATE
-            | Command::MFR_SERIAL
-            | Command::USER_DATA_00
-            | Command::USER_DATA_01
-            | Command::USER_DATA_02
-            | Command::USER_DATA_03
-            | Command::USER_DATA_04
-            | Command::USER_DATA_05
-            | Command::USER_DATA_06
-            | Command::USER_DATA_07
-            | Command::USER_DATA_08
-            | Command::USER_DATA_09
-            | Command::USER_DATA_10
-            | Command::USER_DATA_11
-            | Command::USER_DATA_12
-            | Command::USER_DATA_13
-            | Command::USER_DATA_14
-            | Command::USER_DATA_15 => Operation::WriteBlock,
-
-            Command::CLEAR_FAULTS
-            | Command::STORE_DEFAULT_ALL
-            | Command::RESTORE_DEFAULT_ALL
-            | Command::STORE_USER_ALL
-            | Command::RESTORE_USER_ALL => Operation::SendByte,
-
-            Command::PAGE_PLUS_READ
-            | Command::CAPABILITY
-            | Command::QUERY
-            | Command::COEFFICIENTS
-            | Command::READ_KWH_IN
-            | Command::READ_KWH_OUT
-            | Command::READ_EIN
-            | Command::READ_EOUT
-            | Command::READ_VIN
-            | Command::READ_IIN
-            | Command::READ_VCAP
-            | Command::READ_VOUT
-            | Command::READ_IOUT
-            | Command::READ_TEMPERATURE_1
-            | Command::READ_TEMPERATURE_2
-            | Command::READ_TEMPERATURE_3
-            | Command::READ_FAN_SPEED_1
-            | Command::READ_FAN_SPEED_2
-            | Command::READ_FAN_SPEED_3
-            | Command::READ_FAN_SPEED_4
-            | Command::READ_DUTY_CYCLE
-            | Command::READ_FREQUENCY
-            | Command::READ_POUT
-            | Command::READ_PIN
-            | Command::PMBUS_REVISION
-            | Command::APP_PROFILE_SUPPORT
-            | Command::MFR_VIN_MIN
-            | Command::MFR_VIN_MAX
-            | Command::MFR_IIN_MAX
-            | Command::MFR_PIN_MAX
-            | Command::MFR_VOUT_MIN
-            | Command::MFR_VOUT_MAX
-            | Command::MFR_IOUT_MAX
-            | Command::MFR_POUT_MAX
-            | Command::MFR_TAMBIENT_MAX
-            | Command::MFR_TAMBIENT_MIN
-            | Command::MFR_EFFICIENCY_LL
-            | Command::MFR_EFFICIENCY_HL
-            | Command::MFR_PIN_ACCURACY
-            | Command::IC_DEVICE_ID
-            | Command::IC_DEVICE_REV => Operation::Illegal,
-
-            Command::MFR_SPECIFIC_C4
-            | Command::MFR_SPECIFIC_C5
-            | Command::MFR_SPECIFIC_C6
-            | Command::MFR_SPECIFIC_C7
-            | Command::MFR_SPECIFIC_C8
-            | Command::MFR_SPECIFIC_C9
-            | Command::MFR_SPECIFIC_CA
-            | Command::MFR_SPECIFIC_CB
-            | Command::MFR_SPECIFIC_CC
-            | Command::MFR_SPECIFIC_CD
-            | Command::MFR_SPECIFIC_CE
-            | Command::MFR_SPECIFIC_CF
-            | Command::MFR_SPECIFIC_D0
-            | Command::MFR_SPECIFIC_D1
-            | Command::MFR_SPECIFIC_D2
-            | Command::MFR_SPECIFIC_D3
-            | Command::MFR_SPECIFIC_D4
-            | Command::MFR_SPECIFIC_D5
-            | Command::MFR_SPECIFIC_D6
-            | Command::MFR_SPECIFIC_D7
-            | Command::MFR_SPECIFIC_D8
-            | Command::MFR_SPECIFIC_D9
-            | Command::MFR_SPECIFIC_DA
-            | Command::MFR_SPECIFIC_DB
-            | Command::MFR_SPECIFIC_DC
-            | Command::MFR_SPECIFIC_DD
-            | Command::MFR_SPECIFIC_DE
-            | Command::MFR_SPECIFIC_DF
-            | Command::MFR_SPECIFIC_E0
-            | Command::MFR_SPECIFIC_E1
-            | Command::MFR_SPECIFIC_E2
-            | Command::MFR_SPECIFIC_E3
-            | Command::MFR_SPECIFIC_E4
-            | Command::MFR_SPECIFIC_E5
-            | Command::MFR_SPECIFIC_E6
-            | Command::MFR_SPECIFIC_E7
-            | Command::MFR_SPECIFIC_E8
-            | Command::MFR_SPECIFIC_E9
-            | Command::MFR_SPECIFIC_EA
-            | Command::MFR_SPECIFIC_EB
-            | Command::MFR_SPECIFIC_EC
-            | Command::MFR_SPECIFIC_ED
-            | Command::MFR_SPECIFIC_EE
-            | Command::MFR_SPECIFIC_EF
-            | Command::MFR_SPECIFIC_F0
-            | Command::MFR_SPECIFIC_F1
-            | Command::MFR_SPECIFIC_F2
-            | Command::MFR_SPECIFIC_F3
-            | Command::MFR_SPECIFIC_F4
-            | Command::MFR_SPECIFIC_F5
-            | Command::MFR_SPECIFIC_F6
-            | Command::MFR_SPECIFIC_F7
-            | Command::MFR_SPECIFIC_F8
-            | Command::MFR_SPECIFIC_F9
-            | Command::MFR_SPECIFIC_FA
-            | Command::MFR_SPECIFIC_FB
-            | Command::MFR_SPECIFIC_FC
-            | Command::MFR_SPECIFIC_FD => Operation::MfrDefined,
-
-            Command::MFR_SPECIFIC_COMMAND_EXT | Command::PMBUS_COMMAND_EXT => {
-                Operation::Extended
-            }
-
-            Command::Deprecated => Operation::Unknown,
-        }
-    }
-}
+pub mod commands;
+pub use crate::commands::devices;
+pub use crate::commands::{
+    Bitpos, Bitwidth, Command, CommandCode, CommandData, Device, Error, Field,
+    Value,
+};
 
 ///
 /// The coefficients spelled out by PMBus for use in the DIRECT data format
@@ -773,7 +106,7 @@ impl Direct {
         let m: f32 = coefficients.m as f32;
         let b: f32 = coefficients.b.into();
         let exp: i32 = coefficients.R.into();
-        let y: f32 = self.0.into();
+        let y: f32 = (self.0 as i16).into();
 
         (y * f32::powi(10.0, -exp) - b) / m
     }
@@ -864,32 +197,6 @@ impl Linear11 {
 #[derive(Copy, Clone, Debug)]
 pub struct ULinear16Exponent(pub i8);
 
-#[derive(Copy, Clone, Debug)]
-pub enum VOutMode {
-    ULinear16(ULinear16Exponent),
-    VID(u8),
-    Direct,
-    HalfPrecision,
-}
-
-impl From<u8> for VOutMode {
-    fn from(mode: u8) -> Self {
-        match (mode >> 5) & 0b11 {
-            0b00 => {
-                let exp = ((mode << 3) as i8) >> 3;
-                VOutMode::ULinear16(ULinear16Exponent(exp))
-            }
-            0b01 => {
-                let code = mode & 0x1f;
-                VOutMode::VID(code)
-            }
-            0b10 => VOutMode::Direct,
-            0b11 => VOutMode::HalfPrecision,
-            _ => unreachable!(),
-        }
-    }
-}
-
 ///
 /// A datum in the ULINEAR16 format.  ULINEAR16 is used only for voltage;
 /// the exponent comes from VOUT_MODE.
@@ -901,6 +208,16 @@ impl ULinear16 {
         let exp = self.1 .0;
         self.0 as f32 * f32::powi(2.0, exp.into())
     }
+
+    pub fn from_real(x: f32, exp: ULinear16Exponent) -> Option<Self> {
+        let val = (x / f32::powi(2.0, exp.0.into())).round();
+
+        if val > core::u16::MAX as f32 {
+            None
+        } else {
+            Some(Self(val as u16, exp))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -908,13 +225,17 @@ mod tests {
     use super::*;
     extern crate std;
 
+    fn mode() -> commands::VOutMode {
+        panic!("unexpected call to get VOutMode");
+    }
+
     #[test]
     fn verify_cmds() {
         macro_rules! verify {
             ($val:expr, $cmd:tt, $write:tt, $read:tt) => {
-                assert_eq!(Command::$cmd as u8, $val);
-                assert_eq!(Command::$cmd.write_op(), Operation::$write);
-                assert_eq!(Command::$cmd.read_op(), Operation::$read);
+                assert_eq!(CommandCode::$cmd as u8, $val);
+                assert_eq!(CommandCode::$cmd.write_op(), Operation::$write);
+                assert_eq!(CommandCode::$cmd.read_op(), Operation::$read);
             };
         }
 
@@ -1148,6 +469,860 @@ mod tests {
         verify!(0xfd, MFR_SPECIFIC_FD, MfrDefined, MfrDefined);
         verify!(0xfe, MFR_SPECIFIC_COMMAND_EXT, Extended, Extended);
         verify!(0xff, PMBUS_COMMAND_EXT, Extended, Extended);
-        std::println!("{:?}", Command::from_u8(0x9));
+        std::println!("{:?}", CommandCode::from_u8(0x9));
+    }
+
+    #[test]
+    fn verify_operation() {
+        let data = commands::OPERATION::CommandData(0x4);
+
+        data.interpret(mode, |field, value| {
+            std::println!("{} = {}", field.desc(), value);
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn verify_operation_set() {
+        use commands::OPERATION::*;
+        let mut data = CommandData(0x4);
+
+        dump(&data);
+
+        assert_ne!(
+            data.get_voltage_command_source(),
+            Some(VoltageCommandSource::VOUT_MARGIN_HIGH)
+        );
+
+        data.set_voltage_command_source(VoltageCommandSource::VOUT_MARGIN_HIGH);
+
+        dump(&data);
+
+        assert_eq!(
+            data.get_voltage_command_source(),
+            Some(VoltageCommandSource::VOUT_MARGIN_HIGH)
+        );
+    }
+
+    #[test]
+    fn raw_operation() {
+        CommandCode::OPERATION
+            .interpret(&[0x4], mode, |field, value| {
+                std::println!("{} = {}", field.desc(), value);
+            })
+            .unwrap();
+    }
+
+    fn dump_data(
+        val: u32,
+        width: Bitwidth,
+        v: &mut std::vec::Vec<((Bitpos, Bitwidth), &str, std::string::String)>,
+    ) {
+        let width = width.0 as usize;
+        let nibble = 4;
+        let maxwidth = 16;
+
+        if width > maxwidth {
+            std::println!("{:?}", v);
+            return;
+        }
+
+        let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
+
+        std::print!("{:indent$}", "", indent = indent);
+        std::print!("0b");
+
+        for v in (0..width).step_by(nibble) {
+            std::print!(
+                "{:04b}{}",
+                (val >> ((width - nibble) - v)) & 0xf,
+                if v + nibble < width { "_" } else { "\n" }
+            )
+        }
+
+        while v.len() > 0 {
+            let mut cur = width - 1;
+
+            std::print!("{:indent$}", "", indent = indent);
+            std::print!("  ");
+
+            for i in 0..v.len() {
+                while cur > v[i].0 .0 .0 as usize {
+                    if cur % nibble == 0 {
+                        std::print!(" ");
+                    }
+
+                    std::print!(" ");
+                    cur -= 1;
+                }
+
+                if i < v.len() - 1 {
+                    std::print!("|");
+
+                    if cur % nibble == 0 {
+                        std::print!(" ");
+                    }
+
+                    cur -= 1;
+                } else {
+                    std::print!("+--");
+
+                    while cur > 0 {
+                        std::print!("-");
+
+                        if cur % nibble == 0 {
+                            std::print!("-");
+                        }
+
+                        cur -= 1;
+                    }
+
+                    std::println!(" {} = {}", v[i].1, v[i].2);
+                }
+            }
+
+            v.pop();
+        }
+    }
+
+    fn dump(data: &impl commands::CommandData) {
+        let (val, width) = data.raw();
+        let mut v = std::vec![];
+
+        data.command(|cmd| {
+            std::println!("\n{:?}: ", cmd);
+        });
+
+        data.interpret(mode, |field, value| {
+            v.push((field.bits(), field.desc(), std::format!("{}", value)));
+        })
+        .unwrap();
+
+        dump_data(val, width, &mut v);
+    }
+
+    #[test]
+    fn verify_status_word() {
+        use commands::STATUS_WORD::*;
+
+        let data = CommandData::from_slice(&[0x43, 0x18]).unwrap();
+        dump(&data);
+
+        data.interpret(mode, |field, value| {
+            std::println!("{} = {}", field.desc(), value);
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn verify_on_off_config() {
+        use commands::ON_OFF_CONFIG::*;
+
+        let data = CommandData::from_slice(&[0x17]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_capability() {
+        use commands::CAPABILITY::*;
+
+        let data = CommandData::from_slice(&[0xd0]).unwrap();
+        dump(&data);
+
+        let data = CommandData::from_slice(&[0xb0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_vout_mode() {
+        use commands::VOUT_MODE::*;
+        let data = CommandData::from_slice(&[0x97]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_vout() {
+        use commands::STATUS_VOUT::*;
+        let data = CommandData::from_slice(&[0x0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_iout() {
+        use commands::STATUS_IOUT::*;
+        let data = CommandData::from_slice(&[0x0]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_cml() {
+        use commands::STATUS_CML::*;
+        let data = CommandData::from_slice(&[0x82]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_other() {
+        use commands::STATUS_OTHER::*;
+        let data = CommandData::from_slice(&[0x1]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn verify_status_adm1272() {
+        use commands::adm1272::STATUS_MFR_SPECIFIC::*;
+        let data = CommandData::from_slice(&[0x40]).unwrap();
+        dump(&data);
+    }
+
+    #[test]
+    fn device_list() {
+        let code = commands::CommandCode::STATUS_MFR_SPECIFIC as u8;
+
+        std::println!("code is {:x}", code);
+
+        devices(|d| {
+            for i in 0..=0xff {
+                d.command(i, |cmd| {
+                    std::println!(
+                        "{:?}: {:2x} {} R={:?} W={:?}",
+                        d,
+                        i,
+                        cmd.name(),
+                        cmd.read_op(),
+                        cmd.write_op()
+                    );
+                });
+            }
+        });
+    }
+
+    #[test]
+    fn tps_read_all() {
+        use commands::tps546b24a::READ_ALL::*;
+
+        let data = CommandData::from_slice(&[
+            0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
+            0x00, 0x00, 0x00,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_read_vin(), 0xd2fe);
+        assert_eq!(data.get_read_vout(), 0x0263);
+        assert_eq!(data.get_status_word(), 0x0002);
+        assert_eq!(data.get_read_temperature_1(), 0xdbd8);
+    }
+
+    #[test]
+    fn tps_read_all_data() {
+        let _code = commands::tps546b24a::CommandCode::READ_ALL as u8;
+        let mode = || commands::VOutMode::from_slice(&[0x97]).unwrap();
+
+        let data = [
+            0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00,
+            0x00, 0x00, 0x00,
+        ];
+
+        for code in 0..=0xff {
+            let _ = Device::Tps546B24A.interpret(
+                code,
+                &data[0..],
+                mode,
+                |f, _v| {
+                    std::println!("f is {}", f.desc());
+                },
+            );
+        }
+    }
+
+    #[test]
+    fn tps_passthrough() {
+        //
+        // This is a bit of a mouthful of a test to assure that common registers
+        // are correctly passed through into device-specific modules.
+        //
+        use commands::tps546b24a::CAPABILITY::*;
+
+        let code = commands::tps546b24a::CommandCode::CAPABILITY as u8;
+        let payload = &[0xd0];
+        let mut result = None;
+
+        let name = Field::MaximumBusSpeed.name();
+
+        let cap = CommandData::from_slice(payload).unwrap();
+        let val = cap.get(Field::MaximumBusSpeed).unwrap();
+        let target = std::format!("{}", val);
+
+        Device::Tps546B24A
+            .interpret(code, payload, mode, |f, v| {
+                if f.name() == name {
+                    result = Some(std::format!("{}", v));
+                }
+            })
+            .unwrap();
+
+        assert_eq!(result, Some(target));
+    }
+
+    #[test]
+    fn bmr480_default() {
+        use commands::bmr480::*;
+
+        let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
+        dump(&data.unwrap());
+
+        let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
+        dump(&data.unwrap());
+
+        let data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
+            0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_trim_limit(), units::Volts(0.170));
+
+        dump(&data);
+    }
+
+    #[test]
+    fn bmr491_default() {
+        use commands::bmr491::*;
+
+        let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
+        dump(&data.unwrap());
+
+        let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
+        dump(&data.unwrap());
+
+        let mut data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
+            0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
+        ])
+        .unwrap();
+
+        assert_eq!(data.get_trim_limit(), units::Volts(0.170));
+
+        assert_eq!(data.set_trim_limit(units::Volts(0.136)), Ok(()));
+        assert_eq!(data.get_trim_limit(), units::Volts(0.136));
+
+        dump(&data);
+    }
+
+    #[test]
+    fn bmr480_iout() {
+        use commands::bmr480::*;
+
+        let data = [
+            (0xf028u16, 10.0),
+            (0xf133, 76.75),
+            (0xf040, 16.0),
+            (0xf004, 1.0),
+            (0xf051, 20.25),
+            (0xf079, 30.25),
+            (0xf00a, 2.5),
+            (0xf0c9, 50.25),
+            (0xf07d, 31.25),
+            (0xf00b, 2.75),
+            (0xf009, 2.25),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(iout.get(), Ok(units::Amperes(d.1)));
+
+            iout.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            })
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn bmr480_vout() {
+        use commands::bmr480::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x15]).unwrap();
+
+        let data = [
+            (0x0071u16, 0.05517578f32),
+            (0x0754, 0.9160156),
+            (0x5f72, 11.930664),
+            (0x5f80, 11.9375),
+            (0x5fd3, 11.978027),
+            (0x5fdb, 11.981934),
+            (0x5fe4, 11.986328),
+            (0x5fe6, 11.987305),
+            (0x5fec, 11.990234),
+            (0x5fee, 11.991211),
+            (0x5ff7, 11.995605),
+            (0x6007, 12.003418),
+            (0x6039, 12.027832),
+            (0x603f, 12.030762),
+            (0x6091, 12.070801),
+            (0x65b7, 12.714355),
+            (0x65d8, 12.730469),
+            (0x670a, 12.879883),
+            (0x68b0, 13.0859375),
+            (0x69c1, 13.219238),
+            (0x69e2, 13.235352),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vout = READ_VOUT::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vout.get(mode()), Ok(units::Volts(d.1)));
+
+            vout.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            })
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn bmr480_vin() {
+        use commands::bmr480::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x15]).unwrap();
+
+        let data = [
+            (0x0a5cu16, 1208.0),
+            (0x0a8c, 1304.0),
+            (0xe9a0, 52.0),
+            (0xe9a1, 52.125),
+            (0xe9a2, 52.25),
+            (0xe9a3, 52.375),
+            (0xe9a4, 52.5),
+            (0xe9a6, 52.75),
+            (0xe9a7, 52.875),
+        ];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vin.get(), Ok(units::Volts(d.1)));
+
+            vin.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            })
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn bmr491_rc_level() {
+        use commands::bmr491::*;
+        let rc = MFR_RC_LEVEL::CommandData::from_slice(&[0xc8]).unwrap();
+        assert_eq!(rc.get(), Ok(units::Volts(20.0)));
+    }
+
+    #[test]
+    fn bmr491_ks_pretrig() {
+        use commands::bmr491::*;
+        let ks = MFR_KS_PRETRIG::CommandData::from_slice(&[0x89]).unwrap();
+        assert_eq!(ks.get(), Ok(units::Microseconds(61.649998)));
+    }
+
+    #[test]
+    fn isl68224_vin() {
+        use commands::isl68224::*;
+
+        let mode = || commands::VOutMode::from_slice(&[0x40]).unwrap();
+
+        let data = [(0x04a9u16, 11.929999), (0xffff, -0.01)];
+
+        for d in data {
+            let raw = d.0.to_le_bytes();
+            let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
+            assert_eq!(vin.get(), Ok(units::Volts(d.1)));
+
+            vin.interpret(mode, |f, v| {
+                assert_eq!(f.bitfield(), false);
+                std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+            })
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn isl68224_ton_rise() {
+        use commands::isl68224::TON_RISE::*;
+
+        let mut data = CommandData::from_slice(&[0xf4, 0x01]).unwrap();
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.5)));
+
+        data.set(units::Milliseconds(0.75)).unwrap();
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.75000006)));
+
+        data.mutate(mode, |field, _| {
+            assert_eq!(field.bitfield(), false);
+            assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+            Some(commands::Replacement::Float(0.25))
+        })
+        .unwrap();
+
+        assert_eq!(data.get(), Ok(units::Milliseconds(0.25)));
+    }
+
+    #[test]
+    fn mutate_operation() {
+        use commands::OPERATION::*;
+
+        let mut data = CommandData(0x4);
+        dump(&data);
+
+        std::println!("{:?}", data.get_on_off_state());
+        assert_eq!(data.get_on_off_state(), Some(OnOffState::Off));
+
+        data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
+                Some(commands::Replacement::Boolean(true))
+            } else {
+                None
+            }
+        })
+        .unwrap();
+
+        assert_eq!(data.get_on_off_state(), Some(OnOffState::On));
+
+        dump(&data);
+    }
+
+    #[test]
+    fn mutate_overflow_replacement() {
+        use commands::OPERATION::*;
+
+        let mut data = CommandData(0x4);
+
+        let rval = data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
+                Some(commands::Replacement::Integer(3))
+            } else {
+                None
+            }
+        });
+
+        assert_eq!(rval, Err(Error::OverflowReplacement));
+    }
+
+    #[test]
+    fn mutate_invalid() {
+        use commands::OPERATION::*;
+
+        let mut data = CommandData(0x4);
+
+        let rval = data.mutate(mode, |field, _| {
+            if field.name() == "OnOffState" {
+                Some(commands::Replacement::Float(3.1))
+            } else {
+                None
+            }
+        });
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+    }
+
+    #[test]
+    fn vout_command_set() {
+        let mut vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        std::println!("param is {}", vout.get_parameter());
+        let mut data = CommandData::from_slice(&[0x63, 0x02]).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        data.set(vout, units::Volts(1.20)).unwrap();
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+
+        //
+        // Now crank our resolution up
+        //
+        vout.set_parameter(-12).unwrap();
+        assert_eq!(vout.get_parameter(), -12);
+        data.set(vout, units::Volts(1.20)).unwrap();
+        std::println!("{:?}", data.get(vout).unwrap());
+
+        vout.set_parameter(-15).unwrap();
+        assert_eq!(vout.get_parameter(), -15);
+        data.set(vout, units::Volts(1.20)).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.2000122)));
+
+        //
+        // With our exponent cranked to its maximum, there is no room
+        // left for anything greater than 1.
+        //
+        vout.set_parameter(-16).unwrap();
+        assert_eq!(vout.get_parameter(), -16);
+
+        assert_eq!(vout.set_parameter(-101), Err(Error::ValueOutOfRange));
+        std::println!("{:?}", vout.get_parameter());
+
+        data.set(vout, units::Volts(0.20)).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(0.19999695)));
+
+        assert_eq!(
+            data.set(vout, units::Volts(1.20)),
+            Err(Error::ValueOutOfRange)
+        );
+
+        std::println!("{:?}", data.get(vout).unwrap());
+    }
+
+    #[test]
+    fn vout_command_mutate() {
+        let vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        let mut data = CommandData::from_slice(&[0x63, 0x02]).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        let rval = data.mutate(
+            || vout,
+            |field, _| {
+                assert_eq!(field.bitfield(), false);
+                assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+                Some(commands::Replacement::Float(1.20))
+            },
+        );
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+
+        let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Integer(3)));
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.get(vout), Ok(units::Volts(3.0)));
+
+        let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Boolean(true)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+
+        let rval = data
+            .mutate(|| vout, |_, _| Some(commands::Replacement::Float(150.0)));
+
+        assert_eq!(rval, Err(Error::ValueOutOfRange));
+    }
+
+    #[test]
+    fn device_vout_command_mutate() {
+        let vout = commands::VOutMode::from_slice(&[0x97]).unwrap();
+        use commands::VOUT_COMMAND::*;
+        dump(&vout);
+
+        let mut payload = [0x63, 0x02];
+
+        let data = CommandData::from_slice(&payload).unwrap();
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1933594)));
+
+        let rval = Device::Common.mutate(
+            commands::CommandCode::VOUT_COMMAND as u8,
+            &mut payload[0..2],
+            || vout,
+            |field, _| {
+                assert_eq!(field.bitfield(), false);
+                assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+                Some(commands::Replacement::Float(1.20))
+            },
+        );
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(payload[0], 0x66);
+        assert_eq!(payload[1], 0x02);
+
+        let data = CommandData::from_slice(&payload).unwrap();
+        assert_eq!(data.0, 0x0266);
+        assert_eq!(data.get(vout), Ok(units::Volts(1.1992188)));
+    }
+
+    #[test]
+    fn sentinels() {
+        use commands::OPERATION::*;
+
+        let data = CommandData::from_slice(&[0x88]).unwrap();
+        dump(&data);
+
+        CommandData::sentinels(Bitpos(4), |val| {
+            match val.name() {
+                "VOUT_COMMAND" => {
+                    assert_eq!(val.raw(), 0);
+                }
+                "VOUT_MARGIN_LOW" => {
+                    assert_eq!(val.raw(), 1);
+                }
+                "VOUT_MARGIN_HIGH" => {
+                    assert_eq!(val.raw(), 2);
+                }
+                "AVS_VOUT_COMMAND" => {
+                    assert_eq!(val.raw(), 3);
+                }
+                _ => {
+                    panic!("unrecognized sentinel");
+                }
+            }
+
+            #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(val.raw(), {:?});
+                }}"##, "", val.name(), val.raw());
+        })
+        .unwrap();
+
+        assert_eq!(
+            CommandData::sentinels(Bitpos(5), |_| {}),
+            Err(Error::InvalidField)
+        );
+    }
+
+    #[test]
+    fn device_sentinels() {
+        Device::Common
+            .sentinels(1, Bitpos(4), |val| {
+                match val.name() {
+                    "VOUT_COMMAND" => {
+                        assert_eq!(val.raw(), 0);
+                    }
+                    "VOUT_MARGIN_LOW" => {
+                        assert_eq!(val.raw(), 1);
+                    }
+                    "VOUT_MARGIN_HIGH" => {
+                        assert_eq!(val.raw(), 2);
+                    }
+                    "AVS_VOUT_COMMAND" => {
+                        assert_eq!(val.raw(), 3);
+                    }
+                    _ => {
+                        panic!("unrecognized sentinel");
+                    }
+                }
+
+                #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(val.raw(), {:?});
+                }}"##, "", val.name(), val.raw());
+            })
+            .unwrap();
+
+        assert_eq!(
+            Device::Common.sentinels(1, Bitpos(5), |_| {}),
+            Err(Error::InvalidField)
+        );
+    }
+
+    #[test]
+    fn device_fields() {
+        Device::Common
+            .fields(1, |f| {
+                let bits = f.bits();
+
+                match f.name() {
+                    "OnOffState" => {
+                        assert_eq!(bits, (Bitpos(7), Bitwidth(1)));
+                    }
+                    "TurnOffBehavior" => {
+                        assert_eq!(bits, (Bitpos(6), Bitwidth(1)));
+                    }
+                    "VoltageCommandSource" => {
+                        assert_eq!(bits, (Bitpos(4), Bitwidth(2)));
+                    }
+                    "MarginFaultResponse" => {
+                        assert_eq!(bits, (Bitpos(2), Bitwidth(2)));
+                    }
+                    "TransitionControl" => {
+                        assert_eq!(bits, (Bitpos(1), Bitwidth(1)));
+                    }
+                    _ => {
+                        panic!("unrecognized field");
+                    }
+                }
+
+                #[rustfmt::skip]
+            std::println!(r##"{:16}"{}" => {{
+                    assert_eq!(bits, {:?});
+                }}"##, "", f.name(), f.bits());
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn raw() {
+        use commands::isl68224::DMAFIX::*;
+
+        let input = [0xef, 0xbe, 0xad, 0xde];
+
+        let mut data = CommandData::from_slice(&input).unwrap();
+        assert_eq!(data.get(), Ok(0xdeadbeef));
+
+        let rval = data.mutate(mode, |field, _| {
+            assert_eq!(field.bitfield(), false);
+            Some(commands::Replacement::Integer(0xbaddcafe))
+        });
+
+        assert_eq!(rval, Ok(()));
+        assert_eq!(data.0, 0xbaddcafe);
+
+        let rval = data
+            .mutate(mode, |_, _| Some(commands::Replacement::Boolean(true)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+
+        let rval =
+            data.mutate(mode, |_, _| Some(commands::Replacement::Float(1.2)));
+
+        assert_eq!(rval, Err(Error::InvalidReplacement));
+    }
+
+    #[test]
+    fn adm1272_direct() {
+        use commands::adm1272::*;
+        use units::*;
+
+        let voltage = Coefficients {
+            m: 4062,
+            b: 0,
+            R: -2,
+        };
+        let current = Coefficients {
+            m: 663,
+            b: 20480,
+            R: -1,
+        };
+        let power = Coefficients {
+            m: 10535,
+            b: 0,
+            R: -3,
+        };
+
+        let vin = READ_VIN::CommandData::from_slice(&[0x6d, 0x07]).unwrap();
+        assert_eq!(vin.get(&voltage), Ok(Volts(46.799606)));
+
+        let vin = PEAK_VIN::CommandData::from_slice(&[0x04, 0x09]).unwrap();
+        assert_eq!(vin.get(&voltage), Ok(Volts(56.8193)));
+
+        let vout = READ_VOUT::CommandData::from_slice(&[0x51, 0x08]).unwrap();
+        assert_eq!(vout.get(&voltage), Ok(Volts(52.412605)));
+
+        let vout = PEAK_VOUT::CommandData::from_slice(&[0x03, 0x09]).unwrap();
+        assert_eq!(vout.get(&voltage), Ok(Volts(56.79468)));
+
+        let pin = READ_PIN::CommandData::from_slice(&[0x10, 0x01]).unwrap();
+        assert_eq!(pin.get(&power), Ok(Watts(25.818699)));
+
+        let pin = PEAK_PIN::CommandData::from_slice(&[0x3d, 0x01]).unwrap();
+        assert_eq!(pin.get(&power), Ok(Watts(30.090176)));
+
+        let iout = READ_IOUT::CommandData::from_slice(&[0x24, 0x08]).unwrap();
+        assert_eq!(iout.get(&current), Ok(Amperes(0.54298645)));
+
+        let iout = PEAK_IOUT::CommandData::from_slice(&[0x2b, 0x08]).unwrap();
+        assert_eq!(iout.get(&current), Ok(Amperes(0.64856714)));
     }
 }
