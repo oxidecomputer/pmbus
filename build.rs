@@ -204,8 +204,11 @@ pub use num_traits::{{FromPrimitive, ToPrimitive}};"##)?;
 
     if shadowing.is_some() {
         writeln!(&mut s, r##"
-use super::VOutMode;
-use super::Replacement;"##)?;
+use crate::VOutMode;
+use crate::Replacement;"##)?;
+    } else {
+        writeln!(&mut s, r##"
+use crate::Error;"##)?;
     }
 
     writeln!(&mut s, r##"
@@ -220,7 +223,7 @@ pub enum CommandCode {{"##)?;
 
     writeln!(&mut s, r##"}}
 
-impl Command for CommandCode {{
+impl crate::Command for CommandCode {{
     fn name(&self) -> &'static str {{
         match self {{"##)?;
 
@@ -613,11 +616,11 @@ fn output_command_data(
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
-    use super::Bitpos;
-    use super::Bitwidth;
-    use super::Error;
-    use crate::commands::VOutMode;
-    use crate::commands::Replacement;
+    use crate::Bitpos;
+    use crate::Bitwidth;
+    use crate::Error;
+    use crate::VOutMode;
+    use crate::Replacement;
 
     use num_derive::FromPrimitive;
     use num_derive::ToPrimitive;
@@ -645,12 +648,12 @@ pub mod {} {{
 
     impl core::fmt::Display for Field {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
-            use super::Field;
+            use crate::Field;
             write!(f, "{{}}", self.desc())
         }}
     }}
 
-    impl super::Field for Field {{
+    impl crate::Field for Field {{
         fn bitfield(&self) -> bool {{
             true
         }}
@@ -697,7 +700,7 @@ pub mod {} {{
     impl Field {{
         #[allow(unused_variables)]
         #[allow(unused_mut)]
-        fn sentinels(&self, mut sentinel: impl FnMut(&dyn super::Value)) {{
+        fn sentinels(&self, mut sentinel: impl FnMut(&dyn crate::Value)) {{
             match self {{"##)?;
 
     for (f, field) in fields {
@@ -744,7 +747,7 @@ pub mod {} {{
     writeln!(&mut s, "        Unknown(u{}),\n    }}", bits)?;
 
     writeln!(&mut s, r##"
-    impl super::Value for Value {{
+    impl crate::Value for Value {{
         fn desc(&self) -> &'static str {{
             match self {{"##)?;
 
@@ -820,7 +823,7 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "0x{{:x}}",
-                        super::Value::raw(self)
+                        crate::Value::raw(self)
                     )
                 }}"##, f)?;
             }
@@ -830,7 +833,7 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{}}{}",
-                        super::Value::raw(self) as f32 / ({} as f32)
+                        crate::Value::raw(self) as f32 / ({} as f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
             }
@@ -843,7 +846,7 @@ pub mod {} {{
                 _ => {{
                     write!(
                         f, "0b{{:b}} = {{}}",
-                        super::Value::raw(self), super::Value::desc(self)
+                        crate::Value::raw(self), crate::Value::desc(self)
                     )
                 }}
             }}
@@ -922,7 +925,7 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
         pub fn get_val(&self, field: Field) -> u{} {{
-            use super::Field;
+            use crate::Field;
             let (pos, width) = field.bits();
             (self.0 >> pos.0) & ((1 << width.0) - 1)
         }}
@@ -947,7 +950,7 @@ pub mod {} {{
     writeln!(&mut s, r##"
         #[allow(dead_code)]
         fn set_val(&mut self, field: Field, raw: u{}) -> Result<(), Error> {{
-            use super::Field;
+            use crate::Field;
             let (pos, width) = field.bits();
             let mask = (1 << width.0) - 1;
 
@@ -966,7 +969,7 @@ pub mod {} {{
             field: Field,
             raw: i{},
         ) -> Result<(), Error> {{
-            use super::Field;
+            use crate::Field;
             let (pos, width) = field.bits();
             let mask = (1 << width.0) - 1;
             let max = (mask >> 1) as i{};
@@ -1053,11 +1056,11 @@ pub mod {} {{
     writeln!(&mut s, "    }}")?;
 
     writeln!(&mut s, r##"
-    impl super::CommandData for CommandData {{
+    impl crate::CommandData for CommandData {{
         fn interpret(
             &self,
             _mode: impl Fn() -> VOutMode,
-            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+            mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             let mut pos: u8 = {};
 
@@ -1080,7 +1083,7 @@ pub mod {} {{
             &mut self,
             _mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(
-                &dyn super::Field, &dyn super::Value
+                &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
             let mut pos: u8 = {};
@@ -1118,7 +1121,7 @@ pub mod {} {{
         }}
 
         fn fields(
-            mut iter: impl FnMut(&dyn super::Field)
+            mut iter: impl FnMut(&dyn crate::Field)
         ) -> Result<(), Error> {{
             let mut pos: u8 = {};
 
@@ -1139,7 +1142,7 @@ pub mod {} {{
 
         fn sentinels(
             field: Bitpos,
-            iter: impl FnMut(&dyn super::Value) 
+            iter: impl FnMut(&dyn crate::Value) 
         ) -> Result<(), Error> {{
             if let Some((field, _)) = CommandData::field(field) {{
                 field.sentinels(iter);
@@ -1155,7 +1158,7 @@ pub mod {} {{
 
         fn command(
             &self,
-            mut cb: impl FnMut(&dyn super::Command)
+            mut cb: impl FnMut(&dyn crate::Command)
         ) {{
             cb(&super::CommandCode::{})
         }}
@@ -1185,14 +1188,14 @@ fn output_command_numeric(
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
-    use super::Bitwidth;
+    use crate::Bitwidth;
 
     /// The data payload for the `{}` PMBus command
     pub struct CommandData(pub u{});
 
-    use super::Error;
-    use crate::commands::VOutMode;
-    use crate::commands::Replacement;
+    use crate::Error;
+    use crate::VOutMode;
+    use crate::Replacement;
 
     #[allow(unused_imports)]
     use crate::Coefficients;"##, cmd, cmd, cmd, bits)?;
@@ -1208,7 +1211,7 @@ pub mod {} {{
         }}
     }}
 
-    impl super::Value for Value {{
+    impl crate::Value for Value {{
         fn name(&self) -> &'static str {{
             "{}"
         }}
@@ -1236,7 +1239,7 @@ pub mod {} {{
         }}
     }}
 
-    impl super::Value for Value {{
+    impl crate::Value for Value {{
         fn name(&self) -> &'static str {{
             "{}"
         }}
@@ -1465,18 +1468,16 @@ pub mod {} {{
     writeln!(&mut s, "    }}")?;
 
     writeln!(&mut s, r##"
-    impl super::CommandData for CommandData {{"##)?;
+    impl crate::CommandData for CommandData {{"##)?;
 
     if let Format::VOutMode(_) = format {
         writeln!(&mut s, r##"
         fn interpret(
             &self,
             mode: impl Fn() -> VOutMode,
-            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+            mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} measurement", Bitwidth({})
-            );
+            let field = crate::WholeField("{} measurement", Bitwidth({}));
             iter(&field, &Value(self.get(mode())?, self.0.into()));
             Ok(())
         }}"##, cmd, bits)?;
@@ -1485,11 +1486,9 @@ pub mod {} {{
         fn interpret(
             &self,
             _mode: impl Fn() -> VOutMode,
-            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+            mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} value", Bitwidth({})
-            );
+            let field = crate::WholeField("{} value", Bitwidth({}));
             iter(&field, &Value(self.get()?.into()));
             Ok(())
         }}"##, cmd, bits)?;
@@ -1498,7 +1497,7 @@ pub mod {} {{
         fn interpret(
             &self,
             _mode: impl Fn() -> VOutMode,
-            mut _iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+            mut _iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             Ok(())
         }}"##)?;
@@ -1507,11 +1506,9 @@ pub mod {} {{
         fn interpret(
             &self,
             _mode: impl Fn() -> VOutMode,
-            mut iter: impl FnMut(&dyn super::Field, &dyn super::Value)
+            mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} measurement", Bitwidth({})
-            );
+            let field = crate::WholeField("{} measurement", Bitwidth({}));
             iter(&field, &Value(self.get()?, self.0.into()));
             Ok(())
         }}"##, cmd, bits)?;
@@ -1523,12 +1520,10 @@ pub mod {} {{
             &mut self,
             mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(
-                &dyn super::Field, &dyn super::Value
+                &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} measurement", Bitwidth({})
-            );
+            let field = crate::WholeField("{} measurement", Bitwidth({}));
 
             let mode = mode();
             let val = Value(self.get(mode)?, self.0.into());
@@ -1555,12 +1550,10 @@ pub mod {} {{
             &mut self,
             _mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(
-                &dyn super::Field, &dyn super::Value
+                &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} value", Bitwidth({})
-            );
+            let field = crate::WholeField("{} value", Bitwidth({}));
             let val = Value(self.get()?.into());
 
             if let Some(replacement) = iter(&field, &val) {{
@@ -1584,7 +1577,7 @@ pub mod {} {{
             &mut self,
             _mode: impl Fn() -> VOutMode,
             mut _iter: impl FnMut(
-                &dyn super::Field, &dyn super::Value
+                &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
             Ok(())
@@ -1595,12 +1588,10 @@ pub mod {} {{
             &mut self,
             _mode: impl Fn() -> VOutMode,
             mut iter: impl FnMut(
-                &dyn super::Field, &dyn super::Value
+                &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
-            let field = crate::commands::WholeField(
-                "{} measurement", Bitwidth({})
-            );
+            let field = crate::WholeField("{} measurement", Bitwidth({}));
             let val = Value(self.get()?, self.0.into());
 
             if let Some(replacement) = iter(&field, &val) {{
@@ -1617,18 +1608,16 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
         fn fields(
-            mut iter: impl FnMut(&dyn super::Field) 
+            mut iter: impl FnMut(&dyn crate::Field) 
         ) -> Result<(), Error> {{
-            iter(&crate::commands::WholeField(
-                "{} measurement", Bitwidth({})
-            ));
+            iter(&crate::WholeField("{} measurement", Bitwidth({})));
 
             Ok(())
         }}
 
         fn sentinels(
-            _field: super::Bitpos,
-            mut _iter: impl FnMut(&dyn super::Value) 
+            _field: crate::Bitpos,
+            mut _iter: impl FnMut(&dyn crate::Value) 
         ) -> Result<(), Error> {{
             Ok(())
         }}
@@ -1639,7 +1628,7 @@ pub mod {} {{
 
         fn command(
             &self,
-            mut cb: impl FnMut(&dyn super::Command)
+            mut cb: impl FnMut(&dyn crate::Command)
         ) {{
             cb(&super::CommandCode::{})
         }}
@@ -1929,14 +1918,14 @@ fn output_device(device: &str) -> Result<String> {
 
     writeln!(&mut s, r##"
 pub mod {} {{
-    pub use super::Command;
-    pub use super::CommandData;
-    pub use super::Value;
-    pub use super::Field;
-    pub use super::Bitwidth;
-    pub use super::Bitpos;
-    pub use super::Operation;
-    pub use super::Error;
+    pub use crate::Command;
+    pub use crate::CommandData;
+    pub use crate::Value;
+    pub use crate::Field;
+    pub use crate::Bitwidth;
+    pub use crate::Bitpos;
+    pub use crate::Operation;
+    pub use crate::Error;
 
     include!(concat!(env!("OUT_DIR"), "/{}.rs"));
 }}"##, device, device)?;
