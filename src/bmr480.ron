@@ -170,14 +170,10 @@
 
         // The datasheet says only that MFR_RC_LEVEL is fixed-point, but
         // its factor appears to be 10
-        ("MFR_RC_LEVEL", FixedPoint(Unsigned, Factor(10)), Volts),
+        ("MFR_RC_LEVEL", FixedPoint(Factor(10)), Volts),
 
         // Strangely, each unit is 450ns
-        (
-            "MFR_KS_PRETRIG",
-            FixedPoint(Unsigned, Factor(2.22222222222)),
-            Microseconds
-        ),
+        ("MFR_KS_PRETRIG", FixedPoint(Factor(2.22222222222)), Microseconds),
 
         ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
         ("MFR_TEMP_OFFSET_INT", Direct(( m: 1, R: 1, b: 0 )), Celsius),
@@ -272,17 +268,17 @@
             "TrimLimit": (
                 name: "Output voltage trim limit",
                 bits: Bitrange(High(31), Low(24)),
-                values: FixedPointUnits(Unsigned, Factor(588.235294118), Volts),
+                values: FixedPointUnits(Factor(588.235294118), Volts),
             ),
             "PositiveThreshold": (
                 name: "Positive threshold level",
                 bits: Bitrange(High(15), Low(8)),
-                values: FixedPointUnits(Unsigned, Factor(20), Amperes),
+                values: FixedPointUnits(Factor(20), Amperes),
             ),
             "NegativeThreshold": (
                 name: "Negative threshold level",
                 bits: Bitrange(High(7), Low(0)),
-                values: FixedPointUnits(Unsigned, Factor(50), Amperes),
+                values: FixedPointUnits(Factor(50), Amperes),
             )
         },
 

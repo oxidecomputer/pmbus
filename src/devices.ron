@@ -29,5 +29,17 @@
         manufacturer: "Murata",
         part: "MWOCP68-3600W",
         description: "Front End Power Module"
-    )
+    ),
+    "raa228926": (
+        manufacturer: "Renesas",
+        part: "RAA228926",
+        description: "Digital Dual Output, 20-Phase PWM Controller",
+        coefficients: Some(( m: 1, R: 3, b: 0 ))
+    ),
+    "raa229618": (
+        manufacturer: "Renesas",
+        part: "RAA229618",
+        description: "Digital Dual Output, 20-Phase Configurable, SVI2 PWM Controller",
+        coefficients: Some(( m: 1, R: 3, b: 0 ))
+    ),
 }

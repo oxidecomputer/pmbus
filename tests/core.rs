@@ -4,6 +4,50 @@ fn mode() -> VOutMode {
     panic!("unexpected call to get VOutMode");
 }
 
+macro_rules! validate {
+    ($cmd:tt, $raw:expr, $val:expr, $units:tt) => {
+        let cmd = $cmd::CommandData::from_slice(&$raw).unwrap();
+        let c = stringify!($cmd);
+        let r = stringify!($raw);
+
+        match cmd.get() {
+            Ok($units(val)) => {
+                let delta = ($val as f32 - val).abs();
+
+                if delta > 0.0001 {
+                    panic!("{} failed: expected {}, found {}", c, $val, val);
+                }
+            }
+            Err(err) => {
+                panic!("{}({}) failed: {:?}", c, r, err);
+            }
+        }
+
+        println!("{}({}) = {:?}", c, r, cmd.get());
+    };
+
+    ($cmd:tt, $vout:expr, $raw:expr, $val:expr, $units:tt) => {
+        let cmd = $cmd::CommandData::from_slice(&$raw).unwrap();
+        let c = stringify!($cmd);
+        let r = stringify!($raw);
+
+        match cmd.get($vout) {
+            Ok($units(val)) => {
+                let delta = ($val as f32 - val).abs();
+
+                if delta > 0.0001 {
+                    panic!("{} failed: expected {}, found {}", c, $val, val);
+                }
+            }
+            _ => {
+                panic!("{}({}) failed", c, r);
+            }
+        }
+
+        println!("{}({}) = {:?}", c, r, cmd.get($vout));
+    };
+}
+
 #[test]
 fn verify_cmds() {
     macro_rules! verify {
@@ -1090,4 +1134,152 @@ fn adm1272_direct() {
 
     let iout = PEAK_IOUT::CommandData::from_slice(&[0x2b, 0x08]).unwrap();
     assert_eq!(iout.get(&current), Ok(Amperes(0.64856714)));
+}
+
+#[test]
+fn raa228926_defaults() {
+    use commands::raa228926::*;
+    use units::*;
+
+    let vout = VOutMode::from_slice(&[0x40]).unwrap();
+
+    validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
+    validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
+    validate!(VOUT_MARGIN_HIGH, vout, [0xb1, 0x03], 0.945, Volts);
+    validate!(VOUT_MARGIN_LOW, vout, [0x57, 0x03], 0.855, Volts);
+    validate!(
+        VOUT_TRANSITION_RATE,
+        [0xc4, 0x09],
+        0.025,
+        VoltsPerMicrosecond
+    );
+    validate!(FREQUENCY_SWITCH, [0x58, 0x02], 600, Kilohertz);
+    validate!(VIN_ON, [0xbc, 0x02], 7, Volts);
+    validate!(VIN_OFF, [0xf4, 0x01], 5, Volts);
+    validate!(VOUT_OV_FAULT_LIMIT, vout, [0x1c, 0x0c], 3.1, Volts);
+    validate!(IOUT_OC_FAULT_LIMIT, [0x2c, 0x01], 30, Amperes);
+    validate!(OT_FAULT_LIMIT, [0x7d, 0x00], 125, Celsius);
+    validate!(OT_WARN_LIMIT, [0x6e, 0x00], 110, Celsius);
+    validate!(UT_FAULT_LIMIT, [0xd8, 0xff], -40, Celsius);
+    validate!(VIN_OV_FAULT_LIMIT, [0x40, 0x06], 16, Volts);
+    validate!(VIN_OV_WARN_LIMIT, [0x08, 0x07], 18, Volts);
+    validate!(IIN_OC_FAULT_LIMIT, [0x98, 0x3a], 150, Amperes);
+
+    validate!(TON_RISE, [0xf4, 0x01], 0.500, Milliseconds);
+    validate!(TOFF_FALL, [0xf4, 0x01], 0.500, Milliseconds);
+
+    validate!(PEAK_OC_LIMIT, [0x58, 0x02], 60, Amperes);
+    validate!(PEAK_UC_LIMIT, [0xa8, 0xfd], -60, Amperes);
+    validate!(HS_BUS_CURRENT_SCALE, [0x00, 0x40], 1.0, Unitless);
+    validate!(IOUT_ALERT_THRESHOLD, [0xc8, 0x00], 20.0, Amperes);
+
+    let ocuc = PEAK_OCUC_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
+    assert_eq!(ocuc.get_uc_limit(), 6);
+    assert_eq!(ocuc.get_oc_limit(), 6);
+    dump(&ocuc);
+}
+
+#[test]
+fn raa228926_filt() {
+    use commands::raa228926::*;
+    use units::*;
+
+    let filt =
+        SUM_OC_FILT_COUNT::CommandData::from_slice(&[0x96, 0x06]).unwrap();
+
+    dump(&filt);
+    assert_eq!(filt.get_delay(), Microseconds(100.0));
+    assert_eq!(filt.get_filter(), Microseconds(10.666667));
+
+    let filt =
+        IOUT_ALERT_FILT_COUNT::CommandData::from_slice(&[0x00, 0x06]).unwrap();
+
+    assert_eq!(filt.get_filter(), Microseconds(10.666667));
+    dump(&filt);
+}
+
+#[test]
+fn raa229618_defaults() {
+    use commands::raa229618::*;
+    use units::*;
+
+    let vout = VOutMode::from_slice(&[0x40]).unwrap();
+
+    validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
+    validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
+    validate!(VOUT_MARGIN_HIGH, vout, [0xb1, 0x03], 0.945, Volts);
+    validate!(VOUT_MARGIN_LOW, vout, [0x57, 0x03], 0.855, Volts);
+    validate!(
+        VOUT_TRANSITION_RATE,
+        [0xc4, 0x09],
+        0.025,
+        VoltsPerMicrosecond
+    );
+    validate!(FREQUENCY_SWITCH, [0x58, 0x02], 600, Kilohertz);
+    validate!(VIN_ON, [0xbc, 0x02], 7, Volts);
+    validate!(VIN_OFF, [0xf4, 0x01], 5, Volts);
+    validate!(VOUT_OV_FAULT_LIMIT, vout, [0x1c, 0x0c], 3.1, Volts);
+    validate!(IOUT_OC_FAULT_LIMIT, [0x2c, 0x01], 30, Amperes);
+    validate!(OT_FAULT_LIMIT, [0x7d, 0x00], 125, Celsius);
+    validate!(OT_WARN_LIMIT, [0x6e, 0x00], 110, Celsius);
+    validate!(UT_FAULT_LIMIT, [0xd8, 0xff], -40, Celsius);
+    validate!(VIN_OV_FAULT_LIMIT, [0x40, 0x06], 16, Volts);
+    validate!(VIN_OV_WARN_LIMIT, [0x08, 0x07], 18, Volts);
+    validate!(IIN_OC_FAULT_LIMIT, [0x98, 0x3a], 150, Amperes);
+
+    // Either the value or the factor is incorrect in the datasheet!
+    // validate!(TON_RISE, [0x32, 0x00], 0.500, Milliseconds);
+    // validate!(TOFF_FALL, [0x32, 0x00], 0.500, Milliseconds);
+
+    validate!(BOOTRATE, [0xf4, 0x01], 0.005, VoltsPerMicrosecond);
+    validate!(PEAK_OC_LIMIT, [0x58, 0x02], 60, Amperes);
+    validate!(PEAK_UC_LIMIT, [0xa8, 0xfd], -60, Amperes);
+    validate!(HS_BUS_CURRENT_SCALE, [0x00, 0x40], 1.0, Unitless);
+
+    let ocuc = PEAK_OCUC_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
+    assert_eq!(ocuc.get_uc_limit(), 6);
+    assert_eq!(ocuc.get_oc_limit(), 6);
+    dump(&ocuc);
+
+    let comp =
+        COMPPROP::CommandData::from_slice(&[0xc4, 0x07, 0x09, 0xd9]).unwrap();
+    dump(&comp);
+}
+
+#[test]
+fn raa229618_filt() {
+    use commands::raa229618::*;
+    use units::*;
+
+    let fast =
+        FAST_OC_FILT_COUNT::CommandData::from_slice(&[0x96, 0x06]).unwrap();
+
+    dump(&fast);
+    assert_eq!(fast.get_delay(), Microseconds(100.0));
+    assert_eq!(fast.get_filter(), Microseconds(10.666667));
+
+    let slow =
+        SLOW_OC_FILT_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
+
+    assert_eq!(slow.get_delay(), Microseconds(1024.2));
+    assert_eq!(slow.get_filter(), Microseconds(10.666667));
+    dump(&slow);
+}
+
+#[test]
+fn raa229618_loopcfg() {
+    use commands::raa229618::LOOPCFG::*;
+
+    let loopcfg = CommandData::from_slice(&[0xf6, 0x71, 0x20, 0x10]).unwrap();
+
+    assert_eq!(
+        loopcfg.get_diode_emulation_mode(),
+        Some(DiodeEmulationMode::Enabled)
+    );
+
+    println!("{:?}", loopcfg.get_minimum_phase_count());
+    println!("{:?}", loopcfg.get_lock_svid());
+    println!("{:?}", loopcfg.get_zero_v_shutdown());
+
+    dump(&loopcfg);
 }

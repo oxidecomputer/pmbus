@@ -20,6 +20,9 @@ struct Low(u8);
 #[derive(Clone, Debug, Deserialize)]
 struct Factor(f32);
 
+#[derive(Clone, Debug, Deserialize)]
+struct Base(i8);
+
 #[derive(Debug, Deserialize)]
 struct Offset(f32);
 
@@ -81,9 +84,14 @@ enum Sign {
 
 #[derive(Debug, Deserialize)]
 enum Values<T> {
+    /// Value is a scalar
     Scalar(Sign),
+    /// Value is a sentinel
     Sentinels(T),
-    FixedPointUnits(Sign, Factor, Units),
+    /// Value is of form: real_value = value / Factor
+    FixedPointUnits(Factor, Units),
+    /// Value is of form: real_value = Base**value / Factor
+    LogFactorUnits(Base, Factor, Units),
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
@@ -102,7 +110,8 @@ enum Format {
     Direct(Coefficients),
     RuntimeDirect,
     VOutMode(Sign),
-    FixedPoint(Sign, Factor),
+    FixedPoint(Factor),
+    SignedFixedPoint(Factor),
     Raw,
 }
 
@@ -500,7 +509,7 @@ fn validate(
         }
 
         match field.values {
-            Values::FixedPointUnits(_, _, unit) => {
+            Values::FixedPointUnits(_, unit) => {
                 units.insert(unit);
             }
             _ => {}
@@ -553,7 +562,9 @@ fn output_value(
 
     let values = match values {
         Values::Sentinels(ref v) => v,
-        Values::Scalar(_) | Values::FixedPointUnits(..) => {
+        Values::Scalar(_)
+        | Values::FixedPointUnits(..)
+        | Values::LogFactorUnits(..) => {
             return output_scalar(name, width);
         }
     };
@@ -630,6 +641,9 @@ pub mod {} {{
 
     #[allow(unused_imports)]
     use num_traits::ToPrimitive;
+
+    #[allow(unused_imports)]
+    pub use num_traits::float::FloatCore;
 
     /// The data payload for the `{}` PMBus command
     #[derive(Copy, Clone, Debug, PartialEq)]
@@ -798,7 +812,9 @@ pub mod {} {{
                     f
                 )?;
             }
-            Values::Scalar(_) | Values::FixedPointUnits(..) => {
+            Values::Scalar(_)
+            | Values::FixedPointUnits(..)
+            | Values::LogFactorUnits(..) => {
                 writeln!(
                     &mut s,
                     "                Value::{}(v) => v.0 as u32,",
@@ -828,7 +844,7 @@ pub mod {} {{
                 }}"##, f)?;
             }
 
-            Values::FixedPointUnits(_, Factor(factor), u) => {
+            Values::FixedPointUnits(Factor(factor), u) => {
                 writeln!(&mut s, r##"
                 Value::{}(_) => {{
                     write!(
@@ -836,6 +852,17 @@ pub mod {} {{
                         crate::Value::raw(self) as f32 / ({} as f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
+            }
+
+            Values::LogFactorUnits(Base(base), Factor(factor), u) => {
+                writeln!(&mut s, r##"
+                Value::{}(_) => {{
+                    write!(
+                        f, "{{}}{}",
+                        ({} as f32).powi(crate::Value::raw(self) as i32) /
+                        ({} as f32)
+                    )
+                }}"##, f, u.suffix(), base, factor)?;
             }
 
             _ => {}
@@ -1017,10 +1044,12 @@ pub mod {} {{
         }}"##, method, bits, f)?;
             }
 
-            Values::FixedPointUnits(_, Factor(factor), unit) => {
+            Values::FixedPointUnits(Factor(factor), unit) => {
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(self.get_val(Field::{}) as f32 / ({} as f32))
+            crate::units::{:?}(
+                self.get_val(Field::{}) as f32 / ({} as f32)
+            )
         }}"##, method, unit, unit, f, factor)?;
 
                 writeln!(&mut s, r##"
@@ -1030,6 +1059,23 @@ pub mod {} {{
         ) -> Result<(), Error> {{
             self.set_val(Field::{}, (val.0 * ({} as f32)) as u{})
         }}"##, method, unit, f, factor, bits)?;
+            }
+
+            Values::LogFactorUnits(Base(base), Factor(factor), unit) => {
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> crate::units::{:?} {{
+            crate::units::{:?}(
+                ({} as f32).powi(self.get_val(Field::{}) as i32) / ({} as f32)
+            )
+        }}"##, method, unit, unit, base, f, factor)?;
+
+                writeln!(&mut s, r##"
+        pub fn set_{}(
+            &mut self,
+            val: crate::units::{:?}
+        ) -> Result<(), Error> {{
+            self.set_val(Field::{}, libm::log{}f(val.0 * ({} as f32)) as u{})
+        }}"##, method, unit, f, base, factor, bits)?;
             }
 
             Values::Sentinels(_) => {
@@ -1424,7 +1470,7 @@ pub mod {} {{
         }}"##, units, units, units)?;
         }
 
-        Format::FixedPoint(Sign::Unsigned, Factor(factor)) => {
+        Format::FixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
             Ok({}((self.0 as f32) / ({:32} as f32)))
@@ -1436,7 +1482,7 @@ pub mod {} {{
         }}"##, units, units, factor, units, factor, bits)?;
         }
 
-        Format::FixedPoint(Sign::Signed, Factor(factor)) => {
+        Format::SignedFixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
             Ok({}(((self.0 as i{}) as f32) / ({:32} as f32)))

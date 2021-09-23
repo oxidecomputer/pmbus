@@ -23,7 +23,7 @@
         ("VOUT_OV_WARN_LIMIT", VOutMode(Unsigned), Volts),
         ("VOUT_UV_WARN_LIMIT", VOutMode(Unsigned), Volts),
         ("VOUT_UV_FAULT_LIMIT", VOutMode(Unsigned), Volts),
-        ("IOUT_OC_FAULT_LIMIT", Direct(( m: 1, R: 2, b: 0 )), Amperes),
+        ("IOUT_OC_FAULT_LIMIT", Direct(( m: 1, R: 1, b: 0 )), Amperes),
         ("OT_FAULT_LIMIT", Direct(( m: 1, R: 0, b: 0 )), Celsius),
         ("OT_WARN_LIMIT", Direct(( m: 1, R: 0, b: 0 )), Celsius),
         ("VIN_OV_FAULT_LIMIT", Direct(( m: 1, R: 2, b: 0 )), Volts),

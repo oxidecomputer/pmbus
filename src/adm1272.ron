@@ -89,7 +89,7 @@
                 name: "Cause of last how swap shutdown",
                 bits: Bitrange(High(2), Low(0)),
                 values: Sentinels({
-                    "Operational": (0b000, "oeprational"),
+                    "Operational": (0b000, "operational"),
                     "OvertempFault": (0b001, "OT_FAULT"),
                     "OvercurrentFault": (0b010, "IOUT_OC_FAULT"),
                     "FETHealthFault": (0b011, "FET HEALTH_FAULT"),
