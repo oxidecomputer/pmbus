@@ -516,6 +516,58 @@ fn device_list() {
     });
 }
 
+fn synonyms(codes: &[commands::CommandCode], payload: &[u8]) {
+    let mut bycode = vec![];
+
+    for code in codes {
+        let mut names = vec![];
+
+        Device::Common
+            .interpret(*code as u8, payload, mode, |f, v| {
+                names.push((f.name(), v.name()));
+            })
+            .unwrap();
+        bycode.push((*code, names));
+    }
+
+    println!("bycode: {:#?}", bycode);
+
+    for c in 1..codes.len() {
+        println!("comparing {:?} to {:?}", bycode[c].0, bycode[c - 1].0);
+        assert_eq!(bycode[c].1, bycode[c - 1].1);
+    }
+}
+
+#[test]
+fn synonyms_ov() {
+    use commands::*;
+
+    let codes = [
+        CommandCode::VOUT_OV_FAULT_RESPONSE,
+        CommandCode::VOUT_UV_FAULT_RESPONSE,
+        CommandCode::UT_FAULT_RESPONSE,
+        CommandCode::VIN_OV_FAULT_RESPONSE,
+        CommandCode::VIN_UV_FAULT_RESPONSE,
+        CommandCode::TON_MAX_FAULT_RESPONSE,
+        CommandCode::POUT_OP_FAULT_RESPONSE,
+    ];
+
+    synonyms(&codes, &[0x84]);
+}
+
+#[test]
+fn synonyms_oc() {
+    use commands::*;
+
+    let codes = [
+        CommandCode::IOUT_OC_FAULT_RESPONSE,
+        CommandCode::IOUT_UC_FAULT_RESPONSE,
+        CommandCode::IIN_OC_FAULT_RESPONSE,
+    ];
+
+    synonyms(&codes, &[0x04]);
+}
+
 #[test]
 fn tps_read_all() {
     use commands::tps546b24a::READ_ALL::*;

@@ -266,9 +266,16 @@ impl crate::Command for CommandCode {{
     writeln!(&mut s, "        }}\n    }}\n}}")?;
 
     let mut numerics = HashSet::new();
+    let mut synonyms = HashSet::new();
 
     for cmd in &cmds.numerics {
         numerics.insert(&cmd.0);
+    }
+
+    if let Some(ref syn) = cmds.synonyms {
+        for cmd in syn {
+            synonyms.insert(&cmd.0);
+        }
     }
 
     //
@@ -294,6 +301,7 @@ impl CommandCode {{
     for cmd in &cmds.all {
         if cmds.structured.get(&cmd.1).is_none()
             && numerics.get(&cmd.1).is_none()
+            && synonyms.get(&cmd.1).is_none()
         {
             continue;
         }
