@@ -346,6 +346,7 @@ impl CommandCode {{
     for cmd in &cmds.all {
         if cmds.structured.get(&cmd.1).is_none()
             && numerics.get(&cmd.1).is_none()
+            && synonyms.get(&cmd.1).is_none()
         {
             continue;
         }
@@ -390,6 +391,7 @@ impl CommandCode {{
     for cmd in &cmds.all {
         if cmds.structured.get(&cmd.1).is_none()
             && numerics.get(&cmd.1).is_none()
+            && synonyms.get(&cmd.1).is_none()
         {
             continue;
         }
@@ -428,6 +430,7 @@ impl CommandCode {{
     for cmd in &cmds.all {
         if cmds.structured.get(&cmd.1).is_none()
             && numerics.get(&cmd.1).is_none()
+            && synonyms.get(&cmd.1).is_none()
         {
             continue;
         }
@@ -729,12 +732,20 @@ pub mod {} {{
         if let Values::Sentinels(ref values) = &field.values {
             writeln!(&mut s, "                Field::{} => {{", f)?;
 
-            for (v, _) in values {
+            let mut sorted = vec![];
+
+            for (v, value) in values {
+                sorted.push((value.0, v));
+            }
+
+            sorted.sort();
+
+            for v in &sorted {
                 writeln!(
                     &mut s,
                     r##"                    sentinel(
                         &Value::{}({}::{}),
-                    );"##, f, f, v
+                    );"##, f, f, v.1
                 )?;
             }
 

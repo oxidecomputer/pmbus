@@ -527,6 +527,16 @@ fn synonyms(codes: &[commands::CommandCode], payload: &[u8]) {
                 names.push((f.name(), v.name()));
             })
             .unwrap();
+
+        let mut fields = vec![];
+
+        Device::Common
+            .fields(*code as u8, |f| {
+                fields.push(f.name());
+            })
+            .unwrap();
+
+        assert_eq!(fields.len(), names.len());
         bycode.push((*code, names));
     }
 
@@ -1114,6 +1124,75 @@ fn device_fields() {
             }}"##, "", f.name(), f.bits());
         })
         .unwrap();
+}
+
+fn print_command(
+    device: pmbus::Device,
+    code: u8,
+    command: &dyn pmbus::Command,
+) {
+    use std::*;
+
+    println!("0x{:02x} {}", code, command.name());
+
+    let mut bitfields = false;
+
+    let fields = |field: &dyn Field| {
+        let bits = field.bits();
+        let nbits = bits.1 .0 as usize;
+
+        let b = if nbits == 1 {
+            format!("b{}", bits.0 .0)
+        } else {
+            format!("b{}:{}", bits.0 .0 + bits.1 .0 - 1, bits.0 .0)
+        };
+
+        if field.bitfield() {
+            bitfields = true;
+
+            println!("     | {:6} {:30} <= {}", b, field.name(), field.desc());
+
+            let mut last = None;
+
+            let sentinels = |val: &dyn Value| {
+                let v =
+                    format!("0b{:0w$b} = {}", val.raw(), val.name(), w = nbits);
+
+                println!("     | {:6} {:30} <- {}", "", v, val.desc());
+
+                if let Some(last) = last {
+                    if last >= val.raw() {
+                        panic!("values are out of order");
+                    }
+                }
+
+                last = Some(val.raw());
+            };
+
+            device.sentinels(code, field.bits().0, sentinels).unwrap();
+        }
+    };
+
+    device.fields(code, fields).unwrap();
+
+    if bitfields {
+        println!(
+            "     +------------------------------------------\
+            -----------------------------\n"
+        );
+    }
+}
+
+#[test]
+fn device_commands() {
+    devices(|d| {
+        std::println!("==== {}: {} ====", d.name(), d.desc());
+        for i in 0..=0xff {
+            d.command(i, |cmd| {
+                print_command(d, i, cmd);
+            });
+        }
+    });
 }
 
 #[test]
