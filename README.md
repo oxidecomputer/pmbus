@@ -33,18 +33,18 @@ destructured data; each device is in its own module, with each PMBus
 command further having its own module that contains the types for the
 corresponding command data.
 
-As a concrete example, [`commands::OPERATION`] contains an implementation
-of the [`commands::CommandData`] trait for the fields for the common PMBus
+As a concrete example, `commands::OPERATION` contains an implementation
+of the `CommandData` trait for the fields for the common PMBus
 `OPERATION` command.  For each device, there is a device-specific
 `OPERATION` module -- e.g.  `[commands::adm1272::OPERATION]` -- that may
 extend or override the common definition.  Further, the device may define
 its own constants; for example, while PMBus defines the command code
-`0xd4` to be [`CommandCode::MFR_SPECIFIC_D4`], the ADM1272 defines this to
+`0xd4` to be `CommandCode::MFR_SPECIFIC_D4`, the ADM1272 defines this to
 be `PMON_CONFIG`, a device-specific power monitor configuration register.
-There therefore exists a [`commands::adm1272::PMON_CONFIG`] module that
+There therefore exists a `commands::adm1272::PMON_CONFIG` module that
 understands the full (ADM1272-specific) functionality.  For code that
 wishes to be device agnostic but still be able to display contents, there
-exists a [`Device::interpret`] that given a device, a code, and a payload,
+exists a `Device::interpret` that given a device, a code, and a payload,
 calls the specified closure to iterate over fields and values.
 
 A final (crucial) constraint is that this crate remains `no_std`; it

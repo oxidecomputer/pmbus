@@ -1,4 +1,13 @@
 #![no_std]
+//
+// Note that the below rustdoc is used by `cargo readme` to generate the
+// README, but due to https://github.com/livioribeiro/cargo-readme/issues/70,
+// it must be cleaned up manually, e.g.:
+//
+// ```
+// cargo readme | sed 's/\[\(`[^`]*`\)]/\1/g' > README.md
+// ```
+//
 
 //! pmbus: A crate for PMBus manipulation
 //!
@@ -34,7 +43,7 @@
 //! corresponding command data.
 //!
 //! As a concrete example, [`commands::OPERATION`] contains an implementation
-//! of the [`commands::CommandData`] trait for the fields for the common PMBus
+//! of the [`CommandData`] trait for the fields for the common PMBus
 //! `OPERATION` command.  For each device, there is a device-specific
 //! `OPERATION` module -- e.g.  `[commands::adm1272::OPERATION]` -- that may
 //! extend or override the common definition.  Further, the device may define
@@ -173,7 +182,8 @@ pub type VOutMode = commands::VOUT_MODE::CommandData;
 
 /// A trait to express PMBus command data.  This is part of the reflection
 /// interfact, and allows for consumers to iterate over fields (via
-/// [`interpret`] or optionally mutate a particular field (via [`mutate`]).
+/// [`Device::interpret`] or optionally mutate a particular field (via
+/// [`Device::mutate`]).
 pub trait CommandData {
     /// Interprets the contents of command data. This takes a closure `mode`
     /// that returns `VOutMode` if (and only if) needed, as well as a
