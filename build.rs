@@ -213,7 +213,7 @@ pub use num_traits::{{FromPrimitive, ToPrimitive}};"##)?;
 
     if shadowing.is_some() {
         writeln!(&mut s, r##"
-use crate::VOutMode;
+use crate::VOutModeCommandData;
 use crate::Replacement;"##)?;
     } else {
         writeln!(&mut s, r##"
@@ -293,7 +293,7 @@ impl CommandCode {{
     pub fn interpret(
         &self,
         payload: &[u8],
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value)
     ) -> Result<(), Error> {{
         match self {{"##)?;
@@ -338,7 +338,7 @@ impl CommandCode {{
     pub fn mutate(
         &self,
         payload: &mut [u8],
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>
     ) -> Result<(), Error> {{
         match self {{"##)?;
@@ -641,7 +641,7 @@ pub mod {} {{
     use crate::Bitpos;
     use crate::Bitwidth;
     use crate::Error;
-    use crate::VOutMode;
+    use crate::VOutModeCommandData;
     use crate::Replacement;
 
     use num_derive::FromPrimitive;
@@ -1124,7 +1124,7 @@ pub mod {} {{
     impl crate::CommandData for CommandData {{
         fn interpret(
             &self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             let mut pos: u8 = {};
@@ -1146,7 +1146,7 @@ pub mod {} {{
 
         fn mutate(
             &mut self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
@@ -1259,7 +1259,7 @@ pub mod {} {{
     pub struct CommandData(pub u{});
 
     use crate::Error;
-    use crate::VOutMode;
+    use crate::VOutModeCommandData;
     use crate::Replacement;
 
     #[allow(unused_imports)]
@@ -1374,7 +1374,7 @@ pub mod {} {{
 
         Format::VOutMode(_) => {
             writeln!(&mut s, r##"
-        pub fn get(&self, mode: VOutMode) -> Result<{}, Error> {{
+        pub fn get(&self, mode: VOutModeCommandData) -> Result<{}, Error> {{
             match mode.get_mode() {{
                 Some(crate::commands::VOUT_MODE::Mode::ULINEAR16) => {{
                     let exp = crate::ULinear16Exponent(mode.get_parameter());
@@ -1410,7 +1410,9 @@ pub mod {} {{
             }}
         }}
 
-        pub fn set(&mut self, mode: VOutMode, val: {}) -> Result<(), Error> {{
+        pub fn set(
+            &mut self, mode: VOutModeCommandData, val: {}
+        ) -> Result<(), Error> {{
             match mode.get_mode() {{
                 Some(crate::commands::VOUT_MODE::Mode::ULINEAR16) => {{
                     let exp = crate::ULinear16Exponent(mode.get_parameter());
@@ -1539,7 +1541,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn interpret(
             &self,
-            mode: impl Fn() -> VOutMode,
+            mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             let field = crate::WholeField("{} measurement", Bitwidth({}));
@@ -1550,7 +1552,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn interpret(
             &self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             let field = crate::WholeField("{} value", Bitwidth({}));
@@ -1561,7 +1563,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn interpret(
             &self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut _iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             Ok(())
@@ -1570,7 +1572,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn interpret(
             &self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(&dyn crate::Field, &dyn crate::Value)
         ) -> Result<(), Error> {{
             let field = crate::WholeField("{} measurement", Bitwidth({}));
@@ -1583,7 +1585,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn mutate(
             &mut self,
-            mode: impl Fn() -> VOutMode,
+            mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
@@ -1613,7 +1615,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn mutate(
             &mut self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
@@ -1640,7 +1642,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn mutate(
             &mut self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut _iter: impl FnMut(
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
@@ -1651,7 +1653,7 @@ pub mod {} {{
         writeln!(&mut s, r##"
         fn mutate(
             &mut self,
-            _mode: impl Fn() -> VOutMode,
+            _mode: impl Fn() -> VOutModeCommandData,
             mut iter: impl FnMut(
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
@@ -1804,7 +1806,7 @@ impl Device {{
         &self,
         code: u8,
         payload: &[u8],
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value)
     ) -> Result<(), Error> {{
         match self {{
@@ -1846,7 +1848,7 @@ impl Device {{
         &self,
         code: u8,
         payload: &mut [u8],
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>
     ) -> Result<(), Error> {{
         match self {{

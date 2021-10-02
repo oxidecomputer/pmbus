@@ -178,7 +178,7 @@ pub trait Command: core::fmt::Debug {
 /// VOUT_MODE -- dictates how others are interpreted.  This command therefore
 /// must be enshrined as special even for consumers of the reflection
 /// interface.
-pub type VOutMode = commands::VOUT_MODE::CommandData;
+pub type VOutModeCommandData = commands::VOUT_MODE::CommandData;
 
 /// A trait to express PMBus command data.  This is part of the reflection
 /// interfact, and allows for consumers to iterate over fields (via
@@ -186,18 +186,18 @@ pub type VOutMode = commands::VOUT_MODE::CommandData;
 /// [`Device::mutate`]).
 pub trait CommandData {
     /// Interprets the contents of command data. This takes a closure `mode`
-    /// that returns `VOutMode` if (and only if) needed, as well as a
-    /// closure to be called for each field and its value.
+    /// that returns `VOutModeCommandData` if (and only if) needed, as well as
+    /// a closure to be called for each field and its value.
     fn interpret(
         &self,
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value),
     ) -> Result<(), Error>;
 
     /// Mutates the contents of command data.
     fn mutate(
         &mut self,
-        mode: impl Fn() -> VOutMode,
+        mode: impl Fn() -> VOutModeCommandData,
         iter: impl FnMut(&dyn Field, &dyn Value) -> Option<Replacement>,
     ) -> Result<(), Error>;
 

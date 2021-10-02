@@ -5,7 +5,7 @@ use crate::Command;
 use crate::CommandData;
 use crate::Field;
 use crate::Replacement;
-use crate::VOutMode;
+use crate::VOutModeCommandData;
 use crate::Value;
 
 //

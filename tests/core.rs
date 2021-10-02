@@ -1,7 +1,7 @@
 use pmbus::*;
 
-fn mode() -> VOutMode {
-    panic!("unexpected call to get VOutMode");
+fn mode() -> VOutModeCommandData {
+    panic!("unexpected call to get VOutModeCommandData");
 }
 
 macro_rules! validate {
@@ -597,7 +597,7 @@ fn tps_read_all() {
 #[test]
 fn tps_read_all_data() {
     let _code = commands::tps546b24a::CommandCode::READ_ALL as u8;
-    let mode = || VOutMode::from_slice(&[0x97]).unwrap();
+    let mode = || VOutModeCommandData::from_slice(&[0x97]).unwrap();
 
     let data = [
         0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00, 0x00,
@@ -702,7 +702,7 @@ fn bmr480_iout() {
         (0xf009, 2.25),
     ];
 
-    for d in data {
+    for d in &data {
         let raw = d.0.to_le_bytes();
         let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
         assert_eq!(iout.get(), Ok(units::Amperes(d.1)));
@@ -719,7 +719,7 @@ fn bmr480_iout() {
 fn bmr480_vout() {
     use commands::bmr480::*;
 
-    let mode = || VOutMode::from_slice(&[0x15]).unwrap();
+    let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
 
     let data = [
         (0x0071u16, 0.05517578f32),
@@ -745,7 +745,7 @@ fn bmr480_vout() {
         (0x69e2, 13.235352),
     ];
 
-    for d in data {
+    for d in &data {
         let raw = d.0.to_le_bytes();
         let vout = READ_VOUT::CommandData::from_slice(&raw).unwrap();
         assert_eq!(vout.get(mode()), Ok(units::Volts(d.1)));
@@ -762,7 +762,7 @@ fn bmr480_vout() {
 fn bmr480_vin() {
     use commands::bmr480::*;
 
-    let mode = || VOutMode::from_slice(&[0x15]).unwrap();
+    let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
 
     let data = [
         (0x0a5cu16, 1208.0),
@@ -776,7 +776,7 @@ fn bmr480_vin() {
         (0xe9a7, 52.875),
     ];
 
-    for d in data {
+    for d in &data {
         let raw = d.0.to_le_bytes();
         let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
         assert_eq!(vin.get(), Ok(units::Volts(d.1)));
@@ -807,11 +807,11 @@ fn bmr491_ks_pretrig() {
 fn isl68224_vin() {
     use commands::isl68224::*;
 
-    let mode = || VOutMode::from_slice(&[0x40]).unwrap();
+    let mode = || VOutModeCommandData::from_slice(&[0x40]).unwrap();
 
     let data = [(0x04a9u16, 11.930001), (0xffff, -0.010000001)];
 
-    for d in data {
+    for d in &data {
         let raw = d.0.to_le_bytes();
         let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
         assert_eq!(vin.get(), Ok(units::Volts(d.1)));
@@ -904,7 +904,7 @@ fn mutate_invalid() {
 
 #[test]
 fn vout_command_set() {
-    let mut vout = VOutMode::from_slice(&[0x97]).unwrap();
+    let mut vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
 
@@ -952,7 +952,7 @@ fn vout_command_set() {
 
 #[test]
 fn vout_command_mutate() {
-    let vout = VOutMode::from_slice(&[0x97]).unwrap();
+    let vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
 
@@ -988,7 +988,7 @@ fn vout_command_mutate() {
 
 #[test]
 fn device_vout_command_mutate() {
-    let vout = VOutMode::from_slice(&[0x97]).unwrap();
+    let vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
 
@@ -1272,7 +1272,7 @@ fn raa228926_defaults() {
     use commands::raa228926::*;
     use units::*;
 
-    let vout = VOutMode::from_slice(&[0x40]).unwrap();
+    let vout = VOutModeCommandData::from_slice(&[0x40]).unwrap();
 
     validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
     validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
@@ -1334,7 +1334,7 @@ fn raa229618_defaults() {
     use commands::raa229618::*;
     use units::*;
 
-    let vout = VOutMode::from_slice(&[0x40]).unwrap();
+    let vout = VOutModeCommandData::from_slice(&[0x40]).unwrap();
 
     validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
     validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
