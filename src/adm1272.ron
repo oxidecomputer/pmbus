@@ -41,6 +41,8 @@
         ("PEAK_VOUT", RuntimeDirect, Volts),
         ("PEAK_TEMPERATURE", Direct(( m: 42, b: 31871, R: -1 )), Celsius),
         ("PEAK_PIN", RuntimeDirect, Watts),
+        ("HYSTERESIS_LOW", Direct(( m: 1, R: 0, b: 0 )), Unitless),
+        ("HYSTERESIS_HIGH", Direct(( m: 1, R: 0, b: 0 )), Unitless),
     ],
 
     structured: {
@@ -217,5 +219,467 @@
                 })
             ),
         },
+
+        "ALERT1_CONFIG": {
+            "FETHealthFault": (
+                name: "FET health fault alert",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "IOutOCFault": (
+                name: "Iout overcurrent fault alert",
+                bits: Bit(14),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInOVFault": (
+                name: "Vin overvoltage fault alert",
+                bits: Bit(13),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInUVFault": (
+                name: "Vin undervoltage fault alert",
+                bits: Bit(12),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "CMLError": (
+                name: "Communications error alert",
+                bits: Bit(11),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "IOutOCWarn": (
+                name: "Iout overcurrent warning alert",
+                bits: Bit(10),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "Hysteretic": (
+                name: "Iout hysteretic warning alert",
+                bits: Bit(9),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInOVWarn": (
+                name: "Vin overvoltage warning alert",
+                bits: Bit(8),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInUVWarn": (
+                name: "Vin undervoltage warning alert",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VOutOVWarn": (
+                name: "Vout overvoltage warning alert",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VOutUVWarn": (
+                name: "Vout undervoltage warning alert",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "HotswapInLimit": (
+                name: "Hot swap in limit alert",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "PInOPWarn": (
+                name: "Pin overpower warning alert",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "OTFault": (
+                name: "Overtemperature fault alert",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "OTWarn": (
+                name: "Overtemperature warning alert",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "INeg": (
+                name: "Negative current detected alert",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+        },
+
+        "ALERT2_CONFIG": {
+            "FETHealthFault": (
+                name: "FET health fault alert",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "IOutOCFault": (
+                name: "Iout overcurrent fault alert",
+                bits: Bit(14),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInOVFault": (
+                name: "Vin overvoltage fault alert",
+                bits: Bit(13),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInUVFault": (
+                name: "Vin undervoltage fault alert",
+                bits: Bit(12),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "CMLError": (
+                name: "Communications error alert",
+                bits: Bit(11),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "IOutOCWarn": (
+                name: "Iout overcurrent warning alert",
+                bits: Bit(10),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "Hysteretic": (
+                name: "Iout hysteretic warning alert",
+                bits: Bit(9),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInOVWarn": (
+                name: "Vin overvoltage warning alert",
+                bits: Bit(8),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VInUVWarn": (
+                name: "Vin undervoltage warning alert",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VOutOVWarn": (
+                name: "Vout overvoltage warning alert",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "VOutUVWarn": (
+                name: "Vout undervoltage warning alert",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "HotswapInLimit": (
+                name: "Hot swap in limit alert",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "PInOPWarn": (
+                name: "Pin overpower warning alert",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "OTFault": (
+                name: "Overtemperature fault alert",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "OTWarn": (
+                name: "Overtemperature warning alert",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "INeg": (
+                name: "Negative current detected alert",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+        },
+
+        "DEVICE_CONFIG": {
+            "RndStart": (
+                name: "Random start function",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Enabled": (0b0, "enabled"),
+                    "Disabled": (0b1, "disabled"),
+                })
+            ),
+            "OCFilter": (
+                name: "Severe overcurrent filter select",
+                bits: Bitrange(High(14), Low(13)),
+                values: Sentinels({
+                    "FiveHundredNanoseconds": (0b00, "500 nanoseconds"),
+                    "OneMicrosecond": (0b01, "1 microsecond"),
+                    "FiveMicroseconds": (0b10, "5 microseconds"),
+                    "TenMicroseconds": (0b11, "10 microseconds"),
+                }),
+            ),
+            "FastGate": (
+                name: "Fast gate overcurrent recovery",
+                bits: Bit(12),
+                values: Sentinels({
+                    "Enabled": (0b0, "enabled"),
+                    "Disabled": (0b1, "disabled"),
+                })
+            ),
+            "FETHealth": (
+                name: "FET health capabilities",
+                bits: Bit(11),
+                values: Sentinels({
+                    "Enabled": (0b0, "enabled"),
+                    "Disabled": (0b1, "disabled"),
+                })
+            ),
+            "PowerHysterisis": (
+                name: "Application of hysteresis",
+                bits: Bit(10),
+                values: Sentinels({
+                    "Current": (0b0, "applies to current"),
+                    "Power": (0b1, "applies to power"),
+                })
+            ),
+            "GPO2Mode": (
+                name: "GPO2 configuration mode",
+                bits: Bitrange(High(9), Low(8)),
+                values: Sentinels({
+                    "Alert": (0b00, "Driven by ALERT2_CONFIG alert"),
+                    "GeneralPurpose": (0b01, "General purpose output"),
+                    "Source": (0b11, "Driven by ALERT2_CONFIG warning"),
+                })
+            ),
+            "GPO2Invert": (
+                name: "GPO2 invert mode",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotInvertLow": (0b0, "Not inverted (alert) or low (GP)"),
+                    "InvertHigh": (0b1, "Inverted (alert) or high (GP)"),
+                })
+            ),
+            "GPO1Mode": (
+                name: "GPO1 configuration mode",
+                bits: Bitrange(High(6), Low(5)),
+                values: Sentinels({
+                    "Alert": (0b0, "Driven by ALERT1_CONFIG alert"),
+                    "GeneralPurpose": (0b01, "General purpose output"),
+                    "Convert": (0b10, "Configured as convert"),
+                    "Source": (0b11, "Driven by ALERT1_CONFIG warning"),
+                })
+            ),
+            "GPO1Invert": (
+                name: "GPO1 invert mode",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NotInvertLow": (0b0, "Not inverted (alert) or low (GP)"),
+                    "InvertHigh": (0b1, "Inverted (alert) or high (GP)"),
+                })
+            ),
+            "OCTripSelect": (
+                name: "Severe overcurrent threshold",
+                bits: Bitrange(High(3), Low(2)),
+                values: Sentinels({
+                    "Percent400": (0b00, "400% hot swap OC threshold"),
+                    "Percent300": (0b01, "300% hot swap OC threshold"),
+                    "Percent200": (0b10, "200% hot swap OC threshold"),
+                    "Percent150": (0b11, "150% hot swap OC threshold"),
+                })
+            ),
+            "OCRetry": (
+                name: "Retry after severe overcurrent",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Retry": (0b0, "retries after severe OC"),
+                    "TurnOff": (0b1, "turns off after severe OC"),
+                }),
+            ),
+            "PowerGoodSense": (
+                name: "Sense of PWRGD",
+                bits: Bit(0),
+                values: Sentinels({
+                    "ActiveHigh": (0b0, "High impedence if power good"),
+                    "ActiveLow": (0b1, "Driven low if power good"),
+                })
+            ),
+        },
+
+        "STATUS_HYSTERESIS": {
+            "IOutOCWarn": (
+                name: "Iout overcurrent warning",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoOvercurrent": (0b0, "no overcurrent detected"),
+                    "Overcurrent": (0b1, "overcurrent detected"),
+                }),
+            ),
+            "HystState": (
+                name: "Hysteretic comprison output",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Low": (0b0, "comparison output low"),
+                    "High": (0b1, "comparison output high"),
+                }),
+            ),
+            "HystGTHigh": (
+                name: "Hysteretic upper threshold comp",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Below": (0b0, "compared value below threshold"),
+                    "Above": (0b1, "compared value above threshold"),
+                }),
+            ),
+            "HystLTLow": (
+                name: "Hysteretic lower threshold comp",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Below": (0b0, "compared value below threshold"),
+                    "Above": (0b1, "compared value above threshold"),
+                }),
+            )
+        },
+
+        "STATUS_GPIO": {
+            "GPO2High": (
+                name: "GPO2 high since last read",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NotHigh": (0b0, "Pin has not been high"),
+                    "High": (0b1, "Pin has been high"),
+                })
+            ),
+            "GPO2Low": (
+                name: "GPO2 low since last read",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NotLow": (0b0, "Pin has not been low"),
+                    "Low": (0b1, "Pin has been low"),
+                })
+            ),
+            "GPO2State": (
+                name: "State of GPO2 pin",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Low": (0b0, "Pin low"),
+                    "High": (0b1, "Pin high"),
+                })
+            ),
+            "GPO1High": (
+                name: "GPO1 high since last read",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotHigh": (0b0, "Pin has not been high"),
+                    "High": (0b1, "Pin has been high"),
+                })
+            ),
+            "GPO1Low": (
+                name: "GPO1 low since last read",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NotLow": (0b0, "Pin has not been low"),
+                    "Low": (0b1, "Pin has been low"),
+                })
+            ),
+            "GPO1State": (
+                name: "State of GPO2 pin",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Low": (0b0, "Pin low"),
+                    "High": (0b1, "Pin high"),
+                })
+            ),
+        },
+
+        "STRT_UP_IOUT_LIM": {
+            "StartupIOutLimit": (
+                name: "ISTART *= (val + 1)/16",
+                bits: Bitrange(High(3), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        }
     }
 )
