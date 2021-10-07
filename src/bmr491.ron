@@ -167,14 +167,19 @@
         // READ_FREQUENCY claims to be direct, but appears to in fact be linear
         ("READ_FREQUENCY", Linear11, Kilohertz),
 
-        ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
-
         // The datasheet says only that MFR_RC_LEVEL is fixed-point, but
         // its factor appears to be 10
         ("MFR_RC_LEVEL", FixedPoint(Factor(10)), Volts),
 
         // Strangely, each unit is 450ns
         ("MFR_KS_PRETRIG", FixedPoint(Factor(2.22222222222)), Microseconds),
+
+        // As with MFR_RC_LEVEL, this is fixed-point -- but with no indicator
+        // what the factor is. And as with MFR_RC_LEVEL, the factor appears to 
+        // to be 10.
+        ("MFR_FAST_VIN_OFF_OFFSET", FixedPoint(Factor(10)), Volts),
+
+        ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
 
         ("MFR_EVENT_INDEX", Raw, Unitless),
     ],
@@ -254,6 +259,85 @@
                 })
             ),
         },
+        
+        "MFR_PREBIAS_DVDT_CFG": {
+            "MaxPositiveDVInDT": (
+                name: "Max positive dVin/dt",
+                bits: Bitrange(High(63), Low(48)),
+                values: FixedPointUnits(Factor(1), VoltsPerMillisecond),
+            ),
+            "MaxNegativeDVInDT": (
+                name: "Max negative dVin/dt",
+                bits: Bitrange(High(47), Low(32)),
+                values: FixedPointUnits(Factor(1), VoltsPerMillisecond),
+            ),
+            "MaxPositiveDVOutDT": (
+                name: "Max positive dVout/dt",
+                bits: Bitrange(High(31), Low(16)),
+                values: FixedPointUnits(Factor(1), VoltsPerMillisecond),
+            ),
+            "MaxNegativeDVoutDT": (
+                name: "Max negative dVout/dt",
+                bits: Bitrange(High(15), Low(0)),
+                values: FixedPointUnits(Factor(1), VoltsPerMillisecond),
+            ),
+        },
+
+        "MFR_FILTER_SELECT": {
+            "Selection": (
+                name: "Filter coefficient selection",
+                bits: Bitrange(High(7), Low(0)),
+                values: Sentinels({
+                    "VOut": (0x00, "Vout"),
+                    "IOut": (0x01, "Iout"),
+                    "VFF": (0x02, "VFF"),
+                })
+            )
+        },
+
+        "MFR_TEMP_COMPENSATION": {
+            "TempThreshold2Deadtime": (
+                name: "Temp threshold 2 dead time",
+                bits: Bitrange(High(63), Low(56)),
+                values: FixedPointUnits(Factor(1), Nanoseconds),
+            ),
+            "TempThreshold2Hysteresis": (
+                name: "Temp threshold 2 hysteresis",
+                bits: Bitrange(High(55), Low(48)),
+                values: FixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold2": (
+                name: "Temp threshold 2",
+                bits: Bitrange(High(47), Low(40)),
+                values: FixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold1Deadtime": (
+                name: "Temp threshold 1 dead time",
+                bits: Bitrange(High(39), Low(32)),
+                values: FixedPointUnits(Factor(1), Nanoseconds),
+            ),
+            "TempThreshold1Hysteresis": (
+                name: "Temp threshold 1 hysteresis",
+                bits: Bitrange(High(31), Low(24)),
+                values: FixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold1": (
+                name: "Temp threshold 1",
+                bits: Bitrange(High(23), Low(16)),
+                values: FixedPointUnits(Factor(1), Celsius),
+            ),
+            "EDACSlope": (
+                name: "EDAC slope",
+                bits: Bitrange(High(15), Low(8)),
+                // The factor here is 256 / (1.6 / 1024)
+                values: FixedPointUnits(Factor(163.84), MillivoltsPerCelsius),
+            ),
+            "EDACThreshold": (
+                name: "EDAC treshold",
+                bits: Bitrange(High(7), Low(0)),
+                values: FixedPointUnits(Factor(1), Celsius),
+            ),
+        },
 
         "MFR_ISHARE_THRESHOLD": {
             "EnableDisable": (
@@ -281,26 +365,20 @@
             )
         },
 
-/*
-        "MFR_TEMP_COMPENSATION": {
-            "TempThreshold2Deadtime": (
-                name: "Temp threshold 2 dead time (ns)",
-                bits: Bitrange(High(63), Low(56)),
-                values: Units(Nanoseconds)
-                Scaled(Nanoseconds, 0.10),
-                ScaledOffset(
-                Scaled(Amperes, 0.050)
-
-
-
-
-                Celsius(0.25)
-                Volts(0.0001)
-                Millivolts(
-                Amps(
-                Milliamps(
-*/
-
+        "MFR_VIN_OFFSET": {
+            "VInOffsetOn": (
+                name: "On",
+                bits: Bitrange(High(31), Low(16)),
+                // This factor is likely wrong, but unclear what it should be
+                values: FixedPointUnits(Factor(1), Volts)
+            ),
+            "VInOffsetOff": (
+                name: "Off",
+                bits: Bitrange(High(15), Low(0)),
+                // This factor is likely wrong, but unclear what it should be
+                values: FixedPointUnits(Factor(1), Volts)
+            )
+        }
     },
 
     synonyms: Some([

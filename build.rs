@@ -49,6 +49,7 @@ enum Units {
     VoltsPerMillisecond,
     Watts,
     MillivoltsPerAmp,
+    MillivoltsPerCelsius,
     Percent,
     Unitless,
 }
@@ -70,6 +71,7 @@ impl Units {
             Units::VoltsPerMillisecond => "V/ms",
             Units::VoltsPerMicrosecond => "V/μs",
             Units::MillivoltsPerAmp => "mV/A",
+            Units::MillivoltsPerCelsius => "mV/°C",
             Units::Percent => "%",
             Units::Unitless => "",
         }
@@ -159,7 +161,7 @@ struct CommandSynonym(String, String);
 #[serde(transparent)]
 struct Fields(
     #[serde(with = "::serde_with::rust::maps_duplicate_key_is_error")]
-    HashMap<String, Field>
+    HashMap<String, Field>,
 );
 
 #[derive(Debug, Deserialize)]

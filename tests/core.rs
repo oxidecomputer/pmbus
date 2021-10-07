@@ -804,6 +804,31 @@ fn bmr491_ks_pretrig() {
 }
 
 #[test]
+fn bmr491_temp_compensation() {
+    use commands::bmr491::*;
+    let temp = MFR_TEMP_COMPENSATION::CommandData::from_slice(&[
+        0x28, 0x33, 0x80, 0x85, 0x00, 0x90, 0x95, 0x00,
+    ])
+    .unwrap();
+
+    assert_eq!(
+        temp.get_edac_slope(),
+        units::MillivoltsPerCelsius(0.3112793)
+    );
+    dump(&temp);
+}
+
+#[test]
+fn bmr491_vin_offset() {
+    use commands::bmr491::*;
+    let offset =
+        MFR_VIN_OFFSET::CommandData::from_slice(&[0x00, 0x04, 0x00, 0x09])
+            .unwrap();
+
+    dump(&offset);
+}
+
+#[test]
 fn isl68224_vin() {
     use commands::isl68224::*;
 
