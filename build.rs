@@ -156,10 +156,18 @@ struct CommandNumericFormat(String, Format, Units);
 struct CommandSynonym(String, String);
 
 #[derive(Debug, Deserialize)]
+#[serde(transparent)]
+struct Fields(
+    #[serde(with = "::serde_with::rust::maps_duplicate_key_is_error")]
+    HashMap<String, Field>
+);
+
+#[derive(Debug, Deserialize)]
 struct Commands {
     all: Vec<Command>,
     numerics: Vec<CommandNumericFormat>,
-    structured: HashMap<String, HashMap<String, Field>>,
+    #[serde(with = "::serde_with::rust::maps_duplicate_key_is_error")]
+    structured: HashMap<String, Fields>,
     synonyms: Option<Vec<CommandSynonym>>,
 }
 
@@ -471,11 +479,12 @@ fn bitrange(bits: &Bits) -> (u8, u8) {
 #[rustfmt::skip::macros(bail)]
 fn validate(
     cmd: &str,
-    fields: &HashMap<String, Field>,
+    fields: &Fields,
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
 ) -> Result<(usize, usize)> {
     let mut highest = 0;
+    let fields = &fields.0;
 
     let size = match sizes.get(cmd) {
         Some(Some(size)) => *size,
@@ -627,11 +636,12 @@ fn output_value(
 #[rustfmt::skip::macros(writeln)]
 fn output_command_data(
     cmd: &str,
-    fields: &HashMap<String, Field>,
+    fields: &Fields,
     bits: usize,
     bytes: usize,
 ) -> Result<String> {
     let mut s = String::new();
+    let fields = &fields.0;
 
     writeln!(&mut s, r##"
 /// Types and structures associated with the `{}` PMBus command
