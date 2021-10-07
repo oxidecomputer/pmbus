@@ -174,6 +174,7 @@ struct Commands {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Device {
     manufacturer: String,
     part: String,
