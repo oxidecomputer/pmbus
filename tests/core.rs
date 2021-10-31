@@ -332,6 +332,29 @@ fn raw_operation() {
         .unwrap();
 }
 
+#[test]
+fn page() {
+    use commands::PAGE::*;
+
+    let mut data = CommandData(1);
+    assert_eq!(data.0, 1);
+
+    let rval = data.mutate(mode, |field, _| {
+        assert_eq!(field.bitfield(), false);
+        Some(Replacement::Integer(0xf00))
+    });
+
+    assert_eq!(rval, Err(Error::OverflowReplacement));
+
+    let rval = data.mutate(mode, |field, _| {
+        assert_eq!(field.bitfield(), false);
+        Some(Replacement::Integer(0xde))
+    });
+
+    assert_eq!(rval, Ok(()));
+    assert_eq!(data.0, 0xde);
+}
+
 fn dump_data(
     val: u32,
     width: Bitwidth,
