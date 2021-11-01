@@ -880,7 +880,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
                 Value::{}(_) => {{
                     write!(
-                        f, "{{}}{}",
+                        f, "{{:.2}}{}",
                         crate::Value::raw(self) as f32 / ({} as f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
@@ -890,7 +890,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
                 Value::{}(_) => {{
                     write!(
-                        f, "{{}}{}",
+                        f, "{{:.2}}{}",
                         ({} as f32).powi(crate::Value::raw(self) as i32) /
                         ({} as f32)
                     )
@@ -1313,7 +1313,7 @@ pub mod {} {{
 
     impl core::fmt::Display for Value {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
-            write!(f, "{{}}{}", self.0.0)
+            write!(f, "{{:.2}}{}", self.0.0)
         }}
     }}
 
