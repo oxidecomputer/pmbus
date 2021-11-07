@@ -1462,3 +1462,11 @@ fn raa229618_loopcfg() {
 
     dump(&loopcfg);
 }
+
+#[test]
+fn isl68224_status_mfr_specific() {
+    use commands::isl68224::STATUS_MFR_SPECIFIC::*;
+    let status = CommandData::from_slice(&[0x08]).unwrap();
+    assert_eq!(status.get_bb_event(), Some(BBEvent::Event));
+    dump(&status);
+}
