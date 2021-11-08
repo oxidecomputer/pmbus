@@ -310,5 +310,247 @@
                 }),
             ),
         },
-    }
+    },
+
+    auxiliaries: Some((
+        all: [
+            ("UptimeCounter", ReadWord32),
+            ("ControllerFault", ReadWord32),
+            ("RailFault", ReadWord32),
+        ],
+        numerics: [
+            ("UptimeCounter", FixedPoint(Factor(10)), Seconds),
+        ],
+        structured: {
+            "ControllerFault": {
+                "OpenPinDetected": (
+                    name: "Open pin detected",
+                    bits: Bit(23),
+                    values: Sentinels({
+                        "NotDetected": (0b0, "not detected"),
+                        "Detected": (0b1, "detected"),
+                    })
+                ),
+                "MCUFault22": (
+                    name: "MCU fault (bit 22)",
+                    bits: Bit(22),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "StartupFault": (
+                    name: "Start-up fault",
+                    bits: Bit(9),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "MCUFault8": (
+                    name: "MCU fault (bit 8)",
+                    bits: Bit(8),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "ControllerOTFault": (
+                    name: "Controller overtemp fault",
+                    bits: Bit(7),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "PLLFault6": (
+                    name: "PLL fault (bit 6)",
+                    bits: Bit(6),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "PLLFault5": (
+                    name: "PLL fault (bit 5)",
+                    bits: Bit(5),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "OscillatorFault": (
+                    name: "Oscillator fault",
+                    bits: Bit(4),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VCCSUVFault": (
+                    name: "VCCS undervoltage fault",
+                    bits: Bit(2),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VCCUVFault1": (
+                    name: "VCC undervoltage fault (bit 1)",
+                    bits: Bit(1),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VCCUVFault0": (
+                    name: "VCC undervoltage fault (bit 0)",
+                    bits: Bit(0),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+            },
+
+            "RailFault": {
+                "InputSupplyOCFault": (
+                    name: "Input",
+                    bits: Bit(21),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VCCUnderVOUTFault": (
+                    name: "VCC Under VOUT Fault",
+                    bits: Bit(20),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "SPSFault": (
+                    name: "SPS Fault",
+                    bits: Bit(19),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VOUTOVFault": (
+                    name: "VOUT OV Fault",
+                    bits: Bit(18),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "VOUTUVFault": (
+                    name: "VOUT UV Fault",
+                    bits: Bit(17),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "SlowSumOCFault": (
+                    name: "Slow Sum OC Fault",
+                    bits: Bit(15),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "FastSumOCFault": (
+                    name: "Fast Sum OC Fault",
+                    bits: Bit(14),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "InputOCFault": (
+                    name: "Input OC Fault",
+                    bits: Bit(10),
+                    values: Sentinels({
+                        "NoFault": (0b0, "no fault"),
+                        "Fault": (0b1, "fault"),
+                    }),
+                ),
+                "UTWarning": (
+                    name: "UT Warning",
+                    bits: Bit(9),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "UTFault": (
+                    name: "UT Fault",
+                    bits: Bit(8),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "OTWarning": (
+                    name: "OT Warning",
+                    bits: Bit(7),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "OTFault": (
+                    name: "OT Fault",
+                    bits: Bit(6),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "InputOCWarning": (
+                    name: "Input OC Warning",
+                    bits: Bit(5),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "VINUVWarning": (
+                    name: "VIN UV Warning",
+                    bits: Bit(3),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "VINOVWarning": (
+                    name: "VIN OV Warning",
+                    bits: Bit(2),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "VINUVFault": (
+                    name: "VIN UV Fault",
+                    bits: Bit(1),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+                "VINOVFault": (
+                    name: "VIN OV Fault",
+                    bits: Bit(0),
+                    values: Sentinels({
+                        "NoWarning": (0b0, "no warning"),
+                        "Warning": (0b1, "warning"),
+                    }),
+                ),
+            }
+        },
+    ))
 )

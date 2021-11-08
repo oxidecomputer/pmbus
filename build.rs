@@ -157,6 +157,12 @@ struct CommandNumericFormat(String, Format, Units);
 #[derive(Debug, Deserialize)]
 struct CommandSynonym(String, String);
 
+#[derive(Clone, Debug, Deserialize)]
+struct Auxiliary(String, Operation);
+
+#[derive(Debug, Deserialize)]
+struct AuxiliaryNumericFormat(String, Format, Units);
+
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
 struct Fields(
@@ -165,12 +171,21 @@ struct Fields(
 );
 
 #[derive(Debug, Deserialize)]
+struct Auxiliaries {
+    all: Vec<Auxiliary>,
+    numerics: Vec<AuxiliaryNumericFormat>,
+    #[serde(with = "::serde_with::rust::maps_duplicate_key_is_error")]
+    structured: HashMap<String, Fields>,
+}
+
+#[derive(Debug, Deserialize)]
 struct Commands {
     all: Vec<Command>,
     numerics: Vec<CommandNumericFormat>,
     #[serde(with = "::serde_with::rust::maps_duplicate_key_is_error")]
     structured: HashMap<String, Fields>,
     synonyms: Option<Vec<CommandSynonym>>,
+    auxiliaries: Option<Auxiliaries>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -180,6 +195,11 @@ struct Device {
     part: String,
     description: String,
     coefficients: Option<Coefficients>,
+}
+
+enum OutputCommand<'a> {
+    PMBus(&'a str),
+    Auxiliary(&'a str),
 }
 
 fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
@@ -206,6 +226,25 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
         };
 
         sizes.insert(cmd.1.clone(), size);
+    }
+
+    Ok(sizes)
+}
+
+fn aux_sizes(auxs: &Vec<Auxiliary>) -> Result<HashMap<String, Option<usize>>> {
+    let mut sizes = HashMap::new();
+
+    for aux in auxs {
+        let size = match aux.1 {
+            Operation::ReadByte => Some(1),
+            Operation::ReadWord => Some(2),
+            Operation::ReadWord32 => Some(4),
+            _ => {
+                bail!("illegal operation {:?} on aux {}", aux.1, aux.0);
+            }
+        };
+
+        sizes.insert(aux.0.clone(), size);
     }
 
     Ok(sizes)
@@ -637,14 +676,19 @@ fn output_value(
 }
 
 #[rustfmt::skip::macros(writeln)]
-fn output_command_data(
-    cmd: &str,
+fn output_command(
+    cmd: OutputCommand,
     fields: &Fields,
     bits: usize,
     bytes: usize,
 ) -> Result<String> {
     let mut s = String::new();
     let fields = &fields.0;
+
+    let (cmd, auxiliary) = match cmd {
+        OutputCommand::PMBus(str) => (str, false),
+        OutputCommand::Auxiliary(str) => (str, true),
+    };
 
     writeln!(&mut s, r##"
 /// Types and structures associated with the `{}` PMBus command
@@ -916,13 +960,17 @@ pub mod {} {{
     impl CommandData {{
         pub const fn len() -> usize {{
             {}
-        }}
+        }}"##, bytes)?;
 
+    if !auxiliary {
+        writeln!(&mut s, r##"
         pub const fn code() -> u8 {{
             super::CommandCode::{} as u8
-        }}
+        }}"##, cmd)?;
+    }
 
-        pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##, bytes, cmd)?;
+    writeln!(&mut s, r##"
+        pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##)?;
 
     if bits == bytes * 8 {
         writeln!(&mut s, r##"
@@ -1232,36 +1280,69 @@ pub mod {} {{
 
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
-        }}
+        }}"##, bits - 1, bits - 1, bits, bits, bits)?;
 
+    if !auxiliary {
+        writeln!(&mut s, r##"
         fn command(
             &self,
             mut cb: impl FnMut(&dyn crate::Command)
         ) {{
             cb(&super::CommandCode::{})
-        }}
+        }}"##, cmd)?;
+    } else {
+        writeln!(&mut s, r##"
+        fn command(
+            &self,
+            mut _cb: impl FnMut(&dyn crate::Command)
+        ) {{
+            panic!("command() call on auxiliary");
+        }}"##)?;
+    }
 
-    }}"##, bits - 1, bits - 1, bits, bits, bits, cmd)?;
-
-    writeln!(&mut s, "}}")?;
+    writeln!(&mut s, "    }}\n}}")?;
 
     Ok(s)
 }
 
+fn output_command_data(
+    cmd: &str,
+    fields: &Fields,
+    bits: usize,
+    bytes: usize,
+) -> Result<String> {
+    output_command(OutputCommand::PMBus(cmd), fields, bits, bytes)
+}
+
+fn output_aux_data(
+    aux: &str,
+    fields: &Fields,
+    bits: usize,
+    bytes: usize,
+) -> Result<String> {
+    output_command(OutputCommand::Auxiliary(aux), fields, bits, bytes)
+}
+
 #[rustfmt::skip::macros(writeln)]
 fn output_command_numeric(
-    cmd: &str,
+    cmd: OutputCommand,
     format: &Format,
     u: &Units,
     bytes: usize,
     coeff: Option<Coefficients>,
 ) -> Result<String> {
+    let (cmd, auxiliary) = match cmd {
+        OutputCommand::PMBus(str) => (str, false),
+        OutputCommand::Auxiliary(str) => (str, true),
+    };
+
     let mut s = String::new();
     let bits = bytes * 8;
 
     let units = &format!("crate::units::{:?}", u);
 
-    writeln!(&mut s, r##"
+    if !auxiliary {
+        writeln!(&mut s, r##"
 /// Types and structures associated with the `{}` PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
@@ -1277,6 +1358,24 @@ pub mod {} {{
 
     #[allow(unused_imports)]
     use crate::Coefficients;"##, cmd, cmd, cmd, bits)?;
+    } else {
+        writeln!(&mut s, r##"
+/// Types and structures associated with the `{}` auxiliary structure
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+pub mod {} {{
+    use crate::Bitwidth;
+
+    /// The data payload for the `{}` auxiliary structure
+    pub struct CommandData(pub u{});
+
+    use crate::Error;
+    use crate::VOutModeCommandData;
+    use crate::Replacement;
+
+    #[allow(unused_imports)]
+    use crate::Coefficients;"##, cmd, cmd, cmd, bits)?;
+    }
 
     if let Format::Raw = format {
         writeln!(&mut s, r##"
@@ -1342,10 +1441,6 @@ pub mod {} {{
             {}
         }}
 
-        pub const fn code() -> u8 {{
-            super::CommandCode::{} as u8
-        }}
-
         pub fn from_slice(slice: &[u8]) -> Option<Self> {{
             use core::convert::TryInto;
 
@@ -1355,7 +1450,14 @@ pub mod {} {{
                 Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, bytes, cmd, bytes, bytes, bits)?;
+        }}"##, bytes, bytes, bytes, bits)?;
+
+    if !auxiliary {
+        writeln!(&mut s, r##"
+        pub const fn code() -> u8 {{
+            super::CommandCode::{} as u8
+        }}"##, cmd)?;
+    }
 
     writeln!(&mut s, r##"
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
@@ -1467,6 +1569,10 @@ pub mod {} {{
         }
 
         Format::Direct(c) => {
+            if bits > 16 {
+                bail!("{} has {} bits, but Direct can only have 16", cmd, bits);
+            }
+
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
             let coefficients = Coefficients {{
@@ -1507,11 +1613,11 @@ pub mod {} {{
         Format::FixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}((self.0 as f32) / ({:32} as f32)))
+            Ok({}((self.0 as f32) / ({} as f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({:32} as f32)) as u{};
+            self.0 = (val.0 * ({} as f32)) as u{};
             Ok(())
         }}"##, units, units, factor, units, factor, bits)?;
         }
@@ -1519,11 +1625,11 @@ pub mod {} {{
         Format::SignedFixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}(((self.0 as i{}) as f32) / ({:32} as f32)))
+            Ok({}(((self.0 as i{}) as f32) / ({} as f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({:32} as f32)) as u{};
+            self.0 = (val.0 * ({} as f32)) as u{};
             Ok(())
         }}"##, units, units, bits, factor, units, factor, bits)?;
         }
@@ -1704,17 +1810,27 @@ pub mod {} {{
 
         fn raw(&self) -> (u32, Bitwidth) {{
             (self.0 as u32, Bitwidth({}))
-        }}
+        }}"##, cmd, bits, bits)?;
 
+    if !auxiliary {
+        writeln!(&mut s, r##"
         fn command(
             &self,
             mut cb: impl FnMut(&dyn crate::Command)
         ) {{
             cb(&super::CommandCode::{})
-        }}
-    }}"##, cmd, bits, bits, cmd)?;
+        }}"##, cmd)?;
+    } else {
+        writeln!(&mut s, r##"
+        fn command(
+            &self,
+            mut _cb: impl FnMut(&dyn crate::Command)
+        ) {{
+            panic!("command() call on auxiliary");
+        }}"##)?;
+    }
 
-    writeln!(&mut s, "}}")?;
+    writeln!(&mut s, "    }}\n}}")?;
 
     Ok(s)
 }
@@ -1741,7 +1857,43 @@ fn output_numerics(
 
         units.insert(cmd.2);
         out.push_str(&output_command_numeric(
-            &cmd.0, &cmd.1, &cmd.2, bytes, coeff,
+            OutputCommand::PMBus(&cmd.0),
+            &cmd.1,
+            &cmd.2,
+            bytes,
+            coeff,
+        )?);
+    }
+
+    Ok(out)
+}
+
+fn output_aux_numerics(
+    auxs: &Vec<AuxiliaryNumericFormat>,
+    sizes: &HashMap<String, Option<usize>>,
+    units: &mut HashSet<Units>,
+    coeff: Option<Coefficients>,
+) -> Result<String> {
+    let mut out = String::new();
+
+    for aux in auxs {
+        let bytes = match sizes.get(&aux.0) {
+            Some(Some(size)) => *size,
+            Some(None) => {
+                bail!("auxiliary {} does not allow a value", aux.0);
+            }
+            None => {
+                bail!("auxiliary {} does not exist", aux.0);
+            }
+        };
+
+        units.insert(aux.2);
+        out.push_str(&output_command_numeric(
+            OutputCommand::Auxiliary(&aux.0),
+            &aux.1,
+            &aux.2,
+            bytes,
+            coeff,
         )?);
     }
 
@@ -2218,6 +2370,26 @@ fn codegen() -> Result<()> {
 
         let out = output_numerics(&cmds.numerics, &sizes, &mut units, coeff)?;
         file.write_all(out.as_bytes())?;
+
+        //
+        // If we have auxiliary structures, we emit each of those in its
+        // own module.
+        //
+        if let Some(aux) = dcmds.auxiliaries {
+            let sizes = aux_sizes(&aux.all)?;
+
+            let out =
+                output_aux_numerics(&aux.numerics, &sizes, &mut units, coeff)?;
+            file.write_all(out.as_bytes())?;
+
+            for (aux, fields) in &aux.structured {
+                let (bits, bytes) =
+                    validate(&aux, &fields, &sizes, &mut units)?;
+
+                let out = output_aux_data(aux, fields, bits, bytes)?;
+                file.write_all(out.as_bytes())?;
+            }
+        }
 
         let out = output_device(&name)?;
         dfile.write_all(out.as_bytes())?;
