@@ -852,47 +852,6 @@ fn bmr491_vin_offset() {
 }
 
 #[test]
-fn isl68224_vin() {
-    use commands::isl68224::*;
-
-    let mode = || VOutModeCommandData::from_slice(&[0x40]).unwrap();
-
-    let data = [(0x04a9u16, 11.930001), (0xffff, -0.010000001)];
-
-    for d in &data {
-        let raw = d.0.to_le_bytes();
-        let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
-        assert_eq!(vin.get(), Ok(units::Volts(d.1)));
-
-        vin.interpret(mode, |f, v| {
-            assert_eq!(f.bitfield(), false);
-            std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-        })
-        .unwrap();
-    }
-}
-
-#[test]
-fn isl68224_ton_rise() {
-    use commands::isl68224::TON_RISE::*;
-
-    let mut data = CommandData::from_slice(&[0xf4, 0x01]).unwrap();
-    assert_eq!(data.get(), Ok(units::Milliseconds(0.5)));
-
-    data.set(units::Milliseconds(0.75)).unwrap();
-    assert_eq!(data.get(), Ok(units::Milliseconds(0.75000006)));
-
-    data.mutate(mode, |field, _| {
-        assert_eq!(field.bitfield(), false);
-        assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
-        Some(Replacement::Float(0.25))
-    })
-    .unwrap();
-
-    assert_eq!(data.get(), Ok(units::Milliseconds(0.25)));
-}
-
-#[test]
 fn mutate_operation() {
     use commands::OPERATION::*;
 
@@ -1244,32 +1203,6 @@ fn device_commands() {
 }
 
 #[test]
-fn raw() {
-    use commands::isl68224::DMAFIX::*;
-
-    let input = [0xef, 0xbe, 0xad, 0xde];
-
-    let mut data = CommandData::from_slice(&input).unwrap();
-    assert_eq!(data.get(), Ok(0xdeadbeef));
-
-    let rval = data.mutate(mode, |field, _| {
-        assert_eq!(field.bitfield(), false);
-        Some(Replacement::Integer(0xbaddcafe))
-    });
-
-    assert_eq!(rval, Ok(()));
-    assert_eq!(data.0, 0xbaddcafe);
-
-    let rval = data.mutate(mode, |_, _| Some(Replacement::Boolean(true)));
-
-    assert_eq!(rval, Err(Error::InvalidReplacement));
-
-    let rval = data.mutate(mode, |_, _| Some(Replacement::Float(1.2)));
-
-    assert_eq!(rval, Err(Error::InvalidReplacement));
-}
-
-#[test]
 fn adm1272_direct() {
     use commands::adm1272::*;
     use units::*;
@@ -1463,10 +1396,3 @@ fn raa229618_loopcfg() {
     dump(&loopcfg);
 }
 
-#[test]
-fn isl68224_status_mfr_specific() {
-    use commands::isl68224::STATUS_MFR_SPECIFIC::*;
-    let status = CommandData::from_slice(&[0x08]).unwrap();
-    assert_eq!(status.get_bb_event(), Some(BBEvent::Event));
-    dump(&status);
-}

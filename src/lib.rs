@@ -83,6 +83,9 @@ pub use crate::commands::devices;
 pub use crate::commands::CommandCode;
 pub use crate::commands::Device;
 
+// Pull in any vendor-specific auxiliary modules
+pub mod renesas;
+
 /// The position, in bits, of a field.  If a field contains multiple bits, this
 /// position represents the **least** significant bit of the multi-bit field.
 #[derive(Copy, Clone, Debug, PartialEq)]

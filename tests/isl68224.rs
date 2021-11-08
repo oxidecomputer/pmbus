@@ -1,5 +1,6 @@
 use commands::isl68224::*;
 use pmbus::*;
+use pmbus::renesas::*;
 
 fn mode() -> VOutModeCommandData {
     VOutModeCommandData::from_slice(&[0x40]).unwrap()
@@ -82,6 +83,10 @@ fn dump(data: &impl CommandData) {
     let mut v = std::vec![];
 
     data.interpret(mode, |field, value| {
+        if value.raw() == 0 {
+            return;
+        }
+
         v.push((field.bits(), field.desc(), std::format!("{}", value)));
     })
     .unwrap();
@@ -89,119 +94,98 @@ fn dump(data: &impl CommandData) {
     dump_data(val, width, &mut v);
 }
 
-macro_rules! bb_field {
-    ($slice:expr, $cmd:tt, $word:expr, $offs:expr) => {
-        $cmd::CommandData::from_slice(&$slice[($word * 4) + $offs..]).unwrap()
-    };
-}
+#[test]
+fn vin() {
+    let mode = || VOutModeCommandData::from_slice(&[0x40]).unwrap();
 
-struct RenesasBlackboxRail {
-    uptime: UptimeCounter::CommandData,
-    first_fault: RailFault::CommandData,
-    status: STATUS_WORD::CommandData,
-    vout_status: STATUS_VOUT::CommandData,
-    iout_status: STATUS_IOUT::CommandData,
-    temp_status: STATUS_TEMPERATURE::CommandData,
-    input_status: STATUS_INPUT::CommandData,
-    vin: READ_VIN::CommandData,
-    vout: READ_VOUT::CommandData,
-    iin: READ_IIN::CommandData,
-    iout: READ_IOUT::CommandData,
-}
+    let data = [(0x04a9u16, 11.930001), (0xffff, -0.010000001)];
 
-enum RailIndex {
-    Rail0,
-    Rail1,
-    Rail2,
-}
+    for d in &data {
+        let raw = d.0.to_le_bytes();
+        let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
+        assert_eq!(vin.get(), Ok(units::Volts(d.1)));
 
-impl RenesasBlackboxRail {
-    fn from_slice(buf: &[u8], rail: RailIndex) -> Self {
-        match rail {
-            RailIndex::Rail0 => RenesasBlackboxRail {
-                uptime: bb_field!(buf, UptimeCounter, 1, 0),
-                first_fault: bb_field!(buf, RailFault, 5, 0),
-                status: bb_field!(buf, STATUS_WORD, 11, 0),
-                vout_status: bb_field!(buf, STATUS_VOUT, 13, 1),
-                iout_status: bb_field!(buf, STATUS_IOUT, 14, 2),
-                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 3),
-                input_status: bb_field!(buf, STATUS_INPUT, 15, 3),
-                vin: bb_field!(buf, READ_VIN, 16, 0),
-                vout: bb_field!(buf, READ_VOUT, 18, 2),
-                iin: bb_field!(buf, READ_IIN, 19, 0),
-                iout: bb_field!(buf, READ_IOUT, 21, 2),
-            },
-            RailIndex::Rail1 => RenesasBlackboxRail {
-                uptime: bb_field!(buf, UptimeCounter, 2, 0),
-                first_fault: bb_field!(buf, RailFault, 6, 0),
-                status: bb_field!(buf, STATUS_WORD, 12, 2),
-                vout_status: bb_field!(buf, STATUS_VOUT, 13, 0),
-                iout_status: bb_field!(buf, STATUS_IOUT, 14, 1),
-                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 2),
-                input_status: bb_field!(buf, STATUS_INPUT, 16, 3),
-                vin: bb_field!(buf, READ_VIN, 17, 2),
-                vout: bb_field!(buf, READ_VOUT, 18, 0),
-                iin: bb_field!(buf, READ_IIN, 20, 2),
-                iout: bb_field!(buf, READ_IOUT, 21, 0),
-            },
-            RailIndex::Rail2 => RenesasBlackboxRail {
-                uptime: bb_field!(buf, UptimeCounter, 3, 0),
-                first_fault: bb_field!(buf, RailFault, 7, 0),
-                status: bb_field!(buf, STATUS_WORD, 12, 0),
-                vout_status: bb_field!(buf, STATUS_VOUT, 14, 3),
-                iout_status: bb_field!(buf, STATUS_IOUT, 14, 0),
-                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 1),
-                input_status: bb_field!(buf, STATUS_INPUT, 16, 2),
-                vin: bb_field!(buf, READ_VIN, 17, 0),
-                vout: bb_field!(buf, READ_VOUT, 19, 2),
-                iin: bb_field!(buf, READ_IIN, 20, 0),
-                iout: bb_field!(buf, READ_IOUT, 22, 2),
-            },
-        }
+        vin.interpret(mode, |f, v| {
+            assert_eq!(f.bitfield(), false);
+            std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
+        })
+        .unwrap();
     }
 }
 
-struct RenesasBlackbox {
-    controller_first_fault: ControllerFault::CommandData,
-    cml_status: STATUS_CML::CommandData,
-    mfr_specific: STATUS_MFR_SPECIFIC::CommandData,
-    rails: [RenesasBlackboxRail; 3],
+#[test]
+fn ton_rise() {
+    use TON_RISE::*;
+
+    let mut data = CommandData::from_slice(&[0xf4, 0x01]).unwrap();
+    assert_eq!(data.get(), Ok(units::Milliseconds(0.5)));
+
+    data.set(units::Milliseconds(0.75)).unwrap();
+    assert_eq!(data.get(), Ok(units::Milliseconds(0.75000006)));
+
+    data.mutate(mode, |field, _| {
+        assert_eq!(field.bitfield(), false);
+        assert_eq!(field.bits(), (Bitpos(0), Bitwidth(16)));
+        Some(Replacement::Float(0.25))
+    })
+    .unwrap();
+
+    assert_eq!(data.get(), Ok(units::Milliseconds(0.25)));
 }
 
-impl RenesasBlackbox {
-    fn from_slice(buf: &[u8]) -> Self {
-        Self {
-            controller_first_fault: bb_field!(buf, ControllerFault, 4, 0),
-            cml_status: bb_field!(buf, STATUS_CML, 13, 3),
-            mfr_specific: bb_field!(buf, STATUS_MFR_SPECIFIC, 13, 2),
-            rails: [
-                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail0),
-                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail1),
-                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail2),
-            ],
-        }
-    }
+#[test]
+fn raw() {
+    use DMAFIX::*;
 
-    fn dump(&self) {
-        println!("=== Controller wide");
-        dump(&self.controller_first_fault);
-        dump(&self.cml_status);
-        dump(&self.mfr_specific);
+    let input = [0xef, 0xbe, 0xad, 0xde];
 
-        for (index, rail) in self.rails.iter().enumerate() {
-            println!("--- Rail {}", index);
-            dump(&rail.uptime);
-            dump(&rail.first_fault);
-            dump(&rail.status);
-            dump(&rail.vout_status);
-            dump(&rail.iout_status);
-            dump(&rail.temp_status);
-            dump(&rail.input_status);
-            dump(&rail.vin);
-            dump(&rail.vout);
-            dump(&rail.iin);
-            dump(&rail.iout);
-        }
+    let mut data = CommandData::from_slice(&input).unwrap();
+    assert_eq!(data.get(), Ok(0xdeadbeef));
+
+    let rval = data.mutate(mode, |field, _| {
+        assert_eq!(field.bitfield(), false);
+        Some(Replacement::Integer(0xbaddcafe))
+    });
+
+    assert_eq!(rval, Ok(()));
+    assert_eq!(data.0, 0xbaddcafe);
+
+    let rval = data.mutate(mode, |_, _| Some(Replacement::Boolean(true)));
+
+    assert_eq!(rval, Err(Error::InvalidReplacement));
+
+    let rval = data.mutate(mode, |_, _| Some(Replacement::Float(1.2)));
+
+    assert_eq!(rval, Err(Error::InvalidReplacement));
+}
+
+#[test]
+fn status_mfr_specific() {
+    use STATUS_MFR_SPECIFIC::*;
+    let status = CommandData::from_slice(&[0x08]).unwrap();
+    assert_eq!(status.get_bb_event(), Some(BBEvent::Event));
+    dump(&status);
+}
+
+fn bb_dump(bb: &Blackbox) {
+    println!("=== Controller wide");
+    dump(&bb.controller_first_fault);
+    dump(&bb.cml_status);
+    dump(&bb.mfr_specific);
+
+    for (index, rail) in bb.rails.iter().enumerate() {
+        println!("--- Rail {}", index);
+        dump(&rail.uptime);
+        dump(&rail.first_fault);
+        dump(&rail.status);
+        dump(&rail.vout_status);
+        dump(&rail.iout_status);
+        dump(&rail.temp_status);
+        dump(&rail.input_status);
+        dump(&rail.vin);
+        dump(&rail.vout);
+        dump(&rail.iin);
+        dump(&rail.iout);
     }
 }
 
@@ -237,8 +221,8 @@ fn blackbox_test4() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    let bb = RenesasBlackbox::from_slice(&raw);
-    bb.dump();
+    let bb = Blackbox::from_slice(&raw);
+    bb_dump(&bb);
 }
 
 #[test]
@@ -272,8 +256,8 @@ fn blackbox_test7() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
-    let bb = RenesasBlackbox::from_slice(&raw);
-    bb.dump();
+    let bb = Blackbox::from_slice(&raw);
+    bb_dump(&bb);
 }
 
 #[test]
@@ -308,9 +292,9 @@ fn blackbox_test8() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    let bb = RenesasBlackbox::from_slice(&raw);
+    let bb = Blackbox::from_slice(&raw);
 
-    bb.dump();
+    bb_dump(&bb);
     println!("{:?}", bb.rails[0].vin.get().unwrap());
     assert_eq!(bb.rails[0].vin.get(), Ok(units::Volts(11.950001)));
 }
