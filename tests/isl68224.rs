@@ -89,137 +89,119 @@ fn dump(data: &impl CommandData) {
     dump_data(val, width, &mut v);
 }
 
-struct RenesasBlackbox {
-    rail0_uptime: UptimeCounter::CommandData,
-    rail1_uptime: UptimeCounter::CommandData,
-    rail2_uptime: UptimeCounter::CommandData,
-    controller_first_fault: ControllerFault::CommandData,
-    rail0_first_fault: RailFault::CommandData,
-    rail1_first_fault: RailFault::CommandData,
-    rail2_first_fault: RailFault::CommandData,
-    rail0_status: STATUS_WORD::CommandData,
-    rail1_status: STATUS_WORD::CommandData,
-    rail2_status: STATUS_WORD::CommandData,
-    cml_status: STATUS_CML::CommandData,
-    mfr_specific: STATUS_MFR_SPECIFIC::CommandData,
-    rail0_vout_status: STATUS_VOUT::CommandData,
-    rail1_vout_status: STATUS_VOUT::CommandData,
-    rail2_vout_status: STATUS_VOUT::CommandData,
-    rail0_iout_status: STATUS_IOUT::CommandData,
-    rail1_iout_status: STATUS_IOUT::CommandData,
-    rail2_iout_status: STATUS_IOUT::CommandData,
-    rail0_temp_status: STATUS_TEMPERATURE::CommandData,
-    rail1_temp_status: STATUS_TEMPERATURE::CommandData,
-    rail2_temp_status: STATUS_TEMPERATURE::CommandData,
-    rail0_input_status: STATUS_INPUT::CommandData,
-    rail1_input_status: STATUS_INPUT::CommandData,
-    rail2_input_status: STATUS_INPUT::CommandData,
-    rail0_vin: READ_VIN::CommandData,
-    rail1_vin: READ_VIN::CommandData,
-    rail2_vin: READ_VIN::CommandData,
-    rail0_vout: READ_VOUT::CommandData,
-    rail1_vout: READ_VOUT::CommandData,
-    rail2_vout: READ_VOUT::CommandData,
-    rail0_iin: READ_IIN::CommandData,
-    rail1_iin: READ_IIN::CommandData,
-    rail2_iin: READ_IIN::CommandData,
-    rail0_iout: READ_IOUT::CommandData,
-    rail1_iout: READ_IOUT::CommandData,
-    rail2_iout: READ_IOUT::CommandData,
-}
-
 macro_rules! bb_field {
     ($slice:expr, $cmd:tt, $word:expr, $offs:expr) => {
         $cmd::CommandData::from_slice(&$slice[($word * 4) + $offs..]).unwrap()
     };
 }
 
+struct RenesasBlackboxRail {
+    uptime: UptimeCounter::CommandData,
+    first_fault: RailFault::CommandData,
+    status: STATUS_WORD::CommandData,
+    vout_status: STATUS_VOUT::CommandData,
+    iout_status: STATUS_IOUT::CommandData,
+    temp_status: STATUS_TEMPERATURE::CommandData,
+    input_status: STATUS_INPUT::CommandData,
+    vin: READ_VIN::CommandData,
+    vout: READ_VOUT::CommandData,
+    iin: READ_IIN::CommandData,
+    iout: READ_IOUT::CommandData,
+}
+
+enum RailIndex {
+    Rail0,
+    Rail1,
+    Rail2,
+}
+
+impl RenesasBlackboxRail {
+    fn from_slice(buf: &[u8], rail: RailIndex) -> Self {
+        match rail {
+            RailIndex::Rail0 => RenesasBlackboxRail {
+                uptime: bb_field!(buf, UptimeCounter, 1, 0),
+                first_fault: bb_field!(buf, RailFault, 5, 0),
+                status: bb_field!(buf, STATUS_WORD, 11, 0),
+                vout_status: bb_field!(buf, STATUS_VOUT, 13, 1),
+                iout_status: bb_field!(buf, STATUS_IOUT, 14, 2),
+                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 3),
+                input_status: bb_field!(buf, STATUS_INPUT, 15, 3),
+                vin: bb_field!(buf, READ_VIN, 16, 0),
+                vout: bb_field!(buf, READ_VOUT, 18, 2),
+                iin: bb_field!(buf, READ_IIN, 19, 0),
+                iout: bb_field!(buf, READ_IOUT, 21, 2),
+            },
+            RailIndex::Rail1 => RenesasBlackboxRail {
+                uptime: bb_field!(buf, UptimeCounter, 2, 0),
+                first_fault: bb_field!(buf, RailFault, 6, 0),
+                status: bb_field!(buf, STATUS_WORD, 12, 2),
+                vout_status: bb_field!(buf, STATUS_VOUT, 13, 0),
+                iout_status: bb_field!(buf, STATUS_IOUT, 14, 1),
+                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 2),
+                input_status: bb_field!(buf, STATUS_INPUT, 16, 3),
+                vin: bb_field!(buf, READ_VIN, 17, 2),
+                vout: bb_field!(buf, READ_VOUT, 18, 0),
+                iin: bb_field!(buf, READ_IIN, 20, 2),
+                iout: bb_field!(buf, READ_IOUT, 21, 0),
+            },
+            RailIndex::Rail2 => RenesasBlackboxRail {
+                uptime: bb_field!(buf, UptimeCounter, 3, 0),
+                first_fault: bb_field!(buf, RailFault, 7, 0),
+                status: bb_field!(buf, STATUS_WORD, 12, 0),
+                vout_status: bb_field!(buf, STATUS_VOUT, 14, 3),
+                iout_status: bb_field!(buf, STATUS_IOUT, 14, 0),
+                temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 1),
+                input_status: bb_field!(buf, STATUS_INPUT, 16, 2),
+                vin: bb_field!(buf, READ_VIN, 17, 0),
+                vout: bb_field!(buf, READ_VOUT, 19, 2),
+                iin: bb_field!(buf, READ_IIN, 20, 0),
+                iout: bb_field!(buf, READ_IOUT, 22, 2),
+            },
+        }
+    }
+}
+
+struct RenesasBlackbox {
+    controller_first_fault: ControllerFault::CommandData,
+    cml_status: STATUS_CML::CommandData,
+    mfr_specific: STATUS_MFR_SPECIFIC::CommandData,
+    rails: [RenesasBlackboxRail; 3],
+}
+
 impl RenesasBlackbox {
     fn from_slice(buf: &[u8]) -> Self {
         Self {
-            rail0_uptime: bb_field!(buf, UptimeCounter, 1, 0),
-            rail1_uptime: bb_field!(buf, UptimeCounter, 2, 0),
-            rail2_uptime: bb_field!(buf, UptimeCounter, 3, 0),
             controller_first_fault: bb_field!(buf, ControllerFault, 4, 0),
-            rail0_first_fault: bb_field!(buf, RailFault, 5, 0),
-            rail1_first_fault: bb_field!(buf, RailFault, 6, 0),
-            rail2_first_fault: bb_field!(buf, RailFault, 7, 0),
-            rail0_status: bb_field!(buf, STATUS_WORD, 11, 0),
-            rail1_status: bb_field!(buf, STATUS_WORD, 12, 2),
-            rail2_status: bb_field!(buf, STATUS_WORD, 12, 0),
             cml_status: bb_field!(buf, STATUS_CML, 13, 3),
             mfr_specific: bb_field!(buf, STATUS_MFR_SPECIFIC, 13, 2),
-            rail0_vout_status: bb_field!(buf, STATUS_VOUT, 13, 1),
-            rail1_vout_status: bb_field!(buf, STATUS_VOUT, 13, 0),
-            rail2_vout_status: bb_field!(buf, STATUS_VOUT, 14, 3),
-            rail0_iout_status: bb_field!(buf, STATUS_IOUT, 14, 2),
-            rail1_iout_status: bb_field!(buf, STATUS_IOUT, 14, 1),
-            rail2_iout_status: bb_field!(buf, STATUS_IOUT, 14, 0),
-            rail0_temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 3),
-            rail1_temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 2),
-            rail2_temp_status: bb_field!(buf, STATUS_TEMPERATURE, 15, 1),
-            rail0_input_status: bb_field!(buf, STATUS_INPUT, 15, 3),
-            rail1_input_status: bb_field!(buf, STATUS_INPUT, 16, 3),
-            rail2_input_status: bb_field!(buf, STATUS_INPUT, 16, 2),
-            rail0_vin: bb_field!(buf, READ_VIN, 16, 0),
-            rail1_vin: bb_field!(buf, READ_VIN, 17, 2),
-            rail2_vin: bb_field!(buf, READ_VIN, 17, 0),
-            rail0_vout: bb_field!(buf, READ_VOUT, 18, 2),
-            rail1_vout: bb_field!(buf, READ_VOUT, 18, 0),
-            rail2_vout: bb_field!(buf, READ_VOUT, 19, 2),
-            rail0_iin: bb_field!(buf, READ_IIN, 19, 0),
-            rail1_iin: bb_field!(buf, READ_IIN, 20, 2),
-            rail2_iin: bb_field!(buf, READ_IIN, 20, 0),
-            rail0_iout: bb_field!(buf, READ_IOUT, 21, 2),
-            rail1_iout: bb_field!(buf, READ_IOUT, 21, 0),
-            rail2_iout: bb_field!(buf, READ_IOUT, 22, 2),
+            rails: [
+                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail0),
+                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail1),
+                RenesasBlackboxRail::from_slice(buf, RailIndex::Rail2),
+            ],
         }
     }
 
     fn dump(&self) {
-        dump(&self.rail0_uptime);
-        dump(&self.rail1_uptime);
-        dump(&self.rail2_uptime);
+        println!("=== Controller wide");
         dump(&self.controller_first_fault);
-        dump(&self.rail0_first_fault);
-        dump(&self.rail1_first_fault);
-        dump(&self.rail2_first_fault);
-        dump(&self.rail0_status);
-        dump(&self.rail1_status);
-        dump(&self.rail2_status);
         dump(&self.cml_status);
         dump(&self.mfr_specific);
-        dump(&self.rail0_vout_status);
-        dump(&self.rail1_vout_status);
-        dump(&self.rail2_vout_status);
 
-        dump(&self.rail0_iout_status);
-        dump(&self.rail1_iout_status);
-        dump(&self.rail2_iout_status);
-
-        dump(&self.rail0_temp_status);
-        dump(&self.rail1_temp_status);
-        dump(&self.rail2_temp_status);
-
-        dump(&self.rail0_input_status);
-        dump(&self.rail1_input_status);
-        dump(&self.rail2_input_status);
-
-        dump(&self.rail0_vin);
-        dump(&self.rail1_vin);
-        dump(&self.rail2_vin);
-
-        dump(&self.rail0_vout);
-        dump(&self.rail1_vout);
-        dump(&self.rail2_vout);
-
-        dump(&self.rail0_iin);
-        dump(&self.rail1_iin);
-        dump(&self.rail2_iin);
-
-        dump(&self.rail0_iout);
-        dump(&self.rail1_iout);
-        dump(&self.rail2_iout);
+        for (index, rail) in self.rails.iter().enumerate() {
+            println!("--- Rail {}", index);
+            dump(&rail.uptime);
+            dump(&rail.first_fault);
+            dump(&rail.status);
+            dump(&rail.vout_status);
+            dump(&rail.iout_status);
+            dump(&rail.temp_status);
+            dump(&rail.input_status);
+            dump(&rail.vin);
+            dump(&rail.vout);
+            dump(&rail.iin);
+            dump(&rail.iout);
+        }
     }
 }
 
@@ -329,6 +311,6 @@ fn blackbox_test8() {
     let bb = RenesasBlackbox::from_slice(&raw);
 
     bb.dump();
-    println!("{:?}", bb.rail0_vin.get().unwrap());
-    assert_eq!(bb.rail0_vin.get(), Ok(units::Volts(11.950001)));
+    println!("{:?}", bb.rails[0].vin.get().unwrap());
+    assert_eq!(bb.rails[0].vin.get(), Ok(units::Volts(11.950001)));
 }
