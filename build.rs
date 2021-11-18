@@ -1908,7 +1908,7 @@ fn output_devices(devices: &HashMap<String, Device>) -> Result<String> {
     let name = |str: &str| str.to_case(Case::UpperCamel);
 
     writeln!(&mut s, r##"
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Device {{
     Common,"##)?;
 
