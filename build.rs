@@ -575,11 +575,8 @@ fn validate(
             }
         }
 
-        match field.values {
-            Values::FixedPointUnits(_, unit) => {
-                units.insert(unit);
-            }
-            _ => {}
+        if let Values::FixedPointUnits(_, unit) = field.values {
+            units.insert(unit);
         }
     }
 
