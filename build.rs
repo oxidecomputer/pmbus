@@ -666,7 +666,7 @@ fn output_value(
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (v, _) in values {
+    for v in values.keys() {
         writeln!(
             &mut s, "                {}::{} => \"{}\",",
             name, v, v
@@ -761,7 +761,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Field::{} => \"{}\",", f, f)?;
     }
 
@@ -832,7 +832,7 @@ pub mod {} {{
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub enum Value {{"##, cmd)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "        {}({}),", f, f)?;
     }
 
@@ -843,7 +843,7 @@ pub mod {} {{
         fn desc(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Value::{}(v) => v.desc(),", f)?;
     }
 
@@ -854,7 +854,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Value::{}(v) => v.name(),", f)?;
     }
 
@@ -1044,7 +1044,7 @@ pub mod {} {{
 
             match field {{"##, bits)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, r##"
                 Field::{} => {{
                     match {}::from_u{}(raw) {{
