@@ -207,7 +207,7 @@ enum OutputCommand<'a> {
     Auxiliary(&'a str),
 }
 
-fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
+fn reg_sizes(cmds: &[Command]) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
 
     //
@@ -236,7 +236,7 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     Ok(sizes)
 }
 
-fn aux_sizes(auxs: &Vec<Auxiliary>) -> Result<HashMap<String, Option<usize>>> {
+fn aux_sizes(auxs: &[Auxiliary]) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
 
     for aux in auxs {
@@ -1842,7 +1842,7 @@ pub mod {} {{
 
 #[rustfmt::skip::macros(writeln)]
 fn output_numerics(
-    cmds: &Vec<CommandNumericFormat>,
+    cmds: &[CommandNumericFormat],
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
     coeff: Option<Coefficients>,
@@ -1874,7 +1874,7 @@ fn output_numerics(
 }
 
 fn output_aux_numerics(
-    auxs: &Vec<AuxiliaryNumericFormat>,
+    auxs: &[AuxiliaryNumericFormat],
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
     coeff: Option<Coefficients>,
