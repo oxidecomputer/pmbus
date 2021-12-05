@@ -822,7 +822,7 @@ pub mod {} {{
         write!(
             &mut s,
             "{}",
-            output_value(&f, &field.name, &field.values, width.into())?
+            output_value(f, &field.name, &field.values, width.into())?
         )?;
     }
 
@@ -1915,7 +1915,7 @@ pub enum Device {{
     Common,"##)?;
 
     for dev in devices {
-        writeln!(&mut s, "    {},", name(&dev.0))?;
+        writeln!(&mut s, "    {},", name(dev.0))?;
     }
 
     write!(&mut s, r##"
@@ -1928,7 +1928,7 @@ impl Device {{
     for dev in devices {
         write!(&mut s, r##"if str == Device::{}.name() {{
             Some(Device::{})
-        }} else "##, name(&dev.0), name(&dev.0))?;
+        }} else "##, name(dev.0), name(dev.0))?;
     }
 
     writeln!(&mut s, r##"{{
@@ -1942,7 +1942,7 @@ impl Device {{
 
     for dev in devices {
         writeln!(&mut s,
-            "            Device::{} => \"{}\",", name(&dev.0), dev.0)?;
+            "            Device::{} => \"{}\",", name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -1955,7 +1955,7 @@ impl Device {{
     for (dev, device) in devices {
         writeln!(&mut s,
             "            Device::{} => \"{}\",",
-            name(&dev), device.description)?;
+            name(dev), device.description)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -1995,7 +1995,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2037,7 +2037,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2070,7 +2070,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2104,7 +2104,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2130,7 +2130,7 @@ impl Device {{
                     cb(&cmd);
                 }}
                 None => {{}}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n}}")?;
@@ -2138,7 +2138,7 @@ impl Device {{
     writeln!(&mut s, r##"
 pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
     for dev in devices {
-        writeln!(&mut s, "    dev(Device::{});", name(&dev.0))?;
+        writeln!(&mut s, "    dev(Device::{});", name(dev.0))?;
     }
 
     writeln!(&mut s, "}}")?;
@@ -2318,20 +2318,20 @@ fn codegen() -> Result<()> {
         for (cmd, fields) in dbs {
             if let Some(fields) = dcmds.structured.get(cmd) {
                 let (bits, bytes) =
-                    validate(&cmd, &fields, &dsizes, &mut units)?;
+                    validate(cmd, fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.structured.remove(cmd);
             } else {
                 let (bits, bytes) =
-                    validate(&cmd, &fields, &sizes, &mut units)?;
+                    validate(cmd, fields, &sizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
         }
 
         for (cmd, fields) in &dcmds.structured {
-            let (bits, bytes) = validate(&cmd, &fields, &dsizes, &mut units)?;
+            let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
         }
@@ -2360,7 +2360,7 @@ fn codegen() -> Result<()> {
                     },
                 };
 
-                let (bits, bytes) = validate(cmd, fields, &s, &mut units)?;
+                let (bits, bytes) = validate(cmd, fields, s, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
@@ -2386,14 +2386,14 @@ fn codegen() -> Result<()> {
 
             for (aux, fields) in &aux.structured {
                 let (bits, bytes) =
-                    validate(&aux, &fields, &sizes, &mut units)?;
+                    validate(aux, fields, &sizes, &mut units)?;
 
                 let out = output_aux_data(aux, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
         }
 
-        let out = output_device(&name)?;
+        let out = output_device(name)?;
         dfile.write_all(out.as_bytes())?;
     }
 
