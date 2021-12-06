@@ -927,7 +927,7 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{:.2}}{}",
-                        crate::Value::raw(self) as f32 / ({} as f32)
+                        crate::Value::raw(self) as f32 / ({}_f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
             }
@@ -937,8 +937,8 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{:.2}}{}",
-                        ({} as f32).powi(crate::Value::raw(self) as i32) /
-                        ({} as f32)
+                        ({}_f32).powi(crate::Value::raw(self) as i32) /
+                        ({}_f32)
                     )
                 }}"##, f, u.suffix(), base, factor)?;
             }
@@ -1130,7 +1130,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
             crate::units::{:?}(
-                self.get_val(Field::{}) as f32 / ({} as f32)
+                self.get_val(Field::{}) as f32 / ({}_f32)
             )
         }}"##, method, unit, unit, f, factor)?;
 
@@ -1139,7 +1139,7 @@ pub mod {} {{
             &mut self,
             val: crate::units::{:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, (val.0 * ({} as f32)) as u{})
+            self.set_val(Field::{}, (val.0 * ({}_f32)) as u{})
         }}"##, method, unit, f, factor, bits)?;
             }
 
@@ -1147,7 +1147,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
             crate::units::{:?}(
-                ({} as f32).powi(self.get_val(Field::{}) as i32) / ({} as f32)
+                ({}_f32).powi(self.get_val(Field::{}) as i32) / ({}_f32)
             )
         }}"##, method, unit, unit, base, f, factor)?;
 
@@ -1156,7 +1156,7 @@ pub mod {} {{
             &mut self,
             val: crate::units::{:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, libm::log{}f(val.0 * ({} as f32)) as u{})
+            self.set_val(Field::{}, libm::log{}f(val.0 * ({}_f32)) as u{})
         }}"##, method, unit, f, base, factor, bits)?;
             }
 
@@ -1615,11 +1615,11 @@ pub mod {} {{
         Format::FixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}((self.0 as f32) / ({} as f32)))
+            Ok({}((self.0 as f32) / ({}_f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({} as f32)) as u{};
+            self.0 = (val.0 * ({}_f32)) as u{};
             Ok(())
         }}"##, units, units, factor, units, factor, bits)?;
         }
