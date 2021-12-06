@@ -2116,20 +2116,14 @@ impl Device {{
         mut cb: impl FnMut(&dyn Command)
     ) {{
         match self {{
-            Device::Common => match CommandCode::from_u8(code) {{
-                Some(cmd) => {{
+            Device::Common => if let Some(cmd) = CommandCode::from_u8(code) {{
                     cb(&cmd);
-                }}
-                None => {{}}
             }},"##)?;
 
     for dev in devices {
         writeln!(&mut s, r##"
-            Device::{} => match {}::CommandCode::from_u8(code) {{
-                Some(cmd) => {{
+            Device::{} => if let Some(cmd) = {}::CommandCode::from_u8(code) {{
                     cb(&cmd);
-                }}
-                None => {{}}
             }},"##, name(dev.0), dev.0)?;
     }
 
