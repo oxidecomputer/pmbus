@@ -1659,6 +1659,7 @@ pub mod {} {{
     writeln!(&mut s, "    }}")?;
 
     writeln!(&mut s, r##"
+    #[allow(clippy::useless_conversion)]
     impl crate::CommandData for CommandData {{"##)?;
 
     if let Format::VOutMode(_) = format {
