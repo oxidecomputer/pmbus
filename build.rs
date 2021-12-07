@@ -1227,7 +1227,7 @@ pub mod {} {{
                             }}
 
                             Replacement::Integer(i) => {{
-                                if let Err(_) = self.set_val(field, i as u{}) {{
+                                if self.set_val(field, i as u{}).is_err() {{
                                     return Err(Error::OverflowReplacement);
                                 }}
                             }}
