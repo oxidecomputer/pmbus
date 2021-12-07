@@ -864,6 +864,7 @@ pub mod {} {{
     writeln!(&mut s, r##"
         fn scalar(&self) -> bool {{
             #[allow(clippy::match_single_binding)]
+            #[allow(clippy::match_like_matches_macro)]
             match self {{"##)?;
 
     for (f, field) in fields {
