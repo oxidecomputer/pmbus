@@ -863,6 +863,7 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
         fn scalar(&self) -> bool {{
+            #[allow(clippy::match_single_binding)]
             match self {{"##)?;
 
     for (f, field) in fields {
@@ -907,6 +908,7 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl core::fmt::Display for Value {{
+        #[allow(clippy::match_single_binding)]
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
             match self {{"##)?;
 
