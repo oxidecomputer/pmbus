@@ -1009,6 +1009,7 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
     for i in 0..bytes {
@@ -1465,6 +1466,7 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
     for i in 0..bytes {
