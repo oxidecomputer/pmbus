@@ -2206,9 +2206,6 @@ fn codegen() -> Result<()> {
     //
     // First, consume our common commands.
     //
-    let mut dir = PathBuf::from(&env::var("CARGO_MANIFEST_DIR")?);
-    dir.push("src");
-
     let f = open_file("commands.ron")?;
 
     let cmds: Commands = match from_reader(f) {
