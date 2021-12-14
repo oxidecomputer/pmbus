@@ -48,7 +48,7 @@ enum Units {
     Volts,
     Celsius,
     Kilohertz,
-    RPM,
+    Rpm,
     Milliohms,
     VoltsPerMicrosecond,
     VoltsPerMillisecond,
@@ -70,7 +70,7 @@ impl Units {
             Units::Milliohms => "mΩ",
             Units::Volts => "V",
             Units::Celsius => "°C",
-            Units::RPM => "RPM",
+            Units::Rpm => "RPM",
             Units::Watts => "W",
             Units::Kilohertz => "kHz",
             Units::VoltsPerMillisecond => "V/ms",
@@ -207,7 +207,7 @@ enum OutputCommand<'a> {
     Auxiliary(&'a str),
 }
 
-fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
+fn reg_sizes(cmds: &[Command]) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
 
     //
@@ -236,7 +236,7 @@ fn reg_sizes(cmds: &Vec<Command>) -> Result<HashMap<String, Option<usize>>> {
     Ok(sizes)
 }
 
-fn aux_sizes(auxs: &Vec<Auxiliary>) -> Result<HashMap<String, Option<usize>>> {
+fn aux_sizes(auxs: &[Auxiliary]) -> Result<HashMap<String, Option<usize>>> {
     let mut sizes = HashMap::new();
 
     for aux in auxs {
@@ -575,11 +575,8 @@ fn validate(
             }
         }
 
-        match field.values {
-            Values::FixedPointUnits(_, unit) => {
-                units.insert(unit);
-            }
-            _ => {}
+        if let Values::FixedPointUnits(_, unit) = field.values {
+            units.insert(unit);
         }
     }
 
@@ -669,7 +666,7 @@ fn output_value(
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (v, _) in values {
+    for v in values.keys() {
         writeln!(
             &mut s, "                {}::{} => \"{}\",",
             name, v, v
@@ -764,7 +761,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Field::{} => \"{}\",", f, f)?;
     }
 
@@ -825,7 +822,7 @@ pub mod {} {{
         write!(
             &mut s,
             "{}",
-            output_value(&f, &field.name, &field.values, width.into())?
+            output_value(f, &field.name, &field.values, width.into())?
         )?;
     }
 
@@ -835,7 +832,7 @@ pub mod {} {{
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub enum Value {{"##, cmd)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "        {}({}),", f, f)?;
     }
 
@@ -846,7 +843,7 @@ pub mod {} {{
         fn desc(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Value::{}(v) => v.desc(),", f)?;
     }
 
@@ -857,7 +854,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, "                Value::{}(v) => v.name(),", f)?;
     }
 
@@ -866,6 +863,8 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
         fn scalar(&self) -> bool {{
+            #[allow(clippy::match_single_binding)]
+            #[allow(clippy::match_like_matches_macro)]
             match self {{"##)?;
 
     for (f, field) in fields {
@@ -910,6 +909,7 @@ pub mod {} {{
 
     writeln!(&mut s, r##"
     impl core::fmt::Display for Value {{
+        #[allow(clippy::match_single_binding)]
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
             match self {{"##)?;
 
@@ -930,7 +930,7 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{:.2}}{}",
-                        crate::Value::raw(self) as f32 / ({} as f32)
+                        crate::Value::raw(self) as f32 / ({}_f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
             }
@@ -940,8 +940,8 @@ pub mod {} {{
                 Value::{}(_) => {{
                     write!(
                         f, "{{:.2}}{}",
-                        ({} as f32).powi(crate::Value::raw(self) as i32) /
-                        ({} as f32)
+                        ({}_f32).powi(crate::Value::raw(self) as i32) /
+                        ({}_f32)
                     )
                 }}"##, f, u.suffix(), base, factor)?;
             }
@@ -1009,6 +1009,7 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
     for i in 0..bytes {
@@ -1047,7 +1048,7 @@ pub mod {} {{
 
             match field {{"##, bits)?;
 
-    for (f, _) in fields {
+    for f in fields.keys() {
         writeln!(&mut s, r##"
                 Field::{} => {{
                     match {}::from_u{}(raw) {{
@@ -1133,7 +1134,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
             crate::units::{:?}(
-                self.get_val(Field::{}) as f32 / ({} as f32)
+                self.get_val(Field::{}) as f32 / ({}_f32)
             )
         }}"##, method, unit, unit, f, factor)?;
 
@@ -1142,7 +1143,7 @@ pub mod {} {{
             &mut self,
             val: crate::units::{:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, (val.0 * ({} as f32)) as u{})
+            self.set_val(Field::{}, (val.0 * ({}_f32)) as u{})
         }}"##, method, unit, f, factor, bits)?;
             }
 
@@ -1150,7 +1151,7 @@ pub mod {} {{
                 writeln!(&mut s, r##"
         pub fn get_{}(&self) -> crate::units::{:?} {{
             crate::units::{:?}(
-                ({} as f32).powi(self.get_val(Field::{}) as i32) / ({} as f32)
+                ({}_f32).powi(self.get_val(Field::{}) as i32) / ({}_f32)
             )
         }}"##, method, unit, unit, base, f, factor)?;
 
@@ -1159,7 +1160,7 @@ pub mod {} {{
             &mut self,
             val: crate::units::{:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, libm::log{}f(val.0 * ({} as f32)) as u{})
+            self.set_val(Field::{}, libm::log{}f(val.0 * ({}_f32)) as u{})
         }}"##, method, unit, f, base, factor, bits)?;
             }
 
@@ -1230,7 +1231,7 @@ pub mod {} {{
                             }}
 
                             Replacement::Integer(i) => {{
-                                if let Err(_) = self.set_val(field, i as u{}) {{
+                                if self.set_val(field, i as u{}).is_err() {{
                                     return Err(Error::OverflowReplacement);
                                 }}
                             }}
@@ -1465,6 +1466,7 @@ pub mod {} {{
     }
 
     writeln!(&mut s, r##"
+        #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
     for i in 0..bytes {
@@ -1618,11 +1620,11 @@ pub mod {} {{
         Format::FixedPoint(Factor(factor)) => {
             writeln!(&mut s, r##"
         pub fn get(&self) -> Result<{}, Error> {{
-            Ok({}((self.0 as f32) / ({} as f32)))
+            Ok({}((self.0 as f32) / ({}_f32)))
         }}
 
         pub fn set(&mut self, val: {}) -> Result<(), Error> {{
-            self.0 = (val.0 * ({} as f32)) as u{};
+            self.0 = (val.0 * ({}_f32)) as u{};
             Ok(())
         }}"##, units, units, factor, units, factor, bits)?;
         }
@@ -1659,6 +1661,7 @@ pub mod {} {{
     writeln!(&mut s, "    }}")?;
 
     writeln!(&mut s, r##"
+    #[allow(clippy::useless_conversion)]
     impl crate::CommandData for CommandData {{"##)?;
 
     if let Format::VOutMode(_) = format {
@@ -1842,7 +1845,7 @@ pub mod {} {{
 
 #[rustfmt::skip::macros(writeln)]
 fn output_numerics(
-    cmds: &Vec<CommandNumericFormat>,
+    cmds: &[CommandNumericFormat],
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
     coeff: Option<Coefficients>,
@@ -1874,7 +1877,7 @@ fn output_numerics(
 }
 
 fn output_aux_numerics(
-    auxs: &Vec<AuxiliaryNumericFormat>,
+    auxs: &[AuxiliaryNumericFormat],
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
     coeff: Option<Coefficients>,
@@ -1918,20 +1921,21 @@ pub enum Device {{
     Common,"##)?;
 
     for dev in devices {
-        writeln!(&mut s, "    {},", name(&dev.0))?;
+        writeln!(&mut s, "    {},", name(dev.0))?;
     }
 
     write!(&mut s, r##"
 }}
 
 impl Device {{
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Option<Self> {{
         "##)?;
 
     for dev in devices {
         write!(&mut s, r##"if str == Device::{}.name() {{
             Some(Device::{})
-        }} else "##, name(&dev.0), name(&dev.0))?;
+        }} else "##, name(dev.0), name(dev.0))?;
     }
 
     writeln!(&mut s, r##"{{
@@ -1945,7 +1949,7 @@ impl Device {{
 
     for dev in devices {
         writeln!(&mut s,
-            "            Device::{} => \"{}\",", name(&dev.0), dev.0)?;
+            "            Device::{} => \"{}\",", name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -1958,7 +1962,7 @@ impl Device {{
     for (dev, device) in devices {
         writeln!(&mut s,
             "            Device::{} => \"{}\",",
-            name(&dev), device.description)?;
+            name(dev), device.description)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -1998,7 +2002,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2040,7 +2044,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2073,7 +2077,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2107,7 +2111,7 @@ impl Device {{
                 None => {{
                     Err(Error::InvalidCode)
                 }}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n")?;
@@ -2119,21 +2123,15 @@ impl Device {{
         mut cb: impl FnMut(&dyn Command)
     ) {{
         match self {{
-            Device::Common => match CommandCode::from_u8(code) {{
-                Some(cmd) => {{
+            Device::Common => if let Some(cmd) = CommandCode::from_u8(code) {{
                     cb(&cmd);
-                }}
-                None => {{}}
             }},"##)?;
 
     for dev in devices {
         writeln!(&mut s, r##"
-            Device::{} => match {}::CommandCode::from_u8(code) {{
-                Some(cmd) => {{
+            Device::{} => if let Some(cmd) = {}::CommandCode::from_u8(code) {{
                     cb(&cmd);
-                }}
-                None => {{}}
-            }},"##, name(&dev.0), dev.0)?;
+            }},"##, name(dev.0), dev.0)?;
     }
 
     writeln!(&mut s, "        }}\n    }}\n}}")?;
@@ -2141,7 +2139,7 @@ impl Device {{
     writeln!(&mut s, r##"
 pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
     for dev in devices {
-        writeln!(&mut s, "    dev(Device::{});", name(&dev.0))?;
+        writeln!(&mut s, "    dev(Device::{});", name(dev.0))?;
     }
 
     writeln!(&mut s, "}}")?;
@@ -2321,20 +2319,20 @@ fn codegen() -> Result<()> {
         for (cmd, fields) in dbs {
             if let Some(fields) = dcmds.structured.get(cmd) {
                 let (bits, bytes) =
-                    validate(&cmd, &fields, &dsizes, &mut units)?;
+                    validate(cmd, fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.structured.remove(cmd);
             } else {
                 let (bits, bytes) =
-                    validate(&cmd, &fields, &sizes, &mut units)?;
+                    validate(cmd, fields, &sizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
         }
 
         for (cmd, fields) in &dcmds.structured {
-            let (bits, bytes) = validate(&cmd, &fields, &dsizes, &mut units)?;
+            let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
         }
@@ -2363,7 +2361,7 @@ fn codegen() -> Result<()> {
                     },
                 };
 
-                let (bits, bytes) = validate(cmd, fields, &s, &mut units)?;
+                let (bits, bytes) = validate(cmd, fields, s, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
@@ -2389,14 +2387,14 @@ fn codegen() -> Result<()> {
 
             for (aux, fields) in &aux.structured {
                 let (bits, bytes) =
-                    validate(&aux, &fields, &sizes, &mut units)?;
+                    validate(aux, fields, &sizes, &mut units)?;
 
                 let out = output_aux_data(aux, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
         }
 
-        let out = output_device(&name)?;
+        let out = output_device(name)?;
         dfile.write_all(out.as_bytes())?;
     }
 
