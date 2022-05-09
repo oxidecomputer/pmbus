@@ -713,6 +713,14 @@ fn bmr491_default() {
 }
 
 #[test]
+fn bmr491_pgood_polarity() {
+    use commands::bmr491::*;
+
+    let data = MFR_PGOOD_POLARITY::CommandData::from_slice(&[0x01]);
+    dump(&data.unwrap());
+}
+
+#[test]
 fn bmr480_iout() {
     use commands::bmr480::*;
 

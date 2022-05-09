@@ -745,11 +745,21 @@ pub mod {} {{
         fn bits(&self) -> (Bitpos, Bitwidth) {{
             match self {{"##)?;
 
+    let mut wholefield = false;
+
     for (f, field) in fields {
         let (high, low) = bitrange(&field.bits);
 
         let pos = low;
         let width = high - low + 1;
+
+        if usize::from(width) == bits {
+            if fields.len() != 1 {
+                bail!("illegal whole width field in {:?}", fields);
+            }
+
+            wholefield = true;
+        }
 
         writeln!(&mut s, "                Field::{} => \
             (Bitpos({}), Bitwidth({})),", f, pos, width)?;
@@ -1036,17 +1046,25 @@ pub mod {} {{
     writeln!(&mut s, "                _ => None,")?;
     writeln!(&mut s, "            }}\n        }}")?;
 
-    writeln!(&mut s, r##"
+    if !wholefield {
+        writeln!(&mut s, r##"
         pub fn get_val(&self, field: Field) -> u{} {{
             use crate::Field;
             let (pos, width) = field.bits();
             (self.0 >> pos.0) & ((1 << width.0) - 1)
-        }}
-        
+        }}"##, bits)?;
+    } else {
+        writeln!(&mut s, r##"
+        pub fn get_val(&self, _field: Field) -> u{} {{
+            self.0
+        }}"##, bits)?;
+    }
+
+    writeln!(&mut s, r##"
         pub fn get(&self, field: Field) -> Result<Value, Error> {{
             let raw = self.get_val(field);
 
-            match field {{"##, bits)?;
+            match field {{"##)?;
 
     for f in fields.keys() {
         writeln!(&mut s, r##"
