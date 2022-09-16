@@ -126,7 +126,7 @@ pub enum Error {
 /// A value used to replace a field when mutating command data.  In general,
 /// this interface should not be used in an embedded environment, which
 /// should in general select to explicitly set desired fields.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Replacement {
     Float(f32),
     Integer(u32),
