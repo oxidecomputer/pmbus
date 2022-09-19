@@ -93,15 +93,15 @@ pub mod renesas;
 
 /// The position, in bits, of a field.  If a field contains multiple bits, this
 /// position represents the **least** significant bit of the multi-bit field.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Bitpos(pub u8);
 
 /// The width, in bits, of a field.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Bitwidth(pub u8);
 
 /// A PMBus error
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     /// Data payload was shorter than expected by the command
     ShortData,
@@ -229,7 +229,7 @@ pub trait CommandData {
 
 /// A [`Field`]-implementing structure that denotes that the entire command
 /// data payload is a single, numeric field.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct WholeField(&'static str, Bitwidth);
 
 impl Field for WholeField {
@@ -255,7 +255,7 @@ impl Field for WholeField {
 /// (Part II, Sec. 7.4). The actual values used will depend on the device and
 /// the condition.
 ///
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[allow(non_snake_case)]
 pub struct Coefficients {
     /// Slope coefficient. Two byte signed off the wire (but potentially
