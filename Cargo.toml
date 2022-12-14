@@ -10,12 +10,12 @@ inherits = "dev"
 debug = false # default true
 
 [build-dependencies]
-ron = "0.6"
+ron = "0.8"
 serde = "1.0.126"
 serde_with = "1.10.0"
 
 anyhow = "1.0.31"
-convert_case = "0.3.2"
+convert_case = "0.4"
 
 [dependencies]
 num-traits = { version = "0.2.12", default-features = false }
