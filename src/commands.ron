@@ -1096,6 +1096,127 @@
                 }),
             ),
         },
+
+        "STATUS_FANS_1_2": {
+            "Fan1Fault": (
+                name: "Fan 1 fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan2Fault": (
+                name: "Fan 2 fault",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan1Warning": (
+                name: "Fan 1 warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "Fan2Warning": (
+                name: "Fan 2 warning",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "Fan1SpeedOverridden": (
+                name: "Fan 1 speed overridden",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotOverridden": (0b0, "speed not overridden"),
+                    "Overridden": (0b1, "speed overridden"),
+                }),
+            ),
+            "Fan2SpeedOverridden": (
+                name: "Fan 2 speed overridden",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotOverridden": (0b0, "speed not overridden"),
+                    "Overridden": (0b1, "speed overridden"),
+                }),
+            ),
+            "AirflowFault": (
+                name: "Airflow fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "AirflowWarning": (
+                name: "Airflow warning",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+        },
+
+        "STATUS_FANS_3_4": {
+            "Fan3Fault": (
+                name: "Fan 3 fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan4Fault": (
+                name: "Fan 4 fault",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan3Warning": (
+                name: "Fan 3 warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "Fan4Warning": (
+                name: "Fan 4 warning",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "Fan3SpeedOverridden": (
+                name: "Fan 3 speed overridden",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotOverridden": (0b0, "speed not overridden"),
+                    "Overridden": (0b1, "speed overridden"),
+                }),
+            ),
+            "Fan4SpeedOverridden": (
+                name: "Fan 4 speed overridden",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotOverridden": (0b0, "speed not overridden"),
+                    "Overridden": (0b1, "speed overridden"),
+                }),
+            ),
+            // Bit(1): reserved
+            // Bit(0): reserved
+        },
+
         "PMBUS_REVISION": {
             "PartIRevision": (
                 name: "Part I Revision",

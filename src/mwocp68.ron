@@ -9,7 +9,6 @@
         ("IIN_OC_WARN_LIMIT", Linear11, Amperes),
         ("POUT_OP_WARN_LIMIT", Linear11, Watts),
         ("PIN_OP_WARN_LIMIT", Linear11, Watts),
-        ("STATUS_FANS_1_2", Raw, Unitless),
         ("READ_VIN", Linear11, Volts),
         ("READ_IIN", Linear11, Amperes),
         ("READ_VCAP", VOutMode(Unsigned), Volts),
