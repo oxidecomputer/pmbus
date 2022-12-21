@@ -24,7 +24,6 @@
         ("READ_FAN_SPEED_2", Linear11, Rpm),
         ("READ_POUT", Linear11, Watts),
         ("READ_PIN", Linear11, Watts),
-        ("PMBUS_REVISION", Raw, Unitless),
         ("MFR_VIN_MIN", Linear11, Volts),
         ("MFR_VIN_MAX", Linear11, Volts),
         ("MFR_IIN_MAX", Linear11, Amperes),
