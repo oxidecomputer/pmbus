@@ -1,7 +1,6 @@
 (
     all: [],
     numerics: [
-        ("FAN_CONFIG_1_2", Raw, Unitless),
         ("FAN_COMMAND_1", Linear11, Unitless),
         ("FAN_COMMAND_2", Linear11, Unitless),
         ("IOUT_OC_FAULT_LIMIT", Linear11, Amperes),

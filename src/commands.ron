@@ -399,6 +399,96 @@
             ),
         },
 
+        "FAN_CONFIG_1_2": {
+            "Fan1Installed": (
+                name: "Fan 1 installed",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotInstalled": (0b0, "fan is not installed"),
+                    "Installed": (0b1, "fan is installed"),
+                }),
+            ),
+            "Fan1CommandMode": (
+                name: "Fan 1 command mode (duty cycles or RPM)",
+                bits: Bit(6),
+                values: Sentinels({
+                    "DutyCycle": (0b0, "fan commanded in duty cycles"),
+                    "Rpm": (0b1, "fan commanded in RPM"),
+                }),
+            ),
+            "Fan1TachometerPulsesPerRevolution": (
+                name: "Fan 1 tachometer pulses per revolution",
+                bits: Bitrange(High(5), Low(4)),
+                values: Scalar(Unsigned),
+            ),
+            "Fan2Installed": (
+                name: "Fan 2 installed",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotInstalled": (0b0, "fan is not installed"),
+                    "Installed": (0b1, "fan is installed"),
+                }),
+            ),
+            "Fan2CommandMode": (
+                name: "Fan 2 command mode (duty cycles or RPM)",
+                bits: Bit(2),
+                values: Sentinels({
+                    "DutyCycle": (0b0, "fan commanded in duty cycles"),
+                    "Rpm": (0b1, "fan commanded in RPM"),
+                }),
+            ),
+            "Fan2TachometerPulsesPerRevolution": (
+                name: "Fan 2 tachometer pulses per revolution",
+                bits: Bitrange(High(1), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
+        "FAN_CONFIG_3_4": {
+            "Fan3Installed": (
+                name: "Fan 3 installed",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotInstalled": (0b0, "fan is not installed"),
+                    "Installed": (0b1, "fan is installed"),
+                }),
+            ),
+            "Fan3CommandMode": (
+                name: "Fan 3 command mode (duty cycles or RPM)",
+                bits: Bit(6),
+                values: Sentinels({
+                    "DutyCycle": (0b0, "fan commanded in duty cycles"),
+                    "Rpm": (0b1, "fan commanded in RPM"),
+                }),
+            ),
+            "Fan3TachometerPulsesPerRevolution": (
+                name: "Fan 3 tachometer pulses per revolution",
+                bits: Bitrange(High(5), Low(4)),
+                values: Scalar(Unsigned),
+            ),
+            "Fan4Installed": (
+                name: "Fan 4 installed",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotInstalled": (0b0, "fan is not installed"),
+                    "Installed": (0b1, "fan is installed"),
+                }),
+            ),
+            "Fan4CommandMode": (
+                name: "Fan 4 command mode (duty cycles or RPM)",
+                bits: Bit(2),
+                values: Sentinels({
+                    "DutyCycle": (0b0, "fan commanded in duty cycles"),
+                    "Rpm": (0b1, "fan commanded in RPM"),
+                }),
+            ),
+            "Fan4TachometerPulsesPerRevolution": (
+                name: "Fan 4 tachometer pulses per revolution",
+                bits: Bitrange(High(1), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
+
         "VOUT_OV_FAULT_RESPONSE": {
             "Response": (
                 name: "Fault response",
