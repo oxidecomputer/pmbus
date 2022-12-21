@@ -419,7 +419,12 @@
             "Fan1TachometerPulsesPerRevolution": (
                 name: "Fan 1 tachometer pulses per revolution",
                 bits: Bitrange(High(5), Low(4)),
-                values: Scalar(Unsigned),
+                values: Sentinels({
+                    "Ppr1": (0b00, "1 pulse per revolution"),
+                    "Ppr2": (0b01, "2 pulses per revolution"),
+                    "Ppr3": (0b10, "3 pulses per revolution"),
+                    "Ppr4": (0b11, "4 pulses per revolution"),
+                }),
             ),
             "Fan2Installed": (
                 name: "Fan 2 installed",
@@ -440,7 +445,12 @@
             "Fan2TachometerPulsesPerRevolution": (
                 name: "Fan 2 tachometer pulses per revolution",
                 bits: Bitrange(High(1), Low(0)),
-                values: Scalar(Unsigned),
+                values: Sentinels({
+                    "Ppr1": (0b00, "1 pulse per revolution"),
+                    "Ppr2": (0b01, "2 pulses per revolution"),
+                    "Ppr3": (0b10, "3 pulses per revolution"),
+                    "Ppr4": (0b11, "4 pulses per revolution"),
+                }),
             ),
         },
 
@@ -464,7 +474,12 @@
             "Fan3TachometerPulsesPerRevolution": (
                 name: "Fan 3 tachometer pulses per revolution",
                 bits: Bitrange(High(5), Low(4)),
-                values: Scalar(Unsigned),
+                values: Sentinels({
+                    "Ppr1": (0b00, "1 pulse per revolution"),
+                    "Ppr2": (0b01, "2 pulses per revolution"),
+                    "Ppr3": (0b10, "3 pulses per revolution"),
+                    "Ppr4": (0b11, "4 pulses per revolution"),
+                }),
             ),
             "Fan4Installed": (
                 name: "Fan 4 installed",
@@ -485,7 +500,12 @@
             "Fan4TachometerPulsesPerRevolution": (
                 name: "Fan 4 tachometer pulses per revolution",
                 bits: Bitrange(High(1), Low(0)),
-                values: Scalar(Unsigned),
+                values: Sentinels({
+                    "Ppr1": (0b00, "1 pulse per revolution"),
+                    "Ppr2": (0b01, "2 pulses per revolution"),
+                    "Ppr3": (0b10, "3 pulses per revolution"),
+                    "Ppr4": (0b11, "4 pulses per revolution"),
+                }),
             ),
         },
 
