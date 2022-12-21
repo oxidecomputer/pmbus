@@ -2333,14 +2333,12 @@ fn codegen() -> Result<()> {
         //
         for (cmd, fields) in dbs {
             if let Some(fields) = dcmds.structured.get(cmd) {
-                let (bits, bytes) =
-                    validate(cmd, fields, &dsizes, &mut units)?;
+                let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.structured.remove(cmd);
             } else {
-                let (bits, bytes) =
-                    validate(cmd, fields, &sizes, &mut units)?;
+                let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
             }
@@ -2401,8 +2399,7 @@ fn codegen() -> Result<()> {
             file.write_all(out.as_bytes())?;
 
             for (aux, fields) in &aux.structured {
-                let (bits, bytes) =
-                    validate(aux, fields, &sizes, &mut units)?;
+                let (bits, bytes) = validate(aux, fields, &sizes, &mut units)?;
 
                 let out = output_aux_data(aux, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
