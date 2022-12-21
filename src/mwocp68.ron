@@ -1,8 +1,8 @@
 (
     all: [],
     numerics: [
-        ("FAN_COMMAND_1", Linear11, Unitless),
-        ("FAN_COMMAND_2", Linear11, Unitless),
+        ("FAN_COMMAND_1", Linear11, Percent),
+        ("FAN_COMMAND_2", Linear11, Percent),
         ("IOUT_OC_FAULT_LIMIT", Linear11, Amperes),
         ("IOUT_OC_WARN_LIMIT", Linear11, Amperes),
         ("OT_WARN_LIMIT", Linear11, Celsius),
