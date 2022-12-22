@@ -6,7 +6,6 @@
 ///
 /// Renesas-specific functionality.
 ///
-
 // For purposes of our implementation, we use the auxiliary structures as
 // in the ISL68224 definition
 //
@@ -129,7 +128,7 @@ impl Blackbox {
 pub struct Address(u32);
 pub struct DMAAddress(u16);
 
-/// The configuration ID, as WW.XX.YY.ZZ 
+/// The configuration ID, as WW.XX.YY.ZZ
 pub const DMAADDR_CONFIG_ID: DMAAddress = DMAAddress(0x00c1);
 
 /// Firmware revision, as WW.XX.YY.ZZ. Should match result of IC_DEVICE_ID.
@@ -143,8 +142,4 @@ pub const DMAADDR_READ_CONTROL: DMAAddress = DMAAddress(0x0069);
 pub const DMAADDR_READ_LOWER: DMAAddress = DMAAddress(0x006a);
 pub const DMAADDR_READ_UPPER: DMAAddress = DMAAddress(0x006b);
 
-impl DMAAddress {
-
-
-}
-
+impl DMAAddress {}

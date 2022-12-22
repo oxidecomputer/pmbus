@@ -4,8 +4,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use commands::isl68224::*;
-use pmbus::*;
 use pmbus::renesas::*;
+use pmbus::*;
 
 fn mode() -> VOutModeCommandData {
     VOutModeCommandData::from_slice(&[0x40]).unwrap()

@@ -1,6 +1,8 @@
 (
     all: [],
     numerics: [
+        ("FAN_COMMAND_1", Linear11, Percent),
+        ("FAN_COMMAND_2", Linear11, Percent),
         ("IOUT_OC_FAULT_LIMIT", Linear11, Amperes),
         ("IOUT_OC_WARN_LIMIT", Linear11, Amperes),
         ("OT_WARN_LIMIT", Linear11, Celsius),
@@ -33,5 +35,58 @@
         ("MFR_MAX_TEMP_2", Linear11, Celsius),
         ("MFR_MAX_TEMP_3", Linear11, Celsius),
     ],
-    structured: {}
+    structured: {
+        "STATUS_MFR_SPECIFIC": {
+            // Bit 7: reserved
+            "PrimaryOvertemperatureFault": (
+                name: "LLC primary temp sensor overtemperature fault",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OringOvertemperatureFault": (
+                name: "Oring temp sensor overtemperature fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CurrentSensorReadError": (
+                name: "Current sensor reading error",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "TemperatureSensorReadError": (
+                name: "Temperature sensor reading error",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "WrongProductId": (
+                name: "Primary product ID incorrect",
+                bits: Bit(2),
+                values: Sentinels({
+                    "IdCorrect": (0b0, "product ID correct"),
+                    "IdIncorrect": (0b1, "product ID incorrect"),
+                }),
+            ),
+            // Bit 1: reserved
+            "OringFetFault": (
+                name: "Oring FET fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+        },
+    }
 )
