@@ -393,3 +393,9 @@ impl ULinear16 {
         }
     }
 }
+
+///
+/// A phase for purposes of the PHASE command
+///
+#[derive(Copy, Clone, Debug)]
+pub struct Phase(pub u8);
