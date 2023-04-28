@@ -229,6 +229,7 @@
 
     numerics: [
         ("PAGE", Raw, Unitless),
+        ("PHASE", Raw, Unitless),
         ("VOUT_COMMAND", VOutMode(Unsigned), Volts),
         ("VOUT_TRIM", VOutMode(Signed), Volts),
         ("VOUT_CAL_OFFSET", VOutMode(Signed), Volts),
