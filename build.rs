@@ -38,7 +38,9 @@ struct Value(u16, String);
 // Each member of this enum must have a corresponding 1-tuple struct in
 // crate::units::Units.
 //
-#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Hash)]
+#[derive(
+    Copy, Clone, Debug, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd,
+)]
 enum Units {
     Nanoseconds,
     Microseconds,
@@ -101,7 +103,7 @@ enum Values<T> {
     LogFactorUnits(Base, Factor, Units),
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 #[allow(non_snake_case)]
 struct Coefficients {
     m: i32,
@@ -193,7 +195,7 @@ struct Commands {
     auxiliaries: Option<Auxiliaries>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 #[allow(dead_code)]
 struct Device {
     manufacturer: String,
@@ -633,13 +635,17 @@ fn output_value(
         }
     };
 
+    let mut sorted_values: Vec<_> = values.iter().collect();
+    sorted_values.sort_by(|a, b| a.0.cmp(b.0));
+
     writeln!(&mut s, r##"
     /// Values that can be taken by the {} field
     #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
     #[allow(non_camel_case_types)]
+    #[repr(C)]
     pub enum {} {{"##, desc, name)?;
 
-    for (v, value) in values {
+    for (v, value) in &sorted_values {
         writeln!(&mut s, "        /// {}", value.1)?;
         writeln!(&mut s, "        {} = 0b{:0width$b},",
             v, value.0, width = width
@@ -653,7 +659,7 @@ fn output_value(
         fn desc(&self) -> &'static str {{
             match self {{"##, name)?;
 
-    for (v, value) in values {
+    for (v, value) in &sorted_values {
         writeln!(
             &mut s, "                {}::{} => \"{}\",",
             name, v, value.1
@@ -666,7 +672,8 @@ fn output_value(
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for v in values.keys() {
+    for v in &sorted_values {
+        let v = v.0;
         writeln!(
             &mut s, "                {}::{} => \"{}\",",
             name, v, v
@@ -687,13 +694,19 @@ fn output_command(
     let mut s = String::new();
     let fields = &fields.0;
 
+    let mut sorted_fields: Vec<_> = fields.iter().collect();
+    sorted_fields.sort_by(|a, b| a.0.cmp(b.0));
+
+    let sorted_fields_keys: Vec<_> =
+        sorted_fields.iter().map(|(a, _)| a).collect();
+
     let (cmd, auxiliary) = match cmd {
         OutputCommand::PMBus(str) => (str, false),
         OutputCommand::Auxiliary(str) => (str, true),
     };
 
     writeln!(&mut s, r##"
-/// Types and structures associated with the `{}` PMBus command
+/// Types and structures associated with the `{}` A PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
@@ -721,9 +734,10 @@ pub mod {} {{
 
     /// An enum that captures all fields for the `{}` data payload
     #[derive(Copy, Clone, Debug, PartialEq)]
+    #[repr(C)]
     pub enum Field {{"##, cmd, cmd, cmd, bits, cmd)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         writeln!(&mut s, "        /// {}", field.name)?;
         writeln!(&mut s, "        {},", f)?;
     }
@@ -747,7 +761,7 @@ pub mod {} {{
 
     let mut wholefield = false;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         let (high, low) = bitrange(&field.bits);
 
         let pos = low;
@@ -771,7 +785,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for f in fields.keys() {
+    for f in &sorted_fields_keys {
         writeln!(&mut s, "                Field::{} => \"{}\",", f, f)?;
     }
 
@@ -781,7 +795,7 @@ pub mod {} {{
         fn desc(&self) -> &'static str {{
             match self {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         writeln!(
             &mut s, "                Field::{} => \"{}\",",
             f, field.name
@@ -797,7 +811,7 @@ pub mod {} {{
         fn sentinels(&self, mut sentinel: impl FnMut(&dyn crate::Value)) {{
             match self {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         if let Values::Sentinels(ref values) = &field.values {
             writeln!(&mut s, "                Field::{} => {{", f)?;
 
@@ -826,7 +840,7 @@ pub mod {} {{
 
     writeln!(&mut s, "            }}\n        }}\n    }}")?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         let (high, low) = bitrange(&field.bits);
         let width = high - low + 1;
         write!(
@@ -840,9 +854,10 @@ pub mod {} {{
     /// An enum that captures all possible field values for all of the
     /// fields in the `{}` data payload
     #[derive(Copy, Clone, Debug, PartialEq)]
+    #[repr(C)]
     pub enum Value {{"##, cmd)?;
 
-    for f in fields.keys() {
+    for f in &sorted_fields_keys {
         writeln!(&mut s, "        {}({}),", f, f)?;
     }
 
@@ -853,7 +868,7 @@ pub mod {} {{
         fn desc(&self) -> &'static str {{
             match self {{"##)?;
 
-    for f in fields.keys() {
+    for f in &sorted_fields_keys {
         writeln!(&mut s, "                Value::{}(v) => v.desc(),", f)?;
     }
 
@@ -864,7 +879,7 @@ pub mod {} {{
         fn name(&self) -> &'static str {{
             match self {{"##)?;
 
-    for f in fields.keys() {
+    for f in &sorted_fields_keys {
         writeln!(&mut s, "                Value::{}(v) => v.name(),", f)?;
     }
 
@@ -877,7 +892,7 @@ pub mod {} {{
             #[allow(clippy::match_like_matches_macro)]
             match self {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         match field.values {
             Values::Scalar(_) | Values::FixedPointUnits(..) => {
                 writeln!(&mut s, "                Value::{}(_) => true,", f)?;
@@ -893,7 +908,7 @@ pub mod {} {{
         fn raw(&self) -> u32 {{
             match self {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         match &field.values {
             Values::Sentinels(_) => {
                 writeln!(
@@ -923,7 +938,7 @@ pub mod {} {{
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
             match self {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         match &field.values {
             Values::Scalar(_) => {
                 writeln!(&mut s, r##"
@@ -1034,7 +1049,7 @@ pub mod {} {{
         pub fn field(bit: Bitpos) -> Option<(Field, Bitwidth)> {{
             match bit.0 {{"##)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         let (high, low) = bitrange(&field.bits);
 
         writeln!(&mut s,
@@ -1066,7 +1081,7 @@ pub mod {} {{
 
             match field {{"##)?;
 
-    for f in fields.keys() {
+    for f in &sorted_fields_keys {
         writeln!(&mut s, r##"
                 Field::{} => {{
                     match {}::from_u{}(raw) {{
@@ -1117,7 +1132,7 @@ pub mod {} {{
     
     "##, bits, bits, bits, bits, bits, bits, bits, bits)?;
 
-    for (f, field) in fields {
+    for (f, field) in &sorted_fields {
         let method = f.from_case(Case::Camel).to_case(Case::Snake);
 
         match &field.values {
@@ -1367,7 +1382,7 @@ fn output_command_numeric(
 
     if !auxiliary {
         writeln!(&mut s, r##"
-/// Types and structures associated with the `{}` PMBus command
+/// Types and structures associated with the `{}` B PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
@@ -1933,12 +1948,16 @@ fn output_devices(devices: &HashMap<String, Device>) -> Result<String> {
 
     let name = |str: &str| str.to_case(Case::UpperCamel);
 
+    let mut all: Vec<_> = devices.iter().collect();
+    all.sort();
+
     writeln!(&mut s, r##"
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(C)]
 pub enum Device {{
     Common,"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, "    {},", name(dev.0))?;
     }
 
@@ -1950,7 +1969,7 @@ impl Device {{
     pub fn from_str(str: &str) -> Option<Self> {{
         "##)?;
 
-    for dev in devices {
+    for dev in &all {
         write!(&mut s, r##"if str == Device::{}.name() {{
             Some(Device::{})
         }} else "##, name(dev.0), name(dev.0))?;
@@ -1965,7 +1984,7 @@ impl Device {{
         match self {{
             Device::Common => "<common>","##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s,
             "            Device::{} => \"{}\",", name(dev.0), dev.0)?;
     }
@@ -1977,7 +1996,7 @@ impl Device {{
         match self {{
             Device::Common => "<common>","##)?;
 
-    for (dev, device) in devices {
+    for (dev, device) in &all {
         writeln!(&mut s,
             "            Device::{} => \"{}\",",
             name(dev), device.description)?;
@@ -2011,7 +2030,7 @@ impl Device {{
                 }}
             }},"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, r##"
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
@@ -2053,7 +2072,7 @@ impl Device {{
                 }}
             }},"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, r##"
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
@@ -2086,7 +2105,7 @@ impl Device {{
                 }}
             }},"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, r##"
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
@@ -2120,7 +2139,7 @@ impl Device {{
                 }}
             }},"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, r##"
             Device::{} => match {}::CommandCode::from_u8(code) {{
                 Some(cmd) => {{
@@ -2145,7 +2164,7 @@ impl Device {{
                     cb(&cmd);
             }},"##)?;
 
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, r##"
             Device::{} => if let Some(cmd) = {}::CommandCode::from_u8(code) {{
                     cb(&cmd);
@@ -2156,7 +2175,7 @@ impl Device {{
 
     writeln!(&mut s, r##"
 pub fn devices(mut dev: impl FnMut(Device)) {{"##)?;
-    for dev in devices {
+    for dev in &all {
         writeln!(&mut s, "    dev(Device::{});", name(dev.0))?;
     }
 
@@ -2190,7 +2209,10 @@ pub mod {} {{
 fn output_units(units: &HashSet<Units>) -> Result<String> {
     let mut s = String::new();
 
-    for u in units {
+    let mut all: Vec<_> = units.iter().collect();
+    all.sort();
+
+    for u in all {
         writeln!(&mut s, r##"
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct {:?}(pub f32);"##, u)?;
@@ -2242,7 +2264,11 @@ fn codegen() -> Result<()> {
     let out = output_commands(&cmds, None)?;
     file.write_all(out.as_bytes())?;
 
-    for (cmd, fields) in dbs {
+    let mut all_dbs: Vec<_> = dbs.iter().collect();
+
+    all_dbs.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+
+    for (cmd, fields) in &all_dbs {
         let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
         let out = output_command_data(cmd, fields, bits, bytes)?;
         file.write_all(out.as_bytes())?;
@@ -2293,7 +2319,10 @@ fn codegen() -> Result<()> {
     // our flattened module, and then include it in our flattened file of
     // all devices.
     //
-    for (name, device) in &devices {
+    let mut all: Vec<_> = devices.iter().collect();
+    all.sort();
+
+    for (name, device) in all {
         let dest_path = Path::new(&out_dir).join(format!("{}.rs", name));
         let mut file = File::create(&dest_path)?;
 
@@ -2331,12 +2360,12 @@ fn codegen() -> Result<()> {
         // Now emit data payloads, allowing the device definition to
         // override any common payload.
         //
-        for (cmd, fields) in dbs {
-            if let Some(fields) = dcmds.structured.get(cmd) {
+        for (cmd, fields) in &all_dbs {
+            if let Some(fields) = dcmds.structured.get(*cmd) {
                 let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
                 file.write_all(out.as_bytes())?;
-                dcmds.structured.remove(cmd);
+                dcmds.structured.remove(*cmd);
             } else {
                 let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
                 let out = output_command_data(cmd, fields, bits, bytes)?;
@@ -2344,7 +2373,10 @@ fn codegen() -> Result<()> {
             }
         }
 
-        for (cmd, fields) in &dcmds.structured {
+        let mut structured_sorted: Vec<_> = dcmds.structured.iter().collect();
+        structured_sorted.sort_by(|a, b| a.0.cmp(b.0));
+
+        for (cmd, fields) in &structured_sorted {
             let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
             let out = output_command_data(cmd, fields, bits, bytes)?;
             file.write_all(out.as_bytes())?;
@@ -2398,7 +2430,11 @@ fn codegen() -> Result<()> {
                 output_aux_numerics(&aux.numerics, &sizes, &mut units, coeff)?;
             file.write_all(out.as_bytes())?;
 
-            for (aux, fields) in &aux.structured {
+            let mut aux_structured_sorted: Vec<_> = aux.structured.iter().collect();
+            aux_structured_sorted.sort_by(|a, b| a.0.cmp(b.0));
+
+
+            for (aux, fields) in &aux_structured_sorted {
                 let (bits, bytes) = validate(aux, fields, &sizes, &mut units)?;
 
                 let out = output_aux_data(aux, fields, bits, bytes)?;
