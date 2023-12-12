@@ -174,10 +174,12 @@
         // Strangely, each unit is 450ns
         ("MFR_KS_PRETRIG", FixedPoint(Factor(2.22222222222)), Microseconds),
 
-        // As with MFR_RC_LEVEL, this is fixed-point -- but with no indicator
-        // what the factor is. And as with MFR_RC_LEVEL, the factor appears to 
-        // to be 10.
-        ("MFR_FAST_VIN_OFF_OFFSET", FixedPoint(Factor(10)), Volts),
+        // As with MFR_RC_LEVEL, this is fixed-point -- but there is no indicator
+        // in the datasheet as to the factor.  From conversations with Flex,
+	// the default value (0x20) is 0.5V, which yields a factor of 64 (that
+	// is, two bits to the left of the decimal point and eight bits to the
+	// right).
+        ("MFR_FAST_VIN_OFF_OFFSET", FixedPoint(Factor(64)), Volts),
 
         ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
 
