@@ -281,27 +281,6 @@
                 values: FixedPointUnits(Factor(50), Amperes),
             )
         },
-
-/*
-        "MFR_TEMP_COMPENSATION": {
-            "DeadtimeAdd2": (
-                name: "Dead time at levels below threshold 2",
-                bits: Bitrange(High(63), Low(56)),
-                values: Units(Nanoseconds),
-                Scaled(Nanoseconds, 0.10),
-                ScaledOffset(
-                Scaled(Amperes, 0.050)
-
-
-
-
-                Celsius(0.25)
-                Volts(0.0001)
-                Millivolts(
-                Amps(
-                Milliamps(
-*/
-
     },
 
     synonyms: Some([
