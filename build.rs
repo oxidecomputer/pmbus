@@ -57,6 +57,8 @@ enum Units {
     Watts,
     MillivoltsPerAmp,
     MillivoltsPerCelsius,
+    MillivoltsPerLSB,
+    MilliampsPerLSB,
     Percent,
     Unitless,
 }
@@ -79,6 +81,8 @@ impl Units {
             Units::VoltsPerMicrosecond => "V/μs",
             Units::MillivoltsPerAmp => "mV/A",
             Units::MillivoltsPerCelsius => "mV/°C",
+            Units::MilliampsPerLSB => "mA/LSB",
+            Units::MillivoltsPerLSB => "mV/LSB",
             Units::Percent => "%",
             Units::Unitless => "",
         }
@@ -99,6 +103,8 @@ enum Values<T> {
     Sentinels(T),
     /// Value is of form: real_value = value / Factor
     FixedPointUnits(Factor, Units),
+    /// Value is of form: real_value = signed_value / Factor
+    SignedFixedPointUnits(Factor, Units),
     /// Value is of form: real_value = Base**value / Factor
     LogFactorUnits(Base, Factor, Units),
 }
@@ -186,6 +192,7 @@ struct Auxiliaries {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Commands {
     all: Vec<Command>,
     numerics: Vec<CommandNumericFormat>,
@@ -193,6 +200,12 @@ struct Commands {
     structured: HashMap<String, Fields>,
     synonyms: Option<Vec<CommandSynonym>>,
     auxiliaries: Option<Auxiliaries>,
+
+    /// The presence of this field is a little ridiculous:  at least one part
+    /// has all of its block-sized commands be big-endian (!!) rather than the
+    /// little-endian that PMBus explicitly mandates for all fields.
+    #[serde(default)]
+    blocks_are_big_endian: bool,
 }
 
 #[derive(Debug, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
@@ -202,6 +215,13 @@ struct Device {
     part: String,
     description: String,
     coefficients: Option<Coefficients>,
+}
+
+#[derive(Copy, Clone, Debug)]
+struct DataEncoding {
+    bits: usize,
+    bytes: usize,
+    big_endian: bool,
 }
 
 enum OutputCommand<'a> {
@@ -527,11 +547,12 @@ fn bitrange(bits: &Bits) -> (u8, u8) {
 
 #[rustfmt::skip::macros(bail)]
 fn validate(
+    cmds: &Commands,
     cmd: &str,
     fields: &Fields,
     sizes: &HashMap<String, Option<usize>>,
     units: &mut HashSet<Units>,
-) -> Result<(usize, usize)> {
+) -> Result<DataEncoding> {
     let mut highest = 0;
     let fields = &fields.0;
 
@@ -577,8 +598,12 @@ fn validate(
             }
         }
 
-        if let Values::FixedPointUnits(_, unit) = field.values {
-            units.insert(unit);
+        match field.values {
+            Values::FixedPointUnits(_, unit)
+            | Values::SignedFixedPointUnits(_, unit) => {
+                units.insert(unit);
+            }
+            _ => {}
         }
     }
 
@@ -588,9 +613,17 @@ fn validate(
     //
     if bits == 128 {
         let bits = (highest + 1).next_power_of_two();
-        Ok((bits.into(), ((highest + 7) / 8).into()))
+        Ok(DataEncoding {
+            bits: bits.into(),
+            bytes: ((highest + 7) / 8).into(),
+            big_endian: cmds.blocks_are_big_endian,
+        })
     } else {
-        Ok((bits, size))
+        Ok(DataEncoding {
+            bits,
+            bytes: size,
+            big_endian: false,
+        })
     }
 }
 
@@ -630,6 +663,7 @@ fn output_value(
         Values::Sentinels(ref v) => v,
         Values::Scalar(_)
         | Values::FixedPointUnits(..)
+        | Values::SignedFixedPointUnits(..)
         | Values::LogFactorUnits(..) => {
             return output_scalar(name, width);
         }
@@ -688,11 +722,13 @@ fn output_value(
 fn output_command(
     cmd: OutputCommand,
     fields: &Fields,
-    bits: usize,
-    bytes: usize,
+    encoding: &DataEncoding,
 ) -> Result<String> {
     let mut s = String::new();
     let fields = &fields.0;
+
+    let bits = encoding.bits;
+    let bytes = encoding.bytes;
 
     let mut sorted_fields: Vec<_> = fields.iter().collect();
     sorted_fields.sort_by(|a, b| a.0.cmp(b.0));
@@ -894,7 +930,9 @@ pub mod {} {{
 
     for (f, field) in &sorted_fields {
         match field.values {
-            Values::Scalar(_) | Values::FixedPointUnits(..) => {
+            Values::Scalar(_)
+            | Values::FixedPointUnits(..)
+            | Values::SignedFixedPointUnits(..) => {
                 writeln!(&mut s, "                Value::{}(_) => true,", f)?;
             }
             _ => {}
@@ -919,6 +957,7 @@ pub mod {} {{
             }
             Values::Scalar(_)
             | Values::FixedPointUnits(..)
+            | Values::SignedFixedPointUnits(..)
             | Values::LogFactorUnits(..) => {
                 writeln!(
                     &mut s,
@@ -958,6 +997,19 @@ pub mod {} {{
                         crate::Value::raw(self) as f32 / ({}_f32)
                     )
                 }}"##, f, u.suffix(), factor)?;
+            }
+
+            Values::SignedFixedPointUnits(Factor(factor), u) => {
+                let (high, low) = bitrange(&field.bits);
+                let width = high - low + 1;
+
+                writeln!(&mut s, r##"
+                Value::{}(_) => {{
+                    write!(
+                        f, "{{:.3}}{}",
+                        (crate::Value::raw(self) as i{}) as f32 / ({}_f32)
+                    )
+                }}"##, f, u.suffix(), width, factor)?;
             }
 
             Values::LogFactorUnits(Base(base), Factor(factor), u) => {
@@ -1002,7 +1054,7 @@ pub mod {} {{
     writeln!(&mut s, r##"
         pub fn from_slice(slice: &[u8]) -> Option<Self> {{"##)?;
 
-    if bits == bytes * 8 {
+    if bits == bytes * 8 && !encoding.big_endian {
         writeln!(&mut s, r##"
             use core::convert::TryInto;
 
@@ -1016,15 +1068,29 @@ pub mod {} {{
     } else {
         writeln!(&mut s, "            let v: u{} = ", bits)?;
 
-        for i in 0..bytes {
-            if i == 0 {
-                writeln!(&mut s, "{:16}(slice[{}] as u{})", "", i, bits)?;
-            } else {
-                writeln!(&mut s,
-                    "{:16}| ((slice[{}] as u{}) << {}){}", "",
-                    i, bits, i * 8,
-                    if i == bytes - 1 { ";" } else { "" }
-                )?;
+        if encoding.big_endian {
+            for (i, ndx) in (0..bytes).rev().enumerate() {
+                if i == 0 {
+                    writeln!(&mut s, "{:16}(slice[{}] as u{})", "", ndx, bits)?;
+                } else {
+                    writeln!(&mut s,
+                        "{:16}| ((slice[{}] as u{}) << {}){}", "",
+                        ndx, bits, i * 8,
+                        if i == bytes - 1 { ";" } else { "" }
+                    )?;
+                }
+            }
+        } else {
+            for i in 0..bytes {
+                if i == 0 {
+                    writeln!(&mut s, "{:16}(slice[{}] as u{})", "", i, bits)?;
+                } else {
+                    writeln!(&mut s,
+                        "{:16}| ((slice[{}] as u{}) << {}){}", "",
+                        i, bits, i * 8,
+                        if i == bytes - 1 { ";" } else { "" }
+                    )?;
+                }
             }
         }
 
@@ -1039,7 +1105,8 @@ pub mod {} {{
 
     for i in 0..bytes {
         writeln!(&mut s,
-            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "", i, i * 8
+            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "",
+            if encoding.big_endian { bytes - i - 1 } else { i }, i * 8
         )?;
     }
 
@@ -1177,6 +1244,27 @@ pub mod {} {{
             val: crate::units::{:?}
         ) -> Result<(), Error> {{
             self.set_val(Field::{}, (val.0 * ({}_f32)) as u{})
+        }}"##, method, unit, f, factor, bits)?;
+            }
+
+            Values::SignedFixedPointUnits(Factor(factor), unit) => {
+                let (high, low) = bitrange(&field.bits);
+                let width = high - low + 1;
+                let shift = bits - width as usize;
+
+                writeln!(&mut s, r##"
+        pub fn get_{}(&self) -> crate::units::{:?} {{
+            crate::units::{:?}(
+                (((self.get_val(Field::{}) << {}) as i{}) >> {}) as f32 / ({}_f32)
+            )
+        }}"##, method, unit, unit, f, shift, bits, shift, factor)?;
+
+                writeln!(&mut s, r##"
+        pub fn set_{}(
+            &mut self,
+            val: crate::units::{:?}
+        ) -> Result<(), Error> {{
+            self.set_val_signed(Field::{}, (val.0 * ({}_f32)) as i{})
         }}"##, method, unit, f, factor, bits)?;
             }
 
@@ -1347,19 +1435,17 @@ pub mod {} {{
 fn output_command_data(
     cmd: &str,
     fields: &Fields,
-    bits: usize,
-    bytes: usize,
+    encoding: &DataEncoding,
 ) -> Result<String> {
-    output_command(OutputCommand::PMBus(cmd), fields, bits, bytes)
+    output_command(OutputCommand::PMBus(cmd), fields, encoding)
 }
 
 fn output_aux_data(
     aux: &str,
     fields: &Fields,
-    bits: usize,
-    bytes: usize,
+    encoding: &DataEncoding,
 ) -> Result<String> {
-    output_command(OutputCommand::Auxiliary(aux), fields, bits, bytes)
+    output_command(OutputCommand::Auxiliary(aux), fields, encoding)
 }
 
 #[rustfmt::skip::macros(writeln)]
@@ -2269,8 +2355,8 @@ fn codegen() -> Result<()> {
     all_dbs.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
 
     for (cmd, fields) in &all_dbs {
-        let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
-        let out = output_command_data(cmd, fields, bits, bytes)?;
+        let encoding = validate(&cmds, cmd, fields, &sizes, &mut units)?;
+        let out = output_command_data(cmd, fields, &encoding)?;
         file.write_all(out.as_bytes())?;
     }
 
@@ -2283,8 +2369,9 @@ fn codegen() -> Result<()> {
             // which we're a synonym.
             //
             if let Some(fields) = dbs.get(&synonym.1) {
-                let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
-                let out = output_command_data(cmd, fields, bits, bytes)?;
+                let encoding =
+                    validate(&cmds, cmd, fields, &sizes, &mut units)?;
+                let out = output_command_data(cmd, fields, &encoding)?;
                 file.write_all(out.as_bytes())?;
             } else {
                 bail!(
@@ -2362,13 +2449,15 @@ fn codegen() -> Result<()> {
         //
         for (cmd, fields) in &all_dbs {
             if let Some(fields) = dcmds.structured.get(*cmd) {
-                let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
-                let out = output_command_data(cmd, fields, bits, bytes)?;
+                let encoding =
+                    validate(&dcmds, cmd, fields, &dsizes, &mut units)?;
+                let out = output_command_data(cmd, fields, &encoding)?;
                 file.write_all(out.as_bytes())?;
                 dcmds.structured.remove(*cmd);
             } else {
-                let (bits, bytes) = validate(cmd, fields, &sizes, &mut units)?;
-                let out = output_command_data(cmd, fields, bits, bytes)?;
+                let encoding =
+                    validate(&dcmds, cmd, fields, &sizes, &mut units)?;
+                let out = output_command_data(cmd, fields, &encoding)?;
                 file.write_all(out.as_bytes())?;
             }
         }
@@ -2377,8 +2466,8 @@ fn codegen() -> Result<()> {
         structured_sorted.sort_by(|a, b| a.0.cmp(b.0));
 
         for (cmd, fields) in &structured_sorted {
-            let (bits, bytes) = validate(cmd, fields, &dsizes, &mut units)?;
-            let out = output_command_data(cmd, fields, bits, bytes)?;
+            let encoding = validate(&dcmds, cmd, fields, &dsizes, &mut units)?;
+            let out = output_command_data(cmd, fields, &encoding)?;
             file.write_all(out.as_bytes())?;
         }
 
@@ -2406,8 +2495,8 @@ fn codegen() -> Result<()> {
                     },
                 };
 
-                let (bits, bytes) = validate(cmd, fields, s, &mut units)?;
-                let out = output_command_data(cmd, fields, bits, bytes)?;
+                let encoding = validate(&cmds, cmd, fields, s, &mut units)?;
+                let out = output_command_data(cmd, fields, &encoding)?;
                 file.write_all(out.as_bytes())?;
             }
         }
@@ -2430,14 +2519,15 @@ fn codegen() -> Result<()> {
                 output_aux_numerics(&aux.numerics, &sizes, &mut units, coeff)?;
             file.write_all(out.as_bytes())?;
 
-            let mut aux_structured_sorted: Vec<_> = aux.structured.iter().collect();
+            let mut aux_structured_sorted: Vec<_> =
+                aux.structured.iter().collect();
             aux_structured_sorted.sort_by(|a, b| a.0.cmp(b.0));
 
-
             for (aux, fields) in &aux_structured_sorted {
-                let (bits, bytes) = validate(aux, fields, &sizes, &mut units)?;
+                let encoding =
+                    validate(&cmds, aux, fields, &sizes, &mut units)?;
 
-                let out = output_aux_data(aux, fields, bits, bytes)?;
+                let out = output_aux_data(aux, fields, &encoding)?;
                 file.write_all(out.as_bytes())?;
             }
         }

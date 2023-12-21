@@ -4,57 +4,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use pmbus::*;
-
-fn mode() -> VOutModeCommandData {
-    panic!("unexpected call to get VOutModeCommandData");
-}
-
-macro_rules! validate {
-    ($cmd:tt, $raw:expr, $val:expr, $units:tt) => {
-        let cmd = $cmd::CommandData::from_slice(&$raw).unwrap();
-        let c = stringify!($cmd);
-        let r = stringify!($raw);
-
-        match cmd.get() {
-            Ok($units(val)) => {
-                let delta = ($val as f32 - val).abs();
-
-                if delta > 0.0001 {
-                    panic!("{} failed: expected {}, found {}", c, $val, val);
-                }
-            }
-            Err(err) => {
-                panic!("{}({}) failed: {:?}", c, r, err);
-            }
-        }
-
-        println!("{}({}) = {:?}", c, r, cmd.get());
-    };
-
-    ($cmd:tt, $vout:expr, $raw:expr, $val:expr, $units:tt) => {
-        let cmd = $cmd::CommandData::from_slice(&$raw).unwrap();
-        let c = stringify!($cmd);
-        let r = stringify!($raw);
-
-        match cmd.get($vout) {
-            Ok($units(val)) => {
-                let delta = ($val as f32 - val).abs();
-
-                if delta > 0.0001 {
-                    panic!("{} failed: expected {}, found {}", c, $val, val);
-                }
-            }
-            _ => {
-                panic!("{}({}) failed", c, r);
-            }
-        }
-
-        println!("{}({}) = {:?}", c, r, cmd.get($vout));
-    };
-}
+mod common;
+use common::*;
 
 #[test]
-fn verify_cmds() {
+fn core_verify_cmds() {
     macro_rules! verify {
         ($val:expr, $cmd:tt, $write:tt, $read:tt) => {
             assert_eq!(CommandCode::$cmd as u8, $val);
@@ -297,7 +251,7 @@ fn verify_cmds() {
 }
 
 #[test]
-fn verify_operation() {
+fn core_verify_operation() {
     let data = commands::OPERATION::CommandData(0x4);
 
     data.interpret(mode, |field, value| {
@@ -307,7 +261,7 @@ fn verify_operation() {
 }
 
 #[test]
-fn verify_operation_set() {
+fn core_verify_operation_set() {
     use commands::OPERATION::*;
     let mut data = CommandData(0x4);
 
@@ -329,7 +283,7 @@ fn verify_operation_set() {
 }
 
 #[test]
-fn raw_operation() {
+fn core_raw_operation() {
     CommandCode::OPERATION
         .interpret(&[0x4], mode, |field, value| {
             std::println!("{} = {}", field.desc(), value);
@@ -338,7 +292,7 @@ fn raw_operation() {
 }
 
 #[test]
-fn page() {
+fn core_page() {
     use commands::PAGE::*;
 
     let mut data = CommandData(1);
@@ -361,7 +315,7 @@ fn page() {
 }
 
 #[test]
-fn phase() {
+fn core_phase() {
     use commands::PHASE::*;
 
     let mut data = CommandData(1);
@@ -383,96 +337,8 @@ fn phase() {
     assert_eq!(data.0, 0xde);
 }
 
-fn dump_data(
-    val: u32,
-    width: Bitwidth,
-    v: &mut std::vec::Vec<((Bitpos, Bitwidth), &str, std::string::String)>,
-) {
-    let width = width.0 as usize;
-    let nibble = 4;
-    let maxwidth = 16;
-
-    if width > maxwidth {
-        std::println!("{:?}", v);
-        return;
-    }
-
-    let indent = (maxwidth - width) + ((maxwidth - width) / nibble);
-
-    std::print!("{:indent$}", "", indent = indent);
-    std::print!("0b");
-
-    for v in (0..width).step_by(nibble) {
-        std::print!(
-            "{:04b}{}",
-            (val >> ((width - nibble) - v)) & 0xf,
-            if v + nibble < width { "_" } else { "\n" }
-        )
-    }
-
-    while v.len() > 0 {
-        let mut cur = width - 1;
-
-        std::print!("{:indent$}", "", indent = indent);
-        std::print!("  ");
-
-        for i in 0..v.len() {
-            while cur > v[i].0 .0 .0 as usize {
-                if cur % nibble == 0 {
-                    std::print!(" ");
-                }
-
-                std::print!(" ");
-                cur -= 1;
-            }
-
-            if i < v.len() - 1 {
-                std::print!("|");
-
-                if cur % nibble == 0 {
-                    std::print!(" ");
-                }
-
-                cur -= 1;
-            } else {
-                std::print!("+--");
-
-                while cur > 0 {
-                    std::print!("-");
-
-                    if cur % nibble == 0 {
-                        std::print!("-");
-                    }
-
-                    cur -= 1;
-                }
-
-                std::println!(" {} = {}", v[i].1, v[i].2);
-            }
-        }
-
-        v.pop();
-    }
-}
-
-fn dump(data: &impl CommandData) {
-    let (val, width) = data.raw();
-    let mut v = std::vec![];
-
-    data.command(|cmd| {
-        std::println!("\n{:?}: ", cmd);
-    });
-
-    data.interpret(mode, |field, value| {
-        v.push((field.bits(), field.desc(), std::format!("{}", value)));
-    })
-    .unwrap();
-
-    dump_data(val, width, &mut v);
-}
-
 #[test]
-fn verify_status_word() {
+fn core_verify_status_word() {
     use commands::STATUS_WORD::*;
 
     let data = CommandData::from_slice(&[0x43, 0x18]).unwrap();
@@ -485,7 +351,7 @@ fn verify_status_word() {
 }
 
 #[test]
-fn verify_on_off_config() {
+fn core_verify_on_off_config() {
     use commands::ON_OFF_CONFIG::*;
 
     let data = CommandData::from_slice(&[0x17]).unwrap();
@@ -493,7 +359,7 @@ fn verify_on_off_config() {
 }
 
 #[test]
-fn verify_capability() {
+fn core_verify_capability() {
     use commands::CAPABILITY::*;
 
     let data = CommandData::from_slice(&[0xd0]).unwrap();
@@ -504,49 +370,42 @@ fn verify_capability() {
 }
 
 #[test]
-fn verify_vout_mode() {
+fn core_verify_vout_mode() {
     use commands::VOUT_MODE::*;
     let data = CommandData::from_slice(&[0x97]).unwrap();
     dump(&data);
 }
 
 #[test]
-fn verify_status_vout() {
+fn core_verify_status_vout() {
     use commands::STATUS_VOUT::*;
     let data = CommandData::from_slice(&[0x0]).unwrap();
     dump(&data);
 }
 
 #[test]
-fn verify_status_iout() {
+fn core_verify_status_iout() {
     use commands::STATUS_IOUT::*;
     let data = CommandData::from_slice(&[0x0]).unwrap();
     dump(&data);
 }
 
 #[test]
-fn verify_status_cml() {
+fn core_verify_status_cml() {
     use commands::STATUS_CML::*;
     let data = CommandData::from_slice(&[0x82]).unwrap();
     dump(&data);
 }
 
 #[test]
-fn verify_status_other() {
+fn core_verify_status_other() {
     use commands::STATUS_OTHER::*;
     let data = CommandData::from_slice(&[0x1]).unwrap();
     dump(&data);
 }
 
 #[test]
-fn verify_status_adm1272() {
-    use commands::adm1272::STATUS_MFR_SPECIFIC::*;
-    let data = CommandData::from_slice(&[0x40]).unwrap();
-    dump(&data);
-}
-
-#[test]
-fn device_list() {
+fn core_device_list() {
     let code = commands::CommandCode::STATUS_MFR_SPECIFIC as u8;
 
     std::println!("code is {:x}", code);
@@ -600,7 +459,7 @@ fn synonyms(codes: &[commands::CommandCode], payload: &[u8]) {
 }
 
 #[test]
-fn synonyms_ov() {
+fn core_synonyms_ov() {
     use commands::*;
 
     let codes = [
@@ -617,7 +476,7 @@ fn synonyms_ov() {
 }
 
 #[test]
-fn synonyms_oc() {
+fn core_synonyms_oc() {
     use commands::*;
 
     let codes = [
@@ -630,265 +489,7 @@ fn synonyms_oc() {
 }
 
 #[test]
-fn tps_read_all() {
-    use commands::tps546b24a::READ_ALL::*;
-
-    let data = CommandData::from_slice(&[
-        0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00, 0x00,
-        0x00, 0x00,
-    ])
-    .unwrap();
-
-    assert_eq!(data.get_read_vin(), 0xd2fe);
-    assert_eq!(data.get_read_vout(), 0x0263);
-    assert_eq!(data.get_status_word(), 0x0002);
-    assert_eq!(data.get_read_temperature_1(), 0xdbd8);
-}
-
-#[test]
-fn tps_read_all_data() {
-    let _code = commands::tps546b24a::CommandCode::READ_ALL as u8;
-    let mode = || VOutModeCommandData::from_slice(&[0x97]).unwrap();
-
-    let data = [
-        0x02, 0x00, 0x63, 0x02, 0xee, 0xad, 0xd8, 0xdb, 0xfe, 0xd2, 0x00, 0x00,
-        0x00, 0x00,
-    ];
-
-    for code in 0..=0xff {
-        let _ =
-            Device::Tps546B24A.interpret(code, &data[0..], mode, |f, _v| {
-                std::println!("f is {}", f.desc());
-            });
-    }
-}
-
-#[test]
-fn tps_passthrough() {
-    //
-    // This is a bit of a mouthful of a test to assure that common registers
-    // are correctly passed through into device-specific modules.
-    //
-    use commands::tps546b24a::CAPABILITY::*;
-
-    let code = commands::tps546b24a::CommandCode::CAPABILITY as u8;
-    let payload = &[0xd0];
-    let mut result = None;
-
-    let name = Field::MaximumBusSpeed.name();
-
-    let cap = CommandData::from_slice(payload).unwrap();
-    let val = cap.get(Field::MaximumBusSpeed).unwrap();
-    let target = std::format!("{}", val);
-
-    Device::Tps546B24A
-        .interpret(code, payload, mode, |f, v| {
-            if f.name() == name {
-                result = Some(std::format!("{}", v));
-            }
-        })
-        .unwrap();
-
-    assert_eq!(result, Some(target));
-}
-
-#[test]
-fn bmr480_default() {
-    use commands::bmr480::*;
-
-    let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
-    dump(&data.unwrap());
-
-    let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
-    dump(&data.unwrap());
-
-    let data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
-        0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
-    ])
-    .unwrap();
-
-    assert_eq!(data.get_trim_limit(), units::Volts(0.170));
-
-    dump(&data);
-}
-
-#[test]
-fn bmr491_default() {
-    use commands::bmr491::*;
-
-    let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
-    dump(&data.unwrap());
-
-    let data = MFR_RESPONSE_UNIT_CFG::CommandData::from_slice(&[0x51]);
-    dump(&data.unwrap());
-
-    let mut data = MFR_ISHARE_THRESHOLD::CommandData::from_slice(&[
-        0x10, 0x10, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01,
-    ])
-    .unwrap();
-
-    assert_eq!(data.get_trim_limit(), units::Volts(0.170));
-
-    assert_eq!(data.set_trim_limit(units::Volts(0.136)), Ok(()));
-    assert_eq!(data.get_trim_limit(), units::Volts(0.136));
-
-    dump(&data);
-}
-
-#[test]
-fn bmr491_pgood_polarity() {
-    use commands::bmr491::*;
-
-    let data = MFR_PGOOD_POLARITY::CommandData::from_slice(&[0x01]);
-    dump(&data.unwrap());
-}
-
-#[test]
-fn bmr480_iout() {
-    use commands::bmr480::*;
-
-    let data = [
-        (0xf028u16, 10.0),
-        (0xf133, 76.75),
-        (0xf040, 16.0),
-        (0xf004, 1.0),
-        (0xf051, 20.25),
-        (0xf079, 30.25),
-        (0xf00a, 2.5),
-        (0xf0c9, 50.25),
-        (0xf07d, 31.25),
-        (0xf00b, 2.75),
-        (0xf009, 2.25),
-    ];
-
-    for d in &data {
-        let raw = d.0.to_le_bytes();
-        let iout = READ_IOUT::CommandData::from_slice(&raw).unwrap();
-        assert_eq!(iout.get(), Ok(units::Amperes(d.1)));
-
-        iout.interpret(mode, |f, v| {
-            assert_eq!(f.bitfield(), false);
-            std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-        })
-        .unwrap();
-    }
-}
-
-#[test]
-fn bmr480_vout() {
-    use commands::bmr480::*;
-
-    let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
-
-    let data = [
-        (0x0071u16, 0.05517578f32),
-        (0x0754, 0.9160156),
-        (0x5f72, 11.930664),
-        (0x5f80, 11.9375),
-        (0x5fd3, 11.978027),
-        (0x5fdb, 11.981934),
-        (0x5fe4, 11.986328),
-        (0x5fe6, 11.987305),
-        (0x5fec, 11.990234),
-        (0x5fee, 11.991211),
-        (0x5ff7, 11.995605),
-        (0x6007, 12.003418),
-        (0x6039, 12.027832),
-        (0x603f, 12.030762),
-        (0x6091, 12.070801),
-        (0x65b7, 12.714355),
-        (0x65d8, 12.730469),
-        (0x670a, 12.879883),
-        (0x68b0, 13.0859375),
-        (0x69c1, 13.219238),
-        (0x69e2, 13.235352),
-    ];
-
-    for d in &data {
-        let raw = d.0.to_le_bytes();
-        let vout = READ_VOUT::CommandData::from_slice(&raw).unwrap();
-        assert_eq!(vout.get(mode()), Ok(units::Volts(d.1)));
-
-        vout.interpret(mode, |f, v| {
-            assert_eq!(f.bitfield(), false);
-            std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-        })
-        .unwrap();
-    }
-}
-
-#[test]
-fn bmr480_vin() {
-    use commands::bmr480::*;
-
-    let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
-
-    let data = [
-        (0x0a5cu16, 1208.0),
-        (0x0a8c, 1304.0),
-        (0xe9a0, 52.0),
-        (0xe9a1, 52.125),
-        (0xe9a2, 52.25),
-        (0xe9a3, 52.375),
-        (0xe9a4, 52.5),
-        (0xe9a6, 52.75),
-        (0xe9a7, 52.875),
-    ];
-
-    for d in &data {
-        let raw = d.0.to_le_bytes();
-        let vin = READ_VIN::CommandData::from_slice(&raw).unwrap();
-        assert_eq!(vin.get(), Ok(units::Volts(d.1)));
-
-        vin.interpret(mode, |f, v| {
-            assert_eq!(f.bitfield(), false);
-            std::println!("{} 0x{:04x} = {}", f.name(), d.0, v);
-        })
-        .unwrap();
-    }
-}
-
-#[test]
-fn bmr491_rc_level() {
-    use commands::bmr491::*;
-    let rc = MFR_RC_LEVEL::CommandData::from_slice(&[0xc8]).unwrap();
-    assert_eq!(rc.get(), Ok(units::Volts(20.0)));
-}
-
-#[test]
-fn bmr491_ks_pretrig() {
-    use commands::bmr491::*;
-    let ks = MFR_KS_PRETRIG::CommandData::from_slice(&[0x89]).unwrap();
-    assert_eq!(ks.get(), Ok(units::Microseconds(61.649998)));
-}
-
-#[test]
-fn bmr491_temp_compensation() {
-    use commands::bmr491::*;
-    let temp = MFR_TEMP_COMPENSATION::CommandData::from_slice(&[
-        0x28, 0x33, 0x80, 0x85, 0x00, 0x90, 0x95, 0x00,
-    ])
-    .unwrap();
-
-    assert_eq!(
-        temp.get_edac_slope(),
-        units::MillivoltsPerCelsius(0.3112793)
-    );
-    dump(&temp);
-}
-
-#[test]
-fn bmr491_vin_offset() {
-    use commands::bmr491::*;
-    let offset =
-        MFR_VIN_OFFSET::CommandData::from_slice(&[0x00, 0x04, 0x00, 0x09])
-            .unwrap();
-
-    dump(&offset);
-}
-
-#[test]
-fn mutate_operation() {
+fn core_mutate_operation() {
     use commands::OPERATION::*;
 
     let mut data = CommandData(0x4);
@@ -912,7 +513,7 @@ fn mutate_operation() {
 }
 
 #[test]
-fn mutate_overflow_replacement() {
+fn core_mutate_overflow_replacement() {
     use commands::OPERATION::*;
 
     let mut data = CommandData(0x4);
@@ -929,7 +530,7 @@ fn mutate_overflow_replacement() {
 }
 
 #[test]
-fn mutate_invalid() {
+fn core_mutate_invalid() {
     use commands::OPERATION::*;
 
     let mut data = CommandData(0x4);
@@ -946,7 +547,7 @@ fn mutate_invalid() {
 }
 
 #[test]
-fn vout_command_set() {
+fn core_vout_command_set() {
     let mut vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
@@ -994,7 +595,7 @@ fn vout_command_set() {
 }
 
 #[test]
-fn vout_command_mutate() {
+fn core_vout_command_mutate() {
     let vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
@@ -1030,7 +631,7 @@ fn vout_command_mutate() {
 }
 
 #[test]
-fn device_vout_command_mutate() {
+fn core_device_vout_command_mutate() {
     let vout = VOutModeCommandData::from_slice(&[0x97]).unwrap();
     use commands::VOUT_COMMAND::*;
     dump(&vout);
@@ -1061,7 +662,7 @@ fn device_vout_command_mutate() {
 }
 
 #[test]
-fn sentinels() {
+fn core_sentinels() {
     use commands::OPERATION::*;
 
     let data = CommandData::from_slice(&[0x88]).unwrap();
@@ -1100,7 +701,7 @@ fn sentinels() {
 }
 
 #[test]
-fn device_sentinels() {
+fn core_device_sentinels() {
     Device::Common
         .sentinels(1, Bitpos(4), |val| {
             match val.name() {
@@ -1135,7 +736,7 @@ fn device_sentinels() {
 }
 
 #[test]
-fn device_fields() {
+fn core_device_fields() {
     Device::Common
         .fields(1, |f| {
             let bits = f.bits();
@@ -1227,7 +828,7 @@ fn print_command(
 }
 
 #[test]
-fn device_commands() {
+fn core_device_commands() {
     devices(|d| {
         std::println!("==== {}: {} ====", d.name(), d.desc());
         for i in 0..=0xff {
@@ -1236,198 +837,4 @@ fn device_commands() {
             });
         }
     });
-}
-
-#[test]
-fn adm1272_direct() {
-    use commands::adm1272::*;
-    use units::*;
-
-    let voltage = Coefficients {
-        m: 4062,
-        b: 0,
-        R: -2,
-    };
-    let current = Coefficients {
-        m: 663,
-        b: 20480,
-        R: -1,
-    };
-    let power = Coefficients {
-        m: 10535,
-        b: 0,
-        R: -3,
-    };
-
-    let vin = READ_VIN::CommandData::from_slice(&[0x6d, 0x07]).unwrap();
-    assert_eq!(vin.get(&voltage), Ok(Volts(46.799606)));
-
-    let vin = PEAK_VIN::CommandData::from_slice(&[0x04, 0x09]).unwrap();
-    assert_eq!(vin.get(&voltage), Ok(Volts(56.8193)));
-
-    let vout = READ_VOUT::CommandData::from_slice(&[0x51, 0x08]).unwrap();
-    assert_eq!(vout.get(&voltage), Ok(Volts(52.412605)));
-
-    let vout = PEAK_VOUT::CommandData::from_slice(&[0x03, 0x09]).unwrap();
-    assert_eq!(vout.get(&voltage), Ok(Volts(56.79468)));
-
-    let pin = READ_PIN::CommandData::from_slice(&[0x10, 0x01]).unwrap();
-    assert_eq!(pin.get(&power), Ok(Watts(25.818699)));
-
-    let pin = PEAK_PIN::CommandData::from_slice(&[0x3d, 0x01]).unwrap();
-    assert_eq!(pin.get(&power), Ok(Watts(30.090176)));
-
-    let iout = READ_IOUT::CommandData::from_slice(&[0x24, 0x08]).unwrap();
-    assert_eq!(iout.get(&current), Ok(Amperes(0.54298645)));
-
-    let iout = PEAK_IOUT::CommandData::from_slice(&[0x2b, 0x08]).unwrap();
-    assert_eq!(iout.get(&current), Ok(Amperes(0.64856714)));
-}
-
-#[test]
-fn raa228926_defaults() {
-    use commands::raa228926::*;
-    use units::*;
-
-    let vout = VOutModeCommandData::from_slice(&[0x40]).unwrap();
-
-    validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
-    validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
-    validate!(VOUT_MARGIN_HIGH, vout, [0xb1, 0x03], 0.945, Volts);
-    validate!(VOUT_MARGIN_LOW, vout, [0x57, 0x03], 0.855, Volts);
-    validate!(
-        VOUT_TRANSITION_RATE,
-        [0xc4, 0x09],
-        0.025,
-        VoltsPerMicrosecond
-    );
-    validate!(FREQUENCY_SWITCH, [0x58, 0x02], 600, Kilohertz);
-    validate!(VIN_ON, [0xbc, 0x02], 7, Volts);
-    validate!(VIN_OFF, [0xf4, 0x01], 5, Volts);
-    validate!(VOUT_OV_FAULT_LIMIT, vout, [0x1c, 0x0c], 3.1, Volts);
-    validate!(IOUT_OC_FAULT_LIMIT, [0x2c, 0x01], 30, Amperes);
-    validate!(OT_FAULT_LIMIT, [0x7d, 0x00], 125, Celsius);
-    validate!(OT_WARN_LIMIT, [0x6e, 0x00], 110, Celsius);
-    validate!(UT_FAULT_LIMIT, [0xd8, 0xff], -40, Celsius);
-    validate!(VIN_OV_FAULT_LIMIT, [0x40, 0x06], 16, Volts);
-    validate!(VIN_OV_WARN_LIMIT, [0x08, 0x07], 18, Volts);
-    validate!(IIN_OC_FAULT_LIMIT, [0x98, 0x3a], 150, Amperes);
-
-    validate!(TON_RISE, [0xf4, 0x01], 0.500, Milliseconds);
-    validate!(TOFF_FALL, [0xf4, 0x01], 0.500, Milliseconds);
-
-    validate!(PEAK_OC_LIMIT, [0x58, 0x02], 60, Amperes);
-    validate!(PEAK_UC_LIMIT, [0xa8, 0xfd], -60, Amperes);
-    validate!(HS_BUS_CURRENT_SCALE, [0x00, 0x40], 1.0, Unitless);
-    validate!(IOUT_ALERT_THRESHOLD, [0xc8, 0x00], 20.0, Amperes);
-
-    let ocuc = PEAK_OCUC_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
-    assert_eq!(ocuc.get_uc_limit(), 6);
-    assert_eq!(ocuc.get_oc_limit(), 6);
-    dump(&ocuc);
-}
-
-#[test]
-fn raa228926_filt() {
-    use commands::raa228926::*;
-    use units::*;
-
-    let filt =
-        SUM_OC_FILT_COUNT::CommandData::from_slice(&[0x96, 0x06]).unwrap();
-
-    dump(&filt);
-    assert_eq!(filt.get_delay(), Microseconds(100.0));
-    assert_eq!(filt.get_filter(), Microseconds(10.666667));
-
-    let filt =
-        IOUT_ALERT_FILT_COUNT::CommandData::from_slice(&[0x00, 0x06]).unwrap();
-
-    assert_eq!(filt.get_filter(), Microseconds(10.666667));
-    dump(&filt);
-}
-
-#[test]
-fn raa229618_defaults() {
-    use commands::raa229618::*;
-    use units::*;
-
-    let vout = VOutModeCommandData::from_slice(&[0x40]).unwrap();
-
-    validate!(VOUT_COMMAND, vout, [0x84, 0x03], 0.9, Volts);
-    validate!(VOUT_MAX, vout, [0xea, 0x0b], 3.05, Volts);
-    validate!(VOUT_MARGIN_HIGH, vout, [0xb1, 0x03], 0.945, Volts);
-    validate!(VOUT_MARGIN_LOW, vout, [0x57, 0x03], 0.855, Volts);
-    validate!(
-        VOUT_TRANSITION_RATE,
-        [0xc4, 0x09],
-        0.025,
-        VoltsPerMicrosecond
-    );
-    validate!(FREQUENCY_SWITCH, [0x58, 0x02], 600, Kilohertz);
-    validate!(VIN_ON, [0xbc, 0x02], 7, Volts);
-    validate!(VIN_OFF, [0xf4, 0x01], 5, Volts);
-    validate!(VOUT_OV_FAULT_LIMIT, vout, [0x1c, 0x0c], 3.1, Volts);
-    validate!(IOUT_OC_FAULT_LIMIT, [0x2c, 0x01], 30, Amperes);
-    validate!(OT_FAULT_LIMIT, [0x7d, 0x00], 125, Celsius);
-    validate!(OT_WARN_LIMIT, [0x6e, 0x00], 110, Celsius);
-    validate!(UT_FAULT_LIMIT, [0xd8, 0xff], -40, Celsius);
-    validate!(VIN_OV_FAULT_LIMIT, [0x40, 0x06], 16, Volts);
-    validate!(VIN_OV_WARN_LIMIT, [0x08, 0x07], 18, Volts);
-    validate!(IIN_OC_FAULT_LIMIT, [0x98, 0x3a], 150, Amperes);
-
-    // Either the value or the factor is incorrect in the datasheet!
-    // validate!(TON_RISE, [0x32, 0x00], 0.500, Milliseconds);
-    // validate!(TOFF_FALL, [0x32, 0x00], 0.500, Milliseconds);
-
-    validate!(BOOTRATE, [0xf4, 0x01], 0.005, VoltsPerMicrosecond);
-    validate!(PEAK_OC_LIMIT, [0x58, 0x02], 60, Amperes);
-    validate!(PEAK_UC_LIMIT, [0xa8, 0xfd], -60, Amperes);
-    validate!(HS_BUS_CURRENT_SCALE, [0x00, 0x40], 1.0, Unitless);
-
-    let ocuc = PEAK_OCUC_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
-    assert_eq!(ocuc.get_uc_limit(), 6);
-    assert_eq!(ocuc.get_oc_limit(), 6);
-    dump(&ocuc);
-
-    let comp =
-        COMPPROP::CommandData::from_slice(&[0xc4, 0x07, 0x09, 0xd9]).unwrap();
-    dump(&comp);
-}
-
-#[test]
-fn raa229618_filt() {
-    use commands::raa229618::*;
-    use units::*;
-
-    let fast =
-        FAST_OC_FILT_COUNT::CommandData::from_slice(&[0x96, 0x06]).unwrap();
-
-    dump(&fast);
-    assert_eq!(fast.get_delay(), Microseconds(100.0));
-    assert_eq!(fast.get_filter(), Microseconds(10.666667));
-
-    let slow =
-        SLOW_OC_FILT_COUNT::CommandData::from_slice(&[0x06, 0x06]).unwrap();
-
-    assert_eq!(slow.get_delay(), Microseconds(1024.2));
-    assert_eq!(slow.get_filter(), Microseconds(10.666667));
-    dump(&slow);
-}
-
-#[test]
-fn raa229618_loopcfg() {
-    use commands::raa229618::LOOPCFG::*;
-
-    let loopcfg = CommandData::from_slice(&[0xf6, 0x71, 0x20, 0x10]).unwrap();
-
-    assert_eq!(
-        loopcfg.get_diode_emulation_mode(),
-        Some(DiodeEmulationMode::Enabled)
-    );
-
-    println!("{:?}", loopcfg.get_minimum_phase_count());
-    println!("{:?}", loopcfg.get_lock_svid());
-    println!("{:?}", loopcfg.get_zero_v_shutdown());
-
-    dump(&loopcfg);
 }

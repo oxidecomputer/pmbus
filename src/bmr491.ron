@@ -37,7 +37,6 @@
         (0x69, "POUT_OP_FAULT_RESPONSE", Illegal, Illegal),
         (0x6a, "POUT_OP_WARN_LIMIT", Illegal, Illegal),
         (0x6b, "PIN_OP_WARN_LIMIT", Illegal, Illegal),
-        (0x80, "STATUS_MFR_SPECIFIC", Illegal, Illegal),
         (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
         (0x83, "READ_KWH_IN", Illegal, Illegal),
@@ -94,6 +93,8 @@
         (0xc6, "MFR_RC_LEVEL", WriteByte, ReadByte),
         (0xc7, "MFR_KS_PRETRIG", WriteByte, ReadByte),
         (0xc8, "MFR_FAST_VIN_OFF_OFFSET", WriteByte, ReadByte),
+        (0xc9, "MFR_ADDRESS_TABLE", WriteBlock, ReadBlock),
+        (0xcf, "MFR_HW_CONFIG", WriteBlock, ReadBlock),
         (0xd0, "MFR_PGOOD_POLARITY", WriteByte, ReadByte),
         (0xd1, "MFR_FAST_OCP_CFG", WriteWord, ReadWord),
         (0xd2, "MFR_RESPONSE_UNIT_CFG", WriteByte, ReadByte),
@@ -112,10 +113,13 @@
         (0xe1, "MFR_TEMP_OFFSET_INT", Illegal, ReadWord),
         (0xe2, "MFR_REMOTE_TEMP_CAL", Illegal, ReadBlock),
         (0xe3, "MFR_REMOTE_CTRL", WriteByte, ReadByte),
+        (0xe4, "MFR_DUTY_TRIM", WriteByte, ReadByte),
+        (0xe5, "MFR_DEAD_BAND_DELAY", WriteByte, ReadByte),
         (0xe6, "MFR_VFF_PARAMS", WriteBlock, ReadBlock),
         (0xe7, "MFR_TEMP_COEFF", Illegal, ReadBlock),
         (0xe8, "MFR_FILTER_COEFF", WriteBlock, ReadBlock),
         (0xe9, "MFR_FILTER_NLR_GAIN", WriteBlock, ReadBlock),
+        (0xea, "MFR_IOUT_CAL_GAIN", WriteWord, ReadWord),
         (0xeb, "MFR_MIN_DUTY", WriteWord, ReadWord),
         (0xec, "MFR_ACTIVE_CLAMP", Illegal, ReadWord),
         (0xee, "MFR_OFFSET_ADDRESS", WriteByte, ReadByte),
@@ -168,8 +172,8 @@
         ("READ_FREQUENCY", Linear11, Kilohertz),
 
         // The datasheet says only that MFR_RC_LEVEL is fixed-point, but
-        // its factor appears to be 10
-        ("MFR_RC_LEVEL", FixedPoint(Factor(10)), Volts),
+        // from communication with Flex, its factor is 256 / 2.5 (102.4).
+        ("MFR_RC_LEVEL", FixedPoint(Factor(102.4)), Volts),
 
         // Strangely, each unit is 450ns
         ("MFR_KS_PRETRIG", FixedPoint(Factor(2.22222222222)), Microseconds),
@@ -184,9 +188,165 @@
         ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
 
         ("MFR_EVENT_INDEX", Raw, Unitless),
+
+        // This is Q20 fixed point (that is, 20 bits to the right of the
+        // decimal point), in amps-per-LSB.  (This means that the largest
+        // value that can be represented in the 16-bits that we have is 0.062
+        // amps/LSB.)  To make this more comprehensible (and to match the way
+        // that Flex refers to this value), we think of it in terms of mA/LSB
+        // and adjust the factor accordingly.
+        ("MFR_IOUT_CAL_GAIN", FixedPoint(Factor(1048.576)), MilliampsPerLSB),
     ],
 
     structured: {
+        "STATUS_MFR_SPECIFIC": {
+            "Brownout": (
+                name: "Brownout detected",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoBrownout": (0b0, "no brownout"),
+                    "Brownout": (0b1, "brownout occurred"),
+                }),
+            ),
+            // Bit 6: unused
+            "FaultCounter": (
+                name: "Saturating fault counter",
+                bits: Bitrange(High(5), Low(0)),
+                values: Scalar(Unsigned),
+            )
+        },
+
+        "MFR_CONFIG_UNUSED_PINS": {
+            "FAULT2_Config": (
+                name: "FAULT2 pin config",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "TMS_Config": (
+                name: "TMS pin config",
+                bits: Bit(14),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "TDI_Config": (
+                name: "TDI pin config",
+                bits: Bit(13),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "TDO_Config": (
+                name: "TDO pin config",
+                bits: Bit(12),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "DPWM3B_Config": (
+                name: "DPWM3B pin config",
+                bits: Bit(11),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "DPWM3A_Config": (
+                name: "DPWM3A pin config",
+                bits: Bit(10),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "DPWM2B_Config": (
+                name: "DPWM2B pin config",
+                bits: Bit(9),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "ADC_EXT_TRIG_Config": (
+                name: "ADC_EXT_TRIG pin config",
+                bits: Bit(8),
+                values: Sentinels({
+                    "Input": (0b0, "input"),
+                    "Output": (0b1, "output low"),
+                }),
+            ),
+            "FAULT2": (
+                name: "FAULT2 pin",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "TMS": (
+                name: "TMS pin",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "TDI": (
+                name: "TDI pin",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "TDO": (
+                name: "TDO pin",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "DPWM3B": (
+                name: "DPWM3B pin",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "DPWM3A": (
+                name: "DPWM3A pin",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "DPWM2B": (
+                name: "DPWM2B pin",
+                bits: Bit(1),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+            "ADC_EXT_TRIG": (
+                name: "ADC_EXT_TRIG pin",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Used": (0b0, "pin used"),
+                    "Unused": (0b1, "pin unused"),
+                }),
+            ),
+        },
+
         "MFR_PGOOD_POLARITY": {
             "Polarity": (
                 name: "Power good polarity",
@@ -215,7 +375,7 @@
             "Level": (
                 name: "Level to trigger OCP",
                 bits: Bitrange(High(6), Low(0)),
-                values: Scalar(Unsigned),
+                values: FixedPointUnits(Factor(51.2), Volts),
             )
         },
 
@@ -262,6 +422,19 @@
             ),
         },
         
+        "MFR_VIN_SCALE_MONITOR": {
+            "IdleFactor": (
+                name: "Factor when idle",
+                bits: Bitrange(High(31), Low(16)),
+                values: FixedPointUnits(Factor(1048.576), MillivoltsPerLSB),
+            ),
+            "OperatingFactor": (
+                name: "Factor when operating",
+                bits: Bitrange(High(15), Low(0)),
+                values: FixedPointUnits(Factor(1048.576), MillivoltsPerLSB),
+            )
+        },
+
         "MFR_PREBIAS_DVDT_CFG": {
             "MaxPositiveDVInDT": (
                 name: "Max positive dVin/dt",
@@ -298,46 +471,46 @@
         },
 
         "MFR_TEMP_COMPENSATION": {
-            "TempThreshold2Deadtime": (
-                name: "Temp threshold 2 dead time",
+            "EDACThreshold": (
+                name: "EDAC treshold",
                 bits: Bitrange(High(63), Low(56)),
-                values: FixedPointUnits(Factor(1), Nanoseconds),
-            ),
-            "TempThreshold2Hysteresis": (
-                name: "Temp threshold 2 hysteresis",
-                bits: Bitrange(High(55), Low(48)),
-                values: FixedPointUnits(Factor(1), Celsius),
-            ),
-            "TempThreshold2": (
-                name: "Temp threshold 2",
-                bits: Bitrange(High(47), Low(40)),
-                values: FixedPointUnits(Factor(1), Celsius),
-            ),
-            "TempThreshold1Deadtime": (
-                name: "Temp threshold 1 dead time",
-                bits: Bitrange(High(39), Low(32)),
-                values: FixedPointUnits(Factor(1), Nanoseconds),
-            ),
-            "TempThreshold1Hysteresis": (
-                name: "Temp threshold 1 hysteresis",
-                bits: Bitrange(High(31), Low(24)),
-                values: FixedPointUnits(Factor(1), Celsius),
-            ),
-            "TempThreshold1": (
-                name: "Temp threshold 1",
-                bits: Bitrange(High(23), Low(16)),
-                values: FixedPointUnits(Factor(1), Celsius),
+                values: SignedFixedPointUnits(Factor(1), Celsius),
             ),
             "EDACSlope": (
                 name: "EDAC slope",
-                bits: Bitrange(High(15), Low(8)),
+                bits: Bitrange(High(55), Low(48)),
                 // The factor here is 256 / (1.6 / 1024)
-                values: FixedPointUnits(Factor(163.84), MillivoltsPerCelsius),
+                values: SignedFixedPointUnits(Factor(163.84), MillivoltsPerCelsius),
             ),
-            "EDACThreshold": (
-                name: "EDAC treshold",
+            "TempThreshold1": (
+                name: "Temp threshold 1",
+                bits: Bitrange(High(47), Low(40)),
+                values: SignedFixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold1Hysteresis": (
+                name: "Temp threshold 1 hysteresis",
+                bits: Bitrange(High(39), Low(32)),
+                values: SignedFixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold1Deadtime": (
+                name: "Temp threshold 1 dead time",
+                bits: Bitrange(High(31), Low(24)),
+                values: FixedPointUnits(Factor(1), Nanoseconds),
+            ),
+            "TempThreshold2": (
+                name: "Temp threshold 2",
+                bits: Bitrange(High(23), Low(16)),
+                values: SignedFixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold2Hysteresis": (
+                name: "Temp threshold 2 hysteresis",
+                bits: Bitrange(High(15), Low(8)),
+                values: SignedFixedPointUnits(Factor(1), Celsius),
+            ),
+            "TempThreshold2Deadtime": (
+                name: "Temp threshold 2 dead time",
                 bits: Bitrange(High(7), Low(0)),
-                values: FixedPointUnits(Factor(1), Celsius),
+                values: FixedPointUnits(Factor(1), Nanoseconds),
             ),
         },
 
@@ -371,14 +544,25 @@
             "VInOffsetOn": (
                 name: "On",
                 bits: Bitrange(High(31), Low(16)),
-                // This factor is likely wrong, but unclear what it should be
-                values: FixedPointUnits(Factor(1), Volts)
+                values: FixedPointUnits(Factor(8), Volts)
             ),
             "VInOffsetOff": (
                 name: "Off",
                 bits: Bitrange(High(15), Low(0)),
-                // This factor is likely wrong, but unclear what it should be
-                values: FixedPointUnits(Factor(1), Volts)
+                values: FixedPointUnits(Factor(8), Volts)
+            )
+        },
+
+        "MFR_REMOTE_TEMP_CAL": {
+            "Offset": (
+                name: "Offset",
+                bits: Bitrange(High(31), Low(16)),
+                values: FixedPointUnits(Factor(16), Unitless)
+            ),
+            "Slope": (
+                name: "Slope",
+                bits: Bitrange(High(15), Low(0)),
+                values: SignedFixedPointUnits(Factor(32768), Unitless)
             )
         }
     },
@@ -386,4 +570,8 @@
     synonyms: Some([
         ("MFR_VIN_OV_WARN_RESPONSE", "VOUT_OV_FAULT_RESPONSE"),
     ]),
+
+    // Well, you now know who the passive/aggressive comment in build.rs
+    // is about...
+    blocks_are_big_endian: true,
 )
