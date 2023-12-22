@@ -79,21 +79,18 @@ fn bmr491_vin_monitor() {
 
 #[test]
 fn bmr491_rc_level() {
-    use commands::bmr491::*;
     let rc = MFR_RC_LEVEL::CommandData::from_slice(&[0xc8]).unwrap();
     assert_eq!(rc.get(), Ok(units::Volts(1.953125)));
 }
 
 #[test]
 fn bmr491_ks_pretrig() {
-    use commands::bmr491::*;
     let ks = MFR_KS_PRETRIG::CommandData::from_slice(&[0x89]).unwrap();
     assert_eq!(ks.get(), Ok(units::Microseconds(61.649998)));
 }
 
 #[test]
 fn bmr491_vin_offset() {
-    use commands::bmr491::*;
     let data = [0x00, 0x04, 0x00, 0x09];
     let offset = MFR_VIN_OFFSET::CommandData::from_slice(&data).unwrap();
     dump(&offset);
@@ -103,4 +100,14 @@ fn bmr491_vin_offset() {
     let mut compare = data.clone();
     offset.to_slice(&mut compare);
     assert_eq!(data, compare);
+}
+
+#[test]
+fn bmr491_remote_temp_cal() {
+    let data = [0x4e, 0xde, 0xb5, 0x3d];
+    let cal = MFR_REMOTE_TEMP_CAL::CommandData::from_slice(&data).unwrap();
+    dump(&cal);
+
+    assert_eq!(cal.get_offset(), Unitless(1261.875));
+    assert_eq!(cal.get_slope(), Unitless(-0.5840759));
 }

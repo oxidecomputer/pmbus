@@ -100,7 +100,7 @@ fn dump(data: &impl CommandData) {
 }
 
 #[test]
-fn vin() {
+fn isl68224_vin() {
     let mode = || VOutModeCommandData::from_slice(&[0x40]).unwrap();
 
     let data = [(0x04a9u16, 11.930001), (0xffff, -0.010000001)];
@@ -119,7 +119,7 @@ fn vin() {
 }
 
 #[test]
-fn ton_rise() {
+fn isl68224_ton_rise() {
     use TON_RISE::*;
 
     let mut data = CommandData::from_slice(&[0xf4, 0x01]).unwrap();
@@ -139,7 +139,7 @@ fn ton_rise() {
 }
 
 #[test]
-fn raw() {
+fn isl68224_raw() {
     use DMAFIX::*;
 
     let input = [0xef, 0xbe, 0xad, 0xde];
@@ -165,7 +165,7 @@ fn raw() {
 }
 
 #[test]
-fn status_mfr_specific() {
+fn isl68224_status_mfr_specific() {
     use STATUS_MFR_SPECIFIC::*;
     let status = CommandData::from_slice(&[0x08]).unwrap();
     assert_eq!(status.get_bb_event(), Some(BBEvent::Event));
@@ -195,7 +195,7 @@ fn bb_dump(bb: &Blackbox) {
 }
 
 #[test]
-fn blackbox_test4() {
+fn isl68224_blackbox_test4() {
     let raw = [
         0x00, 0x00, 0x00, 0x00, 0x83, 0x48, 0x01, 0x00, 0x33, 0x4c, 0x01, 0x00,
         0x33, 0x4c, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00,
@@ -231,7 +231,7 @@ fn blackbox_test4() {
 }
 
 #[test]
-fn blackbox_test7() {
+fn isl68224_blackbox_test7() {
     let raw = [
         0x00, 0x00, 0x00, 0x00, 0x0c, 0x05, 0x00, 0x00, 0x93, 0x0a, 0x00, 0x00,
         0x93, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00,
@@ -266,7 +266,7 @@ fn blackbox_test7() {
 }
 
 #[test]
-fn blackbox_test8() {
+fn isl68224_blackbox_test8() {
     let raw = [
         0x00, 0x00, 0x00, 0x00, 0x0c, 0x05, 0x00, 0x00, 0x2f, 0x1f, 0x00, 0x00,
         0x2f, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00,

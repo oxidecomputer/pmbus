@@ -5,14 +5,11 @@
 //
 use commands::bmr480::*;
 use pmbus::*;
-use units::*;
 mod common;
 use common::*;
 
 #[test]
 fn bmr480_default() {
-    use commands::bmr480::*;
-
     let data = MFR_FAST_OCP_CFG::CommandData::from_slice(&[0xe9, 0x02]);
     dump(&data.unwrap());
 
@@ -31,8 +28,6 @@ fn bmr480_default() {
 
 #[test]
 fn bmr480_iout() {
-    use commands::bmr480::*;
-
     let data = [
         (0xf028u16, 10.0),
         (0xf133, 76.75),
@@ -62,8 +57,6 @@ fn bmr480_iout() {
 
 #[test]
 fn bmr480_vout() {
-    use commands::bmr480::*;
-
     let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
 
     let data = [
@@ -105,8 +98,6 @@ fn bmr480_vout() {
 
 #[test]
 fn bmr480_vin() {
-    use commands::bmr480::*;
-
     let mode = || VOutModeCommandData::from_slice(&[0x15]).unwrap();
 
     let data = [

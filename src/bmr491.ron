@@ -186,8 +186,12 @@
         ("MFR_FAST_VIN_OFF_OFFSET", FixedPoint(Factor(64)), Volts),
 
         ("MFR_VOUT_OFFSET_MONITOR", VOutMode(Signed), Volts),
-
         ("MFR_EVENT_INDEX", Raw, Unitless),
+
+        // The datasheet claims this to be 0.1 degrees per LSB (a factor of 10),
+        // but other communication with Flex claims this to be 0.1034 degrees
+        // per LSB (a factor of ~9.67).
+        ("MFR_TEMP_OFFSET_INT", FixedPoint(Factor(9.671179)), Celsius),
 
         // This is Q20 fixed point (that is, 20 bits to the right of the
         // decimal point), in amps-per-LSB.  (This means that the largest
@@ -519,8 +523,8 @@
                 name: "Enable/disable current share",
                 bits: Bit(56),
                 values: Sentinels({
-                    "Disable": (0b0, "Active current share disabled"),
-                    "Enable": (0b1, "Active current share enabled"),
+                    "Disable": (0b0, "disabled"),
+                    "Enable": (0b1, "enabled"),
                 })
             ),
             "TrimLimit": (
@@ -538,6 +542,57 @@
                 bits: Bitrange(High(7), Low(0)),
                 values: FixedPointUnits(Factor(50), Amperes),
             )
+        },
+
+        "MFR_SPECIAL_OPTIONS": {
+            "RequirePEC": (
+                name: "PEC required",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "EnableHRR": (
+                name: "Hybrid regulation ratio enabled",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "NonLinearDroop": (
+                name: "Non-linear droop enabled",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "OutputRawData": (
+                name: "Raw integer output enabled",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "EnableDLC": (
+                name: "Dynamic load compensation enabled",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
+            "EnableDBV": (
+                name: "Dynamic bus voltage enabled",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                })
+            ),
         },
 
         "MFR_VIN_OFFSET": {

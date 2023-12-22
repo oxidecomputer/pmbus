@@ -5,7 +5,6 @@
 //
 use commands::tps546b24a::*;
 use pmbus::*;
-use units::*;
 mod common;
 use common::*;
 
