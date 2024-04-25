@@ -380,6 +380,57 @@
                 // This factor is likely wrong, but unclear what it should be
                 values: FixedPointUnits(Factor(1), Volts)
             )
+        },
+
+        "MFR_SPECIAL_OPTIONS": {
+            "RequirePEC": (
+                name: "Require Packet Error Check",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                }),
+            ),
+            "EnableHRR": (
+                name: "Enable hybrid regulated ratio",
+                bits: Bit(6),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                }),
+            ),
+            "DLSSlopeConfiguration": (
+                name: "Vout droop slope configuration",
+                bits: Bit(5),
+                values: Sentinels({
+                    "Linear": (0b0, "linear droop"),
+                    "NonLinear": (0b1, "non-linear droop"),
+                }),
+            ),
+            "TelemetryMode": (
+                name: "Telemetry mode",
+                bits: Bit(4),
+                values: Sentinels({
+                    "Converted": (0b0, "converted to units"),
+                    "Raw": (0b1, "raw ADC output"),
+                }),
+            ),
+            "EnableARTDLC": (
+                name: "Enable adaptive ramp-up time/dynamic load compensation",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                }),
+            ),
+            "EnableDBV": (
+                name: "Enable dynamic bus voltage",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                }),
+            )
         }
     },
 

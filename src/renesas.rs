@@ -125,8 +125,8 @@ impl Blackbox {
 /// value to sent to the `DMAADDR` command, where [`Address`] represents an
 /// absolute address.
 ///
-pub struct Address(u32);
-pub struct DMAAddress(u16);
+pub struct Address(pub u32);
+pub struct DMAAddress(pub u16);
 
 /// The configuration ID, as WW.XX.YY.ZZ
 pub const DMAADDR_CONFIG_ID: DMAAddress = DMAAddress(0x00c1);

@@ -29,9 +29,6 @@ struct Factor(f32);
 struct Base(i8);
 
 #[derive(Debug, Deserialize)]
-struct Offset(f32);
-
-#[derive(Debug, Deserialize)]
 struct Value(u16, String);
 
 //
@@ -118,6 +115,7 @@ enum Format {
     SLimear16,
     Direct(Coefficients),
     RuntimeDirect,
+    #[allow(unused)]
     VOutMode(Sign),
     FixedPoint(Factor),
     SignedFixedPoint(Factor),
@@ -2430,9 +2428,9 @@ fn codegen() -> Result<()> {
                 output_aux_numerics(&aux.numerics, &sizes, &mut units, coeff)?;
             file.write_all(out.as_bytes())?;
 
-            let mut aux_structured_sorted: Vec<_> = aux.structured.iter().collect();
+            let mut aux_structured_sorted: Vec<_> =
+                aux.structured.iter().collect();
             aux_structured_sorted.sort_by(|a, b| a.0.cmp(b.0));
-
 
             for (aux, fields) in &aux_structured_sorted {
                 let (bits, bytes) = validate(aux, fields, &sizes, &mut units)?;
