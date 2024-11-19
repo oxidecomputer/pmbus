@@ -114,20 +114,44 @@
         },
 
         "BOOT_LOADER_STATUS": {
-            "ProgramBusy": (
-                name: "Write operation in progress",
-                bits: Bit(7),
+            "ChecksumSuccessful": (
+                name: "Checksum successfully checked",
+                bits: Bit(0),
                 values: Sentinels({
-                    "NotInProgress": (0b0, "not in progress"),
-                    "InProgress": (0b1, "in progress"),
+                    "NotSuccessful": (0b0, "not successful"),
+                    "Successful": (0b1, "successful"),
                 }),
             ),
-            "Mode": (
-                name: "Boot loader mode",
-                bits: Bit(6),
+            "MemoryError": (
+                name: "Memory boundary error condition",
+                bits: Bit(1),
                 values: Sentinels({
-                    "NotBootLoader": (0b0, "not in boot loader"),
-                    "BootLoader": (0b1, "in boot loader"),
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "AlignError": (
+                name: "Unaligned memory read/write",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "KeyError": (
+                name: "Invalid key detected",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+            "StartError": (
+                name: "PSU failed to start",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
                 }),
             ),
             "ProductKeyError": (
@@ -138,8 +162,22 @@
                     "Error": (0b1, "error"),
                 }),
             ),
-
-
+            "Mode": (
+                name: "Boot loader mode",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NotBootLoader": (0b0, "not in boot loader"),
+                    "BootLoader": (0b1, "in boot loader"),
+                }),
+            ),
+            "ProgramBusy": (
+                name: "Write operation in progress",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotInProgress": (0b0, "not in progress"),
+                    "InProgress": (0b1, "in progress"),
+                }),
+            ),
         }
     }
 )
