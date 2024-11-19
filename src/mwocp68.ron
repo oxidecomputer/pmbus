@@ -1,5 +1,13 @@
 (
-    all: [],
+    all: [
+        (0xe4, "MFR_PAGE_X", WriteByte, ReadByte),
+        (0xf0, "BOOT_LOADER_KEY", WriteBlock, Illegal),
+        (0xf1, "BOOT_LOADER_STATUS", Illegal, ReadBlock),
+        (0xf2, "BOOT_LOADER_MEMORY_BLOCK", MfrDefined, MfrDefined),
+        (0xf3, "BOOT_LOADER_PRODUCT_KEY", MfrDefined, Illegal),
+        (0xf4, "IMAGE_CHECKSUM", WriteBlock, Illegal),
+    ],
+
     numerics: [
         ("FAN_COMMAND_1", Linear11, Percent),
         ("FAN_COMMAND_2", Linear11, Percent),
@@ -35,6 +43,7 @@
         ("MFR_MAX_TEMP_2", Linear11, Celsius),
         ("MFR_MAX_TEMP_3", Linear11, Celsius),
     ],
+
     structured: {
         "STATUS_MFR_SPECIFIC": {
             // Bit 7: reserved
@@ -88,5 +97,49 @@
                 }),
             ),
         },
+
+        "MFR_PAGE_X": {
+            "MFQPage": (
+                name: "Murata-defined PMBus page",
+                bits: Bitrange(High(7), Low(0)),
+                values: Sentinels({
+                    "RealTimeData": (0xff, "Default, normal operation"),
+                    "FaultHistory1": (0x00, "most recent fault"),
+                    "FaultHistory2": (0x01, "next most recent fault"),
+                    "FaultHistory3": (0x02, "third most recent fault"),
+                    "FaultHistory4": (0x03, "fourth most recent fault"),
+                    "FaultHistory5": (0x04, "oldest fault"),
+                })
+            )
+        },
+
+        "BOOT_LOADER_STATUS": {
+            "ProgramBusy": (
+                name: "Write operation in progress",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NotInProgress": (0b0, "not in progress"),
+                    "InProgress": (0b1, "in progress"),
+                }),
+            ),
+            "Mode": (
+                name: "Boot loader mode",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NotBootLoader": (0b0, "not in boot loader"),
+                    "BootLoader": (0b1, "in boot loader"),
+                }),
+            ),
+            "ProductKeyError": (
+                name: "Product key verification error",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoError": (0b0, "no error"),
+                    "Error": (0b1, "error"),
+                }),
+            ),
+
+
+        }
     }
 )

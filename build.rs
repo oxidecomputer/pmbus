@@ -112,7 +112,7 @@ struct Coefficients {
 enum Format {
     Linear11,
     ULinear16,
-    SLimear16,
+    SLinear16,
     Direct(Coefficients),
     RuntimeDirect,
     #[allow(unused)]
@@ -911,8 +911,7 @@ pub mod {} {{
             Values::Sentinels(_) => {
                 writeln!(
                     &mut s,
-                    "                Value::{}(v) => v.to_u32().unwrap(),",
-                    f
+                    "                Value::{f}(v) => v.to_u32().unwrap(),",
                 )?;
             }
             Values::Scalar(_)
@@ -920,8 +919,7 @@ pub mod {} {{
             | Values::LogFactorUnits(..) => {
                 writeln!(
                     &mut s,
-                    "                Value::{}(v) => v.0 as u32,",
-                    f
+                    "                Value::{f}(v) => v.0 as u32,",
                 )?;
             }
         }
@@ -940,33 +938,33 @@ pub mod {} {{
         match &field.values {
             Values::Scalar(_) => {
                 writeln!(&mut s, r##"
-                Value::{}(_) => {{
+                Value::{f}(_) => {{
                     write!(
                         f, "0x{{:x}}",
                         crate::Value::raw(self)
                     )
-                }}"##, f)?;
+                }}"##)?;
             }
 
             Values::FixedPointUnits(Factor(factor), u) => {
                 writeln!(&mut s, r##"
-                Value::{}(_) => {{
+                Value::{f}(_) => {{
                     write!(
                         f, "{{:.3}}{}",
-                        crate::Value::raw(self) as f32 / ({}_f32)
+                        crate::Value::raw(self) as f32 / ({factor}_f32)
                     )
-                }}"##, f, u.suffix(), factor)?;
+                }}"##, u.suffix())?;
             }
 
             Values::LogFactorUnits(Base(base), Factor(factor), u) => {
                 writeln!(&mut s, r##"
-                Value::{}(_) => {{
+                Value::{f}(_) => {{
                     write!(
                         f, "{{:.3}}{}",
-                        ({}_f32).powi(crate::Value::raw(self) as i32) /
-                        ({}_f32)
+                        ({base}_f32).powi(crate::Value::raw(self) as i32) /
+                        ({factor}_f32)
                     )
-                }}"##, f, u.suffix(), base, factor)?;
+                }}"##, u.suffix())?;
             }
 
             _ => {}
@@ -987,14 +985,14 @@ pub mod {} {{
     writeln!(&mut s, r##"
     impl CommandData {{
         pub const fn len() -> usize {{
-            {}
-        }}"##, bytes)?;
+            {bytes}
+        }}"##)?;
 
     if !auxiliary {
         writeln!(&mut s, r##"
         pub const fn code() -> u8 {{
-            super::CommandCode::{} as u8
-        }}"##, cmd)?;
+            super::CommandCode::{cmd} as u8
+        }}"##)?;
     }
 
     writeln!(&mut s, r##"
@@ -1004,13 +1002,13 @@ pub mod {} {{
         writeln!(&mut s, r##"
             use core::convert::TryInto;
 
-            let v: Result<&[u8; {}], _> = slice[0..{}].try_into();
+            let v: Result<&[u8; {bytes}], _> = slice[0..{bytes}].try_into();
 
             match v {{
-                Ok(v) => Some(Self(u{}::from_le_bytes(*v))),
+                Ok(v) => Some(Self(u{bits}::from_le_bytes(*v))),
                 Err(_) => None,
             }}
-        }}"##, bytes, bytes, bits)?;
+        }}"##)?;
     } else {
         writeln!(&mut s, "            let v: u{} = ", bits)?;
 
@@ -1051,8 +1049,8 @@ pub mod {} {{
         let (high, low) = bitrange(&field.bits);
 
         writeln!(&mut s,
-            "                {} => Some((Field::{}, Bitwidth({}))),",
-            low, f, high - low + 1
+            "                {low} => Some((Field::{f}, Bitwidth({}))),",
+            high - low + 1
         )?;
     }
 
@@ -1061,16 +1059,16 @@ pub mod {} {{
 
     if !wholefield {
         writeln!(&mut s, r##"
-        pub fn get_val(&self, field: Field) -> u{} {{
+        pub fn get_val(&self, field: Field) -> u{bits} {{
             use crate::Field;
             let (pos, width) = field.bits();
             (self.0 >> pos.0) & ((1 << width.0) - 1)
-        }}"##, bits)?;
+        }}"##)?;
     } else {
         writeln!(&mut s, r##"
-        pub fn get_val(&self, _field: Field) -> u{} {{
+        pub fn get_val(&self, _field: Field) -> u{bits} {{
             self.0
-        }}"##, bits)?;
+        }}"##)?;
     }
 
     writeln!(&mut s, r##"
@@ -1081,28 +1079,34 @@ pub mod {} {{
 
     for f in &sorted_fields_keys {
         writeln!(&mut s, r##"
-                Field::{} => {{
-                    match {}::from_u{}(raw) {{
-                        Some(t) => Ok(Value::{}(t)),
+                Field::{f} => {{
+                    match {f}::from_u{bits}(raw) {{
+                        Some(t) => Ok(Value::{f}(t)),
                         None => Err(Error::InvalidSentinel),
                     }}
-                }}"##, f, f, bits, f)?;
+                }}"##)?;
     }
 
     writeln!(&mut s, "            }}\n        }}")?;
 
     writeln!(&mut s, r##"
         #[allow(dead_code)]
-        fn set_val(&mut self, field: Field, raw: u{}) -> Result<(), Error> {{
+        fn set_val(&mut self, field: Field, raw: u{bits}) -> Result<(), Error> {{
             use crate::Field;
             let (pos, width) = field.bits();
-            let mask = (1 << width.0) - 1;
 
-            if width.0 < {} && raw > mask {{
-                Err(Error::ValueOutOfRange)
+            if width.0 < {bits} {{
+                let mask = (1 << width.0) - 1;
+
+                if width.0 < {bits} && raw > mask {{
+                    Err(Error::ValueOutOfRange)
+                }} else {{
+                    self.0 &= !(mask << pos.0);
+                    self.0 |= (raw & mask) << pos.0;
+                    Ok(())
+                }}
             }} else {{
-                self.0 &= !(mask << pos.0);
-                self.0 |= (raw & mask) << pos.0;
+                self.0 = raw;
                 Ok(())
             }}
         }}
@@ -1111,24 +1115,24 @@ pub mod {} {{
         fn set_val_signed(
             &mut self,
             field: Field,
-            raw: i{},
+            raw: i{bits},
         ) -> Result<(), Error> {{
             use crate::Field;
             let (pos, width) = field.bits();
             let mask = (1 << width.0) - 1;
-            let max = (mask >> 1) as i{};
-            let min = !(max as u{}) as i{};
+            let max = (mask >> 1) as i{bits};
+            let min = !(max as u{bits}) as i{bits};
 
-            if width.0 < {} && (raw > max || raw < min) {{
+            if width.0 < {bits} && (raw > max || raw < min) {{
                 Err(Error::ValueOutOfRange)
             }} else {{
                 self.0 &= !(mask << pos.0);
-                self.0 |= ((raw as u{}) & mask) << pos.0;
+                self.0 |= ((raw as u{bits}) & mask) << pos.0;
                 Ok(())
             }}
         }}
     
-    "##, bits, bits, bits, bits, bits, bits, bits, bits)?;
+    "##)?;
 
     for (f, field) in &sorted_fields {
         let method = f.from_case(Case::Camel).to_case(Case::Snake);
@@ -1136,14 +1140,14 @@ pub mod {} {{
         match &field.values {
             Values::Scalar(Sign::Unsigned) => {
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> u{} {{
-            self.get_val(Field::{})
-        }}"##, method, bits, f)?;
+        pub fn get_{method}(&self) -> u{bits} {{
+            self.get_val(Field::{f})
+        }}"##)?;
 
                 writeln!(&mut s, r##"
-        pub fn set_{}(&mut self, val: u{}) -> Result<(), Error> {{
-            self.set_val(Field::{}, val)
-        }}"##, method, bits, f)?;
+        pub fn set_{method}(&mut self, val: u{bits}) -> Result<(), Error> {{
+            self.set_val(Field::{f}, val)
+        }}"##)?;
             }
 
             Values::Scalar(Sign::Signed) => {
@@ -1151,67 +1155,66 @@ pub mod {} {{
                 let shift = bits - (high + 1) as usize;
 
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> i{} {{
-            ((self.get_val(Field::{}) << {}) as i{}) >> {}
-        }}"##, method, bits, f, shift, bits, shift)?;
+        pub fn get_{method}(&self) -> i{bits} {{
+            ((self.get_val(Field::{f}) << {shift}) as i{bits}) >> {shift}
+        }}"##)?;
 
                 writeln!(&mut s, r##"
-        pub fn set_{}(&mut self, val: i{}) -> Result<(), Error> {{
-            self.set_val_signed(Field::{}, val)
-        }}"##, method, bits, f)?;
+        pub fn set_{method}(&mut self, val: i{bits}) -> Result<(), Error> {{
+            self.set_val_signed(Field::{f}, val)
+        }}"##)?;
             }
 
             Values::FixedPointUnits(Factor(factor), unit) => {
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(
-                self.get_val(Field::{}) as f32 / ({}_f32)
+        pub fn get_{method}(&self) -> crate::units::{unit:?} {{
+            crate::units::{unit:?}(
+                self.get_val(Field::{f}) as f32 / ({factor}_f32)
             )
-        }}"##, method, unit, unit, f, factor)?;
+        }}"##)?;
 
                 writeln!(&mut s, r##"
-        pub fn set_{}(
+        pub fn set_{method}(
             &mut self,
-            val: crate::units::{:?}
+            val: crate::units::{unit:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, (val.0 * ({}_f32)) as u{})
-        }}"##, method, unit, f, factor, bits)?;
+            self.set_val(Field::{f}, (val.0 * ({factor}_f32)) as u{bits})
+        }}"##)?;
             }
 
             Values::LogFactorUnits(Base(base), Factor(factor), unit) => {
                 writeln!(&mut s, r##"
-        pub fn get_{}(&self) -> crate::units::{:?} {{
-            crate::units::{:?}(
-                ({}_f32).powi(self.get_val(Field::{}) as i32) / ({}_f32)
+        pub fn get_{method}(&self) -> crate::units::{unit:?} {{
+            crate::units::{unit:?}(
+                ({base}_f32).powi(self.get_val(Field::{f}) as i32) / ({factor}_f32)
             )
-        }}"##, method, unit, unit, base, f, factor)?;
+        }}"##)?;
 
                 writeln!(&mut s, r##"
-        pub fn set_{}(
+        pub fn set_{method}(
             &mut self,
-            val: crate::units::{:?}
+            val: crate::units::{unit:?}
         ) -> Result<(), Error> {{
-            self.set_val(Field::{}, libm::log{}f(val.0 * ({}_f32)) as u{})
-        }}"##, method, unit, f, base, factor, bits)?;
+            self.set_val(Field::{f}, libm::log{base}f(val.0 * ({factor}_f32)) as u{bits})
+        }}"##)?;
             }
 
             Values::Sentinels(_) => {
                 writeln!(&mut s, r##"
-        /// Return the value of the {} field as a [`Value::{}`], or
+        /// Return the value of the {} field as a [`Value::{f}`], or
         /// `None` if the field is corrupt or otherwise cannot be represented
-        /// as a [`Value::{}`].
-        pub fn get_{}(&self) -> Option<{}> {{
-            match self.get(Field::{}) {{
-                Ok(Value::{}(v)) => Some(v),
+        /// as a [`Value::{f}`].
+        pub fn get_{method}(&self) -> Option<{f}> {{
+            match self.get(Field::{f}) {{
+                Ok(Value::{f}(v)) => Some(v),
                 _ => None,
             }}
         }}
 
         /// Sets the value of the {} field to the specified value.
-        pub fn set_{}(&mut self, val: {}) {{
-            self.set_val(Field::{}, val.to_u{}().unwrap()).unwrap();
-        }}"##, field.name, f, f, method, f, f, f,
-            field.name, method, f, f, bits)?;
+        pub fn set_{method}(&mut self, val: {f}) {{
+            self.set_val(Field::{f}, val.to_u{bits}().unwrap()).unwrap();
+        }}"##, field.name, field.name)?;
             }
         }
     }
