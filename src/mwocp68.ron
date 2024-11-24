@@ -1,8 +1,41 @@
 (
     all: [
+        //
+        // MFR_PAGE_X allows for reading the black box data: when any fault
+        // (except for an input undervoltage) occurs, many values are latched
+        // into non-volatile memory.  To read these values, the desired fault
+        // recency should be written to MFR_PAGE_X, after which the following
+        // standard PMBus commands can be issued to determine the corresponding
+        // value at the time of the fault:
+        //
+        //   STATUS_VOUT            STATUS_FANS_1_2        READ_TEMPERATURE_2
+        //   STATUS_IOUT            READ_VIN               READ_TEMPERATURE_3
+        //   STATUS_INPUT           READ_IIN               READ_FAN_SPEED_1
+        //   STATUS_TEMPERATURE     READ_VOUT              READ_POUT
+        //   STATUS_CML             READ_IOUT              READ_PIN
+        //   STATUS_MFR_SPECIFIC    READ_TEMPERATURE_1
+        //
         (0xe4, "MFR_PAGE_X", WriteByte, ReadByte),
         (0xf0, "BOOT_LOADER_KEY", WriteBlock, Illegal),
+
+        //
+        // Note that BOOT_LOADER_CMD shares the same command code as
+        // BOOT_LOADER_STATUS (!!), with the sense depending if it's a read
+        // (BOOT_LOADER_STATUS) or a write (BOOT_LOADER_CMD).  We don't support
+        // the notion of a single command code having multiple senses based on
+        // operation, but if we did we might have an additional line here:
+        //
+        //   (0xf1, "BOOT_LOADER_CMD", WriteBlock, Illegal)
+        //
+        // This behavior is not PMBus compliant (such that compliance with such
+        // a loose specification in fact means anything at all), so it's
+        // unclear if our implicit refusal to accommodate it isn't a feature.
+        // (And as long as we're editorializing: that both commands use block
+        // operations for a fixed-size one-byte payload is... idiosyncratic, to
+        // put it euphemistically.)
+        //
         (0xf1, "BOOT_LOADER_STATUS", Illegal, ReadBlock),
+
         (0xf2, "BOOT_LOADER_MEMORY_BLOCK", MfrDefined, MfrDefined),
         (0xf3, "BOOT_LOADER_PRODUCT_KEY", MfrDefined, Illegal),
         (0xf4, "IMAGE_CHECKSUM", WriteBlock, Illegal),
