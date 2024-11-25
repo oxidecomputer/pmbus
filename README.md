@@ -3,7 +3,7 @@
 pmbus: A crate for PMBus manipulation
 
 This is a no_std crate that expresses the PMBus protocol, as described in
-the PMBus 1.3 specifcation.  This crate is intended to be generic with
+the PMBus 1.3 specification.  This crate is intended to be generic with
 respect to implementation and usable by software that will directly
 communicate with PMBus devices via SMBus/I2C as well as by software that
 merely wishes to make sense of the PMBus protocol (e.g., debuggers or

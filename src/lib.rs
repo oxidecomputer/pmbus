@@ -354,7 +354,7 @@ impl Linear11 {
 
         let n = f32::ceil(libm::log2f(n)) as i16;
 
-        if n < LINEAR11_N_MIN || n > LINEAR11_N_MAX {
+        if !(LINEAR11_N_MIN..=LINEAR11_N_MAX).contains(&n) {
             None
         } else {
             let exp = f32::powi(2.0, n.into());
@@ -386,7 +386,7 @@ impl ULinear16 {
     pub fn from_real(x: f32, exp: ULinear16Exponent) -> Option<Self> {
         let val = (x / f32::powi(2.0, exp.0.into())).round();
 
-        if val > core::u16::MAX as f32 {
+        if val > u16::MAX as f32 {
             None
         } else {
             Some(Self(val as u16, exp))
