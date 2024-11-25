@@ -5,6 +5,12 @@
 //
 use anyhow::{bail, Result};
 
+//
+// This is code that generates code, and it is therefore a bit of a mess.
+// When trying to modify or extend this code, it is most helpful to look
+// instead at the generated artifacts themselves:  this code has sacrificed
+// its own aesthetics to make the generated code (relatively) clean.
+//
 use convert_case::{Case, Casing};
 use ron::de::from_reader;
 use serde::Deserialize;
@@ -262,14 +268,13 @@ fn output_commands(
 ) -> Result<String> {
     let mut s = String::new();
 
-    writeln!(&mut s, r##"
-pub use num_derive::{{FromPrimitive, ToPrimitive}};
+    writeln!(&mut s, r##"pub use num_derive::{{FromPrimitive, ToPrimitive}};
 pub use num_traits::{{FromPrimitive, ToPrimitive}};"##)?;
 
     if shadowing.is_some() {
         writeln!(&mut s, r##"
-use crate::VOutModeCommandData;
-use crate::Replacement;"##)?;
+use crate::Replacement;
+use crate::VOutModeCommandData;"##)?;
     } else {
         writeln!(&mut s, r##"
 use crate::Error;"##)?;
@@ -354,9 +359,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none()
-            && numerics.get(&cmd.1).is_none()
-            && synonyms.get(&cmd.1).is_none()
+        if !cmds.structured.contains_key(&cmd.1)
+            && !numerics.contains(&cmd.1)
+            && !synonyms.contains(&cmd.1)
         {
             continue;
         }
@@ -399,9 +404,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none()
-            && numerics.get(&cmd.1).is_none()
-            && synonyms.get(&cmd.1).is_none()
+        if !cmds.structured.contains_key(&cmd.1)
+            && !numerics.contains(&cmd.1)
+            && !synonyms.contains(&cmd.1)
         {
             continue;
         }
@@ -444,9 +449,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none()
-            && numerics.get(&cmd.1).is_none()
-            && synonyms.get(&cmd.1).is_none()
+        if !cmds.structured.contains_key(&cmd.1)
+            && !numerics.contains(&cmd.1)
+            && !synonyms.contains(&cmd.1)
         {
             continue;
         }
@@ -483,9 +488,9 @@ impl CommandCode {{
         match self {{"##)?;
 
     for cmd in &cmds.all {
-        if cmds.structured.get(&cmd.1).is_none()
-            && numerics.get(&cmd.1).is_none()
-            && synonyms.get(&cmd.1).is_none()
+        if !cmds.structured.contains_key(&cmd.1)
+            && !numerics.contains(&cmd.1)
+            && !synonyms.contains(&cmd.1)
         {
             continue;
         }
@@ -925,7 +930,9 @@ pub mod {} {{
         }
     }
 
-    writeln!(&mut s, "                Value::Unknown(v) => *v as u32,")?;
+    let cast = if bits != 32 { " as u32" } else { "" };
+
+    writeln!(&mut s, "                Value::Unknown(v) => *v{cast},")?;
     writeln!(&mut s, "            }}\n        }}\n    }}")?;
 
     writeln!(&mut s, r##"
@@ -1033,10 +1040,14 @@ pub mod {} {{
         #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
-    for i in 0..bytes {
-        writeln!(&mut s,
-            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "", i, i * 8
-        )?;
+    if bytes == 1 {
+        writeln!(&mut s, "{:12}slice[0] = self.0;", "")?;
+    } else {
+        for i in 0..bytes {
+            writeln!(&mut s,
+                "{:12}slice[{i}] = ((self.0 >> {}) & 0xff) as u8;", "", i * 8
+            )?;
+        }
     }
 
     writeln!(&mut s, "        }}")?;
@@ -1265,6 +1276,7 @@ pub mod {} {{
                             }}
 
                             Replacement::Integer(i) => {{
+                                #[allow(clippy::unnecessary_cast)]
                                 if self.set_val(field, i as u{}).is_err() {{
                                     return Err(Error::OverflowReplacement);
                                 }}
@@ -1319,7 +1331,7 @@ pub mod {} {{
         }}
 
         fn raw(&self) -> (u32, Bitwidth) {{
-            (self.0 as u32, Bitwidth({}))
+            (self.0{cast}, Bitwidth({}))
         }}"##, bits - 1, bits - 1, bits, bits, bits)?;
 
     if !auxiliary {
@@ -1503,10 +1515,14 @@ pub mod {} {{
         #[allow(clippy::identity_op)]
         pub fn to_slice(&self, slice: &mut [u8]) {{"##)?;
 
-    for i in 0..bytes {
-        writeln!(&mut s,
-            "{:12}slice[{}] = ((self.0 >> {}) & 0xff) as u8;", "", i, i * 8
-        )?;
+    if bytes == 1 {
+        writeln!(&mut s, "{:12}slice[0] = self.0;", "")?;
+    } else {
+        for i in 0..bytes {
+            writeln!(&mut s,
+                "{:12}slice[{i}] = ((self.0 >> {}) & 0xff) as u8;", "", i * 8
+            )?;
+        }
     }
 
     writeln!(&mut s, "        }}")?;
@@ -1819,26 +1835,26 @@ pub mod {} {{
                 &dyn crate::Field, &dyn crate::Value
             ) -> Option<Replacement>
         ) -> Result<(), Error> {{
-            let field = crate::WholeField("{} measurement", Bitwidth({}));
+            let field = crate::WholeField("{cmd} measurement", Bitwidth({bits}));
             let val = Value(self.get()?, self.0.into());
 
             if let Some(replacement) = iter(&field, &val) {{
                 if let Replacement::Float(f) = replacement {{
-                    self.set({}(f))
+                    self.set({units}(f))
                 }} else {{
                     Err(Error::InvalidReplacement)
                 }}
             }} else {{
                 Ok(())
             }}
-        }}"##, cmd, bits, units)?;
+        }}"##)?;
     }
 
     writeln!(&mut s, r##"
         fn fields(
             mut iter: impl FnMut(&dyn crate::Field) 
         ) -> Result<(), Error> {{
-            iter(&crate::WholeField("{} measurement", Bitwidth({})));
+            iter(&crate::WholeField("{cmd} measurement", Bitwidth({bits})));
 
             Ok(())
         }}
@@ -1850,9 +1866,10 @@ pub mod {} {{
             Ok(())
         }}
 
+        #[allow(clippy::unnecessary_cast)]
         fn raw(&self) -> (u32, Bitwidth) {{
-            (self.0 as u32, Bitwidth({}))
-        }}"##, cmd, bits, bits)?;
+            (self.0 as u32, Bitwidth({bits}))
+        }}"##)?;
 
     if !auxiliary {
         writeln!(&mut s, r##"
@@ -2259,7 +2276,7 @@ fn codegen() -> Result<()> {
 
     let out_dir = env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("commands.rs");
-    let mut file = File::create(&dest_path)?;
+    let mut file = File::create(dest_path)?;
     let mut units: HashSet<Units> = HashSet::new();
 
     let out = output_commands(&cmds, None)?;
@@ -2310,7 +2327,7 @@ fn codegen() -> Result<()> {
     };
 
     let dest_path = Path::new(&out_dir).join("devices.rs");
-    let mut dfile = File::create(&dest_path)?;
+    let mut dfile = File::create(dest_path)?;
 
     let out = output_devices(&devices)?;
     dfile.write_all(out.as_bytes())?;
@@ -2325,7 +2342,7 @@ fn codegen() -> Result<()> {
 
     for (name, device) in all {
         let dest_path = Path::new(&out_dir).join(format!("{}.rs", name));
-        let mut file = File::create(&dest_path)?;
+        let mut file = File::create(dest_path)?;
 
         let fname = format!("{}.ron", &name);
         let f = open_file(&fname)?;
@@ -2347,7 +2364,7 @@ fn codegen() -> Result<()> {
         }
 
         for cmd in &cmds.all {
-            if h.get(&cmd.0).is_none() {
+            if !h.contains(&cmd.0) {
                 dcmds.all.push(cmd.clone());
             }
         }
@@ -2448,7 +2465,7 @@ fn codegen() -> Result<()> {
     }
 
     let dest_path = Path::new(&out_dir).join("units.rs");
-    let mut ufile = File::create(&dest_path)?;
+    let mut ufile = File::create(dest_path)?;
 
     let out = output_units(&units)?;
     ufile.write_all(out.as_bytes())?;
