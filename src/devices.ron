@@ -42,4 +42,10 @@
         description: "Digital Dual Output, 20-Phase Configurable, SVI2 PWM Controller",
         coefficients: Some(( m: 1, R: 3, b: 0 ))
     ),
+    "raa229620a": (
+        manufacturer: "Renesas",
+        part: "RAA229620A",
+        description: "Digital Dual Output, 12-Phase Configurable, SVI3 PWM Controller",
+        coefficients: Some(( m: 1, R: 3, b: 0 ))
+    ),
 }
