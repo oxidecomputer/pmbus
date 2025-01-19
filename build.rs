@@ -4,9 +4,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use anyhow::{bail, Result};
-use thiserror::Error;
-
-use miette::{Diagnostic, SourceSpan};
 
 //
 // This is code that generates code, and it is therefore a bit of a mess.
@@ -234,28 +231,6 @@ struct Device {
 enum OutputCommand<'a> {
     PMBus(&'a str),
     Auxiliary(&'a str),
-}
-
-//
-// We define an error type explicitly for RON errors for the sole purpose
-// of getting Miette's fancy processing of them.
-//
-#[derive(Debug, Error, Diagnostic)]
-enum RonError {
-    #[error("Syntax error at line {line}, column {column}: {message}")]
-    #[diagnostic(
-        code(ron_parser::syntax_error),
-        help("Check the syntax and ensure it matches RON's grammar.")
-    )]
-    Syntax {
-        message: String,
-        #[source_code]
-        src: String, // Original source input
-        #[label("problem here")]
-        span: SourceSpan,
-        line: usize,
-        column: usize,
-    },
 }
 
 fn reg_sizes(cmds: &[Command]) -> Result<HashMap<String, Option<usize>>> {
@@ -2302,25 +2277,10 @@ fn read_commands(filename: &str) -> Result<Commands> {
 
     file.read_to_string(&mut contents)?;
 
-    let r =
-        from_str::<Commands>(&contents).map_err(|e| RonError::Syntax {
-            message: e.code.to_string(),
-            src: contents.clone(),
-            span: miette::SourceOffset::from_location(
-                contents,
-                e.position.line,
-                e.position.col,
-            )
-            .into(),
-            line: e.position.line,
-            column: e.position.col,
-        });
-
-    match r {
+    match from_str::<Commands>(&contents) {
         Ok(r) => Ok(r),
         Err(e) => {
-            eprintln!("{:?}", miette::Report::new(e));
-            bail!("failed to parse {}", filename);
+            bail!("failed to parse {}: {}", filename, e);
         }
     }
 }
