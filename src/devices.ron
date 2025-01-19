@@ -26,7 +26,7 @@
         coefficients: Some(( m: 1, R: 3, b: 0 ))
     ),
     "lm5066": (
-        manufacturer: "Renesas",
+        manufacturer: "Texas Instruments",
         part: "LM5066",
         description: "Hotswap Controller With I/V/P Monitoring",
     ),
