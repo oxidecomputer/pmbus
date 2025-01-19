@@ -4,6 +4,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 use anyhow::{bail, Result};
+use thiserror::Error;
+
+use miette::{Diagnostic, SourceSpan};
 
 //
 // This is code that generates code, and it is therefore a bit of a mess.
@@ -12,13 +15,14 @@ use anyhow::{bail, Result};
 // its own aesthetics to make the generated code (relatively) clean.
 //
 use convert_case::{Case, Casing};
-use ron::de::from_reader;
+use ron::de::{from_reader, from_str};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fmt::Write;
 use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -114,16 +118,26 @@ struct Coefficients {
     R: i8,
 }
 
+/// The numerical format of a particular value
 #[derive(Clone, Debug, Deserialize)]
 enum Format {
+    /// LINEAR11 as defined by PMBus (7.3)
     Linear11,
-    ULinear16,
-    SLinear16,
+
+    /// DIRECT as defined by PMBus (7.4), with static coefficients
     Direct(Coefficients),
+
+    /// DIRECT, but with coefficients that are determined at runtime
     RuntimeDirect,
+
+    /// Output that depends on the VOUT_MODE command
     #[allow(unused)]
     VOutMode(Sign),
+
+    /// Unsigned fixed point with the specified scaling factor
     FixedPoint(Factor),
+
+    /// Signed fixed point with the specified scaling factor
     SignedFixedPoint(Factor),
     Raw,
 }
@@ -159,6 +173,15 @@ enum Operation {
     Unknown,
 }
 
+/// A PMBus command, a tuple that consists of:
+///
+/// - A `u8` that uniquely denotes the command
+/// - A `String` that names the command
+/// - An `Operation` that denotes how values are written (or `Illegal` if
+///   the command does not allow values to be written)
+/// - An `Operation` that denotes how values are read (or `Illegal` if the
+///   the command does not allow values to be read
+///
 #[derive(Clone, Debug, Deserialize)]
 struct Command(u8, String, Operation, Operation);
 
@@ -211,6 +234,28 @@ struct Device {
 enum OutputCommand<'a> {
     PMBus(&'a str),
     Auxiliary(&'a str),
+}
+
+//
+// We define an error type explicitly for RON errors for the sole purpose
+// of getting Miette's fancy processing of them.
+//
+#[derive(Debug, Error, Diagnostic)]
+enum RonError {
+    #[error("Syntax error at line {line}, column {column}: {message}")]
+    #[diagnostic(
+        code(ron_parser::syntax_error),
+        help("Check the syntax and ensure it matches RON's grammar.")
+    )]
+    Syntax {
+        message: String,
+        #[source_code]
+        src: String, // Original source input
+        #[label("problem here")]
+        span: SourceSpan,
+        line: usize,
+        column: usize,
+    },
 }
 
 fn reg_sizes(cmds: &[Command]) -> Result<HashMap<String, Option<usize>>> {
@@ -709,7 +754,7 @@ fn output_command(
     };
 
     writeln!(&mut s, r##"
-/// Types and structures associated with the `{}` A PMBus command
+/// Types and structures associated with the `{}` PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
@@ -1702,10 +1747,6 @@ pub mod {} {{
             Ok(())
         }}"##, bits, bits)?;
         }
-
-        _ => {
-            panic!("{:?} not yet supported", format);
-        }
     }
 
     writeln!(&mut s, "    }}")?;
@@ -2255,6 +2296,35 @@ fn open_file(filename: &str) -> Result<File> {
     }
 }
 
+fn read_commands(filename: &str) -> Result<Commands> {
+    let mut file = open_file(filename)?;
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents)?;
+
+    let r =
+        from_str::<Commands>(&contents).map_err(|e| RonError::Syntax {
+            message: e.code.to_string(),
+            src: contents.clone(),
+            span: miette::SourceOffset::from_location(
+                contents,
+                e.position.line,
+                e.position.col,
+            )
+            .into(),
+            line: e.position.line,
+            column: e.position.col,
+        });
+
+    match r {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            eprintln!("{:?}", miette::Report::new(e));
+            bail!("failed to parse {}", filename);
+        }
+    }
+}
+
 #[rustfmt::skip::macros(bail)]
 fn codegen() -> Result<()> {
     use std::io::Write;
@@ -2262,14 +2332,7 @@ fn codegen() -> Result<()> {
     //
     // First, consume our common commands.
     //
-    let f = open_file("commands.ron")?;
-
-    let cmds: Commands = match from_reader(f) {
-        Ok(cmds) => cmds,
-        Err(e) => {
-            bail!("failed to parse commands.ron: {}", e);
-        }
-    };
+    let cmds = read_commands("commands.ron")?;
 
     let sizes = reg_sizes(&cmds.all)?;
     let dbs = &cmds.structured;
@@ -2345,14 +2408,7 @@ fn codegen() -> Result<()> {
         let mut file = File::create(dest_path)?;
 
         let fname = format!("{}.ron", &name);
-        let f = open_file(&fname)?;
-
-        let mut dcmds: Commands = match from_reader(f) {
-            Ok(dcmds) => dcmds,
-            Err(e) => {
-                bail!("failed to parse {}: {}", fname, e);
-            }
-        };
+        let mut dcmds = read_commands(&fname)?;
 
         //
         // Flatten our commands and output them
