@@ -1,0 +1,481 @@
+(
+    all: [
+        // This is a weird part in that VOUT_MODE is an illegal command. (!)
+        // In addition to marking this as illegal, we further mark illegal
+        // all commands that are defined in terms of VOUT_MODE.
+        //
+        (0x20, "VOUT_MODE", Illegal, Illegal),
+        (0x21, "VOUT_COMMAND", Illegal, Illegal),
+        (0x22, "VOUT_TRIM", Illegal, Illegal),
+        (0x23, "VOUT_CAL_OFFSET", Illegal, Illegal),
+        (0x24, "VOUT_MAX", Illegal, Illegal),
+        (0x25, "VOUT_MARGIN_HIGH", Illegal, Illegal),
+        (0x26, "VOUT_MARGIN_LOW", Illegal, Illegal),
+        (0x27, "VOUT_TRANSITION_RATE", Illegal, Illegal),
+        (0x28, "VOUT_DROOP", Illegal, Illegal),
+        (0x29, "VOUT_SCALE_LOOP", Illegal, Illegal),
+        (0x2a, "VOUT_SCALE_MONITOR", Illegal, Illegal),
+        (0x2b, "VOUT_MIN", Illegal, Illegal),
+        (0xd0, "READ_VAUX", Illegal, ReadWord),
+
+        // Why do these four commands have an MFR_ prefix?  Because they
+        // conflict with names that PMBus has already defined!  But... why
+        // does the device define its own MFR_READ_IIN (say) when it could
+        // have used the READ_IIN defined by PMBus?  I see our time is up;
+        // until next time!
+        //
+        (0xd1, "MFR_READ_IIN", Illegal, ReadWord),
+        (0xd2, "MFR_READ_PIN", Illegal, ReadWord),
+        (0xd3, "MFR_IN_OC_WARN_LIMIT", WriteWord, ReadWord),
+        (0xd4, "MFR_PIN_OP_WARN_LIMIT", WriteWord, ReadWord),
+
+        (0xd5, "READ_PIN_PEAK", Illegal, ReadWord),
+        (0xd6, "CLEAR_PIN_PEAK", Illegal, SendByte),
+        (0xd7, "GATE_MASK", WriteByte, ReadByte),
+        (0xd8, "ALERT_MASK", WriteWord, ReadWord),
+        (0xd9, "DEVICE_SETUP", WriteByte, ReadByte),
+        (0xda, "BLOCK_READ", Illegal, ReadBlock),
+        (0xdb, "SAMPLES_FOR_AVG", WriteBlock, ReadBlock),
+        (0xdc, "READ_AVG_VIN", Illegal, ReadWord),
+        (0xdd, "READ_AVG_VOUT", Illegal, ReadWord),
+        (0xde, "READ_AVG_IIN", Illegal, ReadWord),
+        (0xdf, "READ_AVG_PIN", Illegal, ReadWord),
+        (0xe0, "BLACK_BOX_READ", Illegal, ReadBlock),
+        (0xe1, "READ_DIAGNOSTIC_WORD", Illegal, ReadWord),
+        (0xe2, "AVG_BLOCK_READ", Illegal, ReadBlock),
+    ],
+
+    numerics: [
+        ("VOUT_UV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("OT_FAULT_LIMIT", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
+        ("OT_WARN_LIMIT", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
+        ("VIN_OV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
+        ("VIN_UV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
+        ("READ_VIN", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
+        ("READ_VOUT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("READ_TEMPERATURE_1", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
+        ("READ_VAUX", Direct(( m: 13793, R: -1, b: 0 )), Volts),
+        ("MFR_READ_IIN", RuntimeDirect, Amperes),
+        ("MFR_READ_PIN", RuntimeDirect, Watts),
+        ("MFR_IN_OC_WARN_LIMIT", RuntimeDirect, Amperes),
+        ("MFR_PIN_OP_WARN_LIMIT", RuntimeDirect, Watts),
+        ("READ_AVG_VIN", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
+        ("READ_AVG_VOUT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("READ_AVG_IIN", RuntimeDirect, Amperes),
+        ("READ_AVG_PIN", RuntimeDirect, Watts),
+    ],
+
+    structured: {
+        "STATUS_WORD": {
+            "OutputVoltageFault": (
+                name: "Output voltage fault",
+                bits: Bit(15),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputFault": (
+                name: "Input voltage/current/power fault",
+                bits: Bit(13),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "FETFault": (
+                name: "FET is shorted",
+                bits: Bit(12),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PowerGoodStatus": (
+                name: "POWER_GOOD signal status",
+                bits: Bit(11),
+                values: Sentinels({
+                    "PowerGood": (0b0, "POWER_GOOD set"),
+                    "NoPowerGood": (0b1, "POWER_GOOD not set"),
+                }),
+            ),
+            "CircuitBreakerFault": (
+                name: "Circuit breaker fault triggered",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Off": (
+                name: "MOSFET is not switched on",
+                bits: Bitrange(High(6), Low(6)),
+                values: Sentinels({
+                    "PowerNotOff": (0b0, "power is not off"),
+                    "PowerOff": (0b1, "power is off"),
+                }),
+            ),
+            "InputUndervoltageFault": (
+                name: "Input undervoltage fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "TemperatureFault": (
+                name: "Temperature fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CMLFault": (
+                name: "Communications/memory/logic fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "NoneOfTheAbove": (
+                name: "Unknown fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            )
+        },
+
+        "GATE_MASK": {
+            "UndervoltageFault": (
+                name: "VIN undervoltage fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Fault is not masked"),
+                    "Masked": (0b1, "Fault is masked")
+                })
+            ),
+            "OvervoltageFault": (
+                name: "VIN overvoltage fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Fault is not masked"),
+                    "Masked": (0b1, "Fault is masked")
+                })
+            ),
+            "InputCurrentFault": (
+                name: "IIN/PFET fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Fault is not masked"),
+                    "Masked": (0b1, "Fault is masked")
+                })
+            ),
+            "OvertempFault": (
+                name: "Overtemp fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Fault is not masked"),
+                    "Masked": (0b1, "Fault is masked")
+                })
+            ),
+            "CircuitBreakerFault": (
+                name: "Circuit breaker fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Fault is not masked"),
+                    "Masked": (0b1, "Fault is masked")
+                })
+            )
+        },
+
+        "STATUS_VOUT": {
+            "OutputUndervoltageWarning": (
+                name: "Output overvoltage warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+        },
+
+        "STATUS_INPUT": {
+            "InputOvervoltageFault": (
+                name: "Input overvoltage fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputOvervoltageWarning": (
+                name: "Input overvoltage warning",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputUndervoltageWarning": (
+                name: "Input undervoltage warning",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputUndervoltageFault": (
+                name: "Input undervoltage fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputOvercurrentFault": (
+                name: "Input overcurrent fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "InputOvercurrentWarning": (
+                name: "Input overcurrent warning",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+            "InputOverpowerWarning": (
+                name: "Input overpower warning",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoWarning": (0b0, "no warning"),
+                    "Warning": (0b1, "warning"),
+                }),
+            ),
+        },
+
+        "STATUS_MFR_SPECIFIC": {
+            "CircuitBreakerFault": (
+                name: "Circuit breaker fault",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "ShortedFault": (
+                name: "External MOSFET shorted fault",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "DefaultsLoaded": (
+                name: "Defaults loaded",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NotLoaded": (0b0, "not loaded"),
+                    "Loaded": (0b1, "loaded"),
+                }),
+            )
+        },
+
+        "ALERT_MASK": {
+            "OutputUndervoltageWarn": (
+                name: "VOUT undervoltage warning",
+                bits: Bit(15),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputCurrentWarn": (
+                name: "IIN limit warning",
+                bits: Bit(14),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputUndervoltageWarn": (
+                name: "VIN undervoltage warning",
+                bits: Bit(13),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputOvervoltageWarn": (
+                name: "VOUT undervoltage warning",
+                bits: Bit(12),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "NotPowerGood": (
+                name: "POWER GOOD not set",
+                bits: Bit(11),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "OvertempWarn": (
+                name: "Overtemp warning",
+                bits: Bit(10),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "OverpowerWarn": (
+                name: "Overpower limit warning",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "Shorted": (
+                name: "External MOSET shorted",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputUndervoltageFault": (
+                name: "VIN undervoltage fault",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputOvervoltageFault": (
+                name: "VOUT undervoltage fault",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "InputCurrentFault": (
+                name: "IIN/PFET fault",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "OvertempFault": (
+                name: "Overtemp fault",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "CMLFault": (
+                name: "CML fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            ),
+            "CircuitBreakerFault": (
+                name: "Circuit breaker fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NotMasked": (0b0, "Alert is not masked"),
+                    "Masked": (0b1, "Alert is masked")
+                })
+            )
+        },
+
+        "DEVICE_SETUP": {
+            "RetrySetting": (
+                name: "Retry setting",
+                bits: Bitrange(High(7), Low(5)),
+                values: Sentinels({
+                    "Unlimited": (0b111, "Unlimited retries"),
+                    "Retry16": (0b110, "Retry 16 times"),
+                    "Retry8": (0b101, "Retry 8 times"),
+                    "Retry4": (0b100, "Retry 4 times"),
+                    "Retry2": (0b011, "Retry 2 times"),
+                    "Retry1": (0b010, "Retry 1 time"),
+                    "NoRetry": (0b001, "No retries"),
+                    "PinConfigured": (0b000, "Pin configured retries"),
+                }),
+            ),
+            "CurrentSetting": (
+                name: "Current limit setting",
+                bits: Bit(4),
+                values: Sentinels({
+                    "High": (0b0, "High setting (50 mV)"),
+                    "Low": (0b1, "Low setting (26 mV)")
+                })
+            ),
+            "CBCLRatio": (
+                name: "Circuit breaker to current limit ratio",
+                bits: Bit(3),
+                values: Sentinels({
+                    "Low": (0b0, "Low setting (1.9x)"),
+                    "High": (0b1, "High setting (3.9x)")
+                })
+            ),
+            "CurrentConfig": (
+                name: "Current limit configuration",
+                bits: Bit(2),
+                values: Sentinels({
+                    "Pin": (0b0, "Use pin settings"),
+                    "SMBus": (0b1, "Use SMBus settings")
+                })
+            ),
+        },
+
+        "BLOCK_READ": {
+            "DIAGNOSTIC_WORD": (
+                name: "DIAGNOSTIC_WORD command",
+                bits: Bitrange(High(15), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+            "IIN_BLOCK": (
+                name: "READ_IIN command",
+                bits: Bitrange(High(31), Low(16)),
+                values: Scalar(Unsigned),
+            ),
+            "VOUT_BLOCK": (
+                name: "READ_VOUT command",
+                bits: Bitrange(High(47), Low(32)),
+                values: Scalar(Unsigned),
+            ),
+            "VIN_BLOCK": (
+                name: "READ_VIN command",
+                bits: Bitrange(High(63), Low(48)),
+                values: Scalar(Unsigned),
+            ),
+            "PIN_BLOCK": (
+                name: "READ_PIN command",
+                bits: Bitrange(High(79), Low(64)),
+                values: Scalar(Unsigned),
+            ),
+            "TEMP_BLOCK": (
+                name: "READ_TEMPERATURE_1 command",
+                bits: Bitrange(High(95), Low(80)),
+                values: Scalar(Unsigned),
+            ),
+        }
+    },
+)

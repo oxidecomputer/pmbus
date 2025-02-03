@@ -25,6 +25,11 @@
         description: "Digital Triple Output, 6-Phase PWM Controller",
         coefficients: Some(( m: 1, R: 3, b: 0 ))
     ),
+    "lm5066": (
+        manufacturer: "Texas Instruments",
+        part: "LM5066",
+        description: "Hotswap Controller With I/V/P Monitoring",
+    ),
     "mwocp68": (
         manufacturer: "Murata",
         part: "MWOCP68-3600W",

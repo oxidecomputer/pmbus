@@ -12,13 +12,14 @@ use anyhow::{bail, Result};
 // its own aesthetics to make the generated code (relatively) clean.
 //
 use convert_case::{Case, Casing};
-use ron::de::from_reader;
+use ron::de::{from_reader, from_str};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fmt::Write;
 use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -106,6 +107,7 @@ enum Values<T> {
     LogFactorUnits(Base, Factor, Units),
 }
 
+/// DIRECT coefficients
 #[derive(Copy, Clone, Debug, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 #[allow(non_snake_case)]
 struct Coefficients {
@@ -114,51 +116,110 @@ struct Coefficients {
     R: i8,
 }
 
+/// The numerical format of a particular value
 #[derive(Clone, Debug, Deserialize)]
 enum Format {
+    /// LINEAR11 as defined by PMBus (7.3)
     Linear11,
-    ULinear16,
-    SLinear16,
+
+    /// DIRECT as defined by PMBus (7.4), with static coefficients
     Direct(Coefficients),
+
+    /// DIRECT, but with coefficients that are determined at runtime
     RuntimeDirect,
+
+    /// Output that depends on the VOUT_MODE command
     #[allow(unused)]
     VOutMode(Sign),
+
+    /// Unsigned fixed point with the specified scaling factor
     FixedPoint(Factor),
+
+    /// Signed fixed point with the specified scaling factor
     SignedFixedPoint(Factor),
     Raw,
 }
 
+/// A bit or bitrange used to describe a field
 #[derive(Debug, Deserialize)]
 enum Bits {
+    /// Value encoded over a bitrage that runs from `High` to `Low`, inclusive
     Bitrange(High, Low),
+
+    /// Value is encoded in a single bit
     Bit(u8),
 }
 
+/// Description of a field in a structured command
 #[derive(Debug, Deserialize)]
 struct Field {
+    /// Name of field
     name: String,
+
+    /// The bit description of the value
     bits: Bits,
+
+    /// A map of specific numeric values and their definittion
     values: Values<HashMap<String, Value>>,
 }
 
+/// SMBus transaction types
 #[derive(Clone, Debug, Deserialize)]
 enum Operation {
+    /// Read a single data byte
     ReadByte,
+
+    /// Write a single data byte
     WriteByte,
+
+    /// Send a command byte without any data bytes
     SendByte,
+
+    /// Read a 16-bit word
     ReadWord,
+
+    /// Write a 16-bit word
     WriteWord,
+
+    /// Write a 32-bit word
     WriteWord32,
+
+    /// Read a 32-bit word
     ReadWord32,
+
+    /// Read an SMBus block
     ReadBlock,
+
+    /// Write an SMBus block
     WriteBlock,
+
+    /// SMBus Process Call
     ProcessCall,
+
+    /// Defined by manufacturer
     MfrDefined,
+
+    /// SMBus Extended Command
     Extended,
+
+    /// Illegal operation
     Illegal,
+
+    /// Unknown/unspecified operation (e.g., deprecated)
     Unknown,
 }
 
+/// A PMBus command, a tuple that consists of:
+///
+/// - A `u8` that uniquely denotes the command
+/// - A `String` that names the command
+/// - An `Operation` that denotes how values are written (or `Illegal` if
+///   the command does not allow values to be written)
+/// - An `Operation` that denotes how values are read (or `Illegal` if the
+///   the command does not allow values to be read
+///
+/// (This definition is designed to match Table 31 in Appendix 1.)
+///
 #[derive(Clone, Debug, Deserialize)]
 struct Command(u8, String, Operation, Operation);
 
@@ -709,7 +770,7 @@ fn output_command(
     };
 
     writeln!(&mut s, r##"
-/// Types and structures associated with the `{}` A PMBus command
+/// Types and structures associated with the `{}` PMBus command
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub mod {} {{
@@ -1702,10 +1763,6 @@ pub mod {} {{
             Ok(())
         }}"##, bits, bits)?;
         }
-
-        _ => {
-            panic!("{:?} not yet supported", format);
-        }
     }
 
     writeln!(&mut s, "    }}")?;
@@ -2255,6 +2312,20 @@ fn open_file(filename: &str) -> Result<File> {
     }
 }
 
+fn read_commands(filename: &str) -> Result<Commands> {
+    let mut file = open_file(filename)?;
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents)?;
+
+    match from_str::<Commands>(&contents) {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            bail!("failed to parse {}: {}", filename, e);
+        }
+    }
+}
+
 #[rustfmt::skip::macros(bail)]
 fn codegen() -> Result<()> {
     use std::io::Write;
@@ -2262,14 +2333,7 @@ fn codegen() -> Result<()> {
     //
     // First, consume our common commands.
     //
-    let f = open_file("commands.ron")?;
-
-    let cmds: Commands = match from_reader(f) {
-        Ok(cmds) => cmds,
-        Err(e) => {
-            bail!("failed to parse commands.ron: {}", e);
-        }
-    };
+    let cmds = read_commands("commands.ron")?;
 
     let sizes = reg_sizes(&cmds.all)?;
     let dbs = &cmds.structured;
@@ -2345,14 +2409,7 @@ fn codegen() -> Result<()> {
         let mut file = File::create(dest_path)?;
 
         let fname = format!("{}.ron", &name);
-        let f = open_file(&fname)?;
-
-        let mut dcmds: Commands = match from_reader(f) {
-            Ok(dcmds) => dcmds,
-            Err(e) => {
-                bail!("failed to parse {}: {}", fname, e);
-            }
-        };
+        let mut dcmds = read_commands(&fname)?;
 
         //
         // Flatten our commands and output them
