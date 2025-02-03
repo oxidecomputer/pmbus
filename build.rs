@@ -107,6 +107,7 @@ enum Values<T> {
     LogFactorUnits(Base, Factor, Units),
 }
 
+/// DIRECT coefficients
 #[derive(Copy, Clone, Debug, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 #[allow(non_snake_case)]
 struct Coefficients {
@@ -139,34 +140,72 @@ enum Format {
     Raw,
 }
 
+/// A bit or bitrange used to describe a field
 #[derive(Debug, Deserialize)]
 enum Bits {
+    /// Value encoded over a bitrage that runs from `High` to `Low`, inclusive
     Bitrange(High, Low),
+
+    /// Value is encoded in a single bit
     Bit(u8),
 }
 
+/// Description of a field in a structured command
 #[derive(Debug, Deserialize)]
 struct Field {
+    /// Name of field
     name: String,
+
+    /// The bit description of the value
     bits: Bits,
+
+    /// A map of specific numeric values and their definittion
     values: Values<HashMap<String, Value>>,
 }
 
+/// SMBus transaction types
 #[derive(Clone, Debug, Deserialize)]
 enum Operation {
+    /// Read a single data byte
     ReadByte,
+
+    /// Write a single data byte
     WriteByte,
+
+    /// Send a command byte without any data bytes
     SendByte,
+
+    /// Read a 16-bit word
     ReadWord,
+
+    /// Write a 16-bit word
     WriteWord,
+
+    /// Write a 32-bit word
     WriteWord32,
+
+    /// Read a 32-bit word
     ReadWord32,
+
+    /// Read an SMBus block
     ReadBlock,
+
+    /// Write an SMBus block
     WriteBlock,
+
+    /// SMBus Process Call
     ProcessCall,
+
+    /// Defined by manufacturer
     MfrDefined,
+
+    /// SMBus Extended Command
     Extended,
+
+    /// Illegal operation
     Illegal,
+
+    /// Unknown/unspecified operation (e.g., deprecated)
     Unknown,
 }
 
@@ -178,6 +217,8 @@ enum Operation {
 ///   the command does not allow values to be written)
 /// - An `Operation` that denotes how values are read (or `Illegal` if the
 ///   the command does not allow values to be read
+///
+/// (This definition is designed to match Table 31 in Appendix 1.)
 ///
 #[derive(Clone, Debug, Deserialize)]
 struct Command(u8, String, Operation, Operation);
