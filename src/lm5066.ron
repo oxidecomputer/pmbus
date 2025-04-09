@@ -72,8 +72,8 @@
 	// command (it only supports OnOffState) -- and in particular, its
 	// default value of 0x80 corresponds to an illegal value for
 	// MarginFaultResponse (for which only 0b01 and 0b10 are defined
-	// values. We therefore redefine OPERATION here to contain *only*
-	// OnOffState.
+	// values). To prevent interpretation of any illegal fields, we
+	// therefore redefine OPERATION here to contain *only* OnOffState.
 	//
         "OPERATION": {
             "OnOffState": (
