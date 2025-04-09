@@ -1,5 +1,7 @@
 (
     all: [
+        (0x01, "OPERATION", WriteByte, ReadByte),
+
         // This is a weird part in that VOUT_MODE is an illegal command. (!)
         // In addition to marking this as illegal, we further mark illegal
         // all commands that are defined in terms of VOUT_MODE.
@@ -66,6 +68,24 @@
     ],
 
     structured: {
+	// The LM5066 regrettably doesn't support the full PMBus OPERATION
+	// command (it only supports OnOffState) -- and in particular, its
+	// default value of 0x80 corresponds to an illegal value for
+	// MarginFaultResponse (for which only 0b01 and 0b10 are defined
+	// values. We therefore redefine OPERATION here to contain *only*
+	// OnOffState.
+	//
+        "OPERATION": {
+            "OnOffState": (
+                name: "On/off state",
+                bits: Bit(7),
+                values: Sentinels({
+                    "Off": (0, "output off"),
+                    "On": (1, "output on"),
+                }),
+            ),
+	},
+
         "STATUS_WORD": {
             "OutputVoltageFault": (
                 name: "Output voltage fault",
