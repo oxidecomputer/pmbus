@@ -338,6 +338,17 @@ fn raw_operation() {
 }
 
 #[test]
+fn bad_operation() {
+    // We expect this to generate an Unknown value for the
+    // margin fault response rather than an error
+    CommandCode::OPERATION
+        .interpret(&[0b0000_1100], mode, |field, value| {
+            std::println!("{} = {}", field.desc(), value);
+        })
+        .unwrap();
+}
+
+#[test]
 fn page() {
     use commands::PAGE::*;
 

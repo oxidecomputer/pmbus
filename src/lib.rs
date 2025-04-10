@@ -111,8 +111,6 @@ pub enum Error {
     ValueOutOfRange,
     /// Specified VOutMode is not valid
     InvalidMode,
-    /// Value in the field did not correspond to a known sentinel value
-    InvalidSentinel,
     /// VOutMode indicates Direct, but device has no known coefficients
     MissingCoefficients,
     /// Indicated replacement value is invalid

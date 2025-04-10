@@ -1154,7 +1154,7 @@ pub mod {} {{
                 Field::{f} => {{
                     match {f}::from_u{bits}(raw) {{
                         Some(t) => Ok(Value::{f}(t)),
-                        None => Err(Error::InvalidSentinel),
+                        None => Ok(Value::Unknown(raw)),
                     }}
                 }}"##)?;
     }
