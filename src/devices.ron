@@ -30,6 +30,11 @@
         part: "LM5066",
         description: "Hotswap Controller With I/V/P Monitoring",
     ),
+    "lm5066i": (
+        manufacturer: "Texas Instruments",
+        part: "LM5066I",
+        description: "Hotswap Controller With I/V/P Monitoring",
+    ),
     "mwocp68": (
         manufacturer: "Murata",
         part: "MWOCP68-3600W",
