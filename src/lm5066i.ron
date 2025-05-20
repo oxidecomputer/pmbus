@@ -1,3 +1,6 @@
+// This part is mostly identical to lm5066.ron, but has different `numerics`:
+// the fixed values are slightly different, and the `RuntimeDirect` values are
+// *dramatically* different.
 (
     all: [
         (0x01, "OPERATION", WriteByte, ReadByte),
@@ -48,21 +51,21 @@
     ],
 
     numerics: [
-        ("VOUT_UV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("VOUT_UV_WARN_LIMIT", Direct(( m: 4602, R: -2, b: 500 )), Volts),
         ("OT_FAULT_LIMIT", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
         ("OT_WARN_LIMIT", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
-        ("VIN_OV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
-        ("VIN_UV_WARN_LIMIT", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
-        ("READ_VIN", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
-        ("READ_VOUT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("VIN_OV_WARN_LIMIT", Direct(( m: 4617, R: -2, b: -140 )), Volts),
+        ("VIN_UV_WARN_LIMIT", Direct(( m: 4617, R: -2, b: -140 )), Volts),
+        ("READ_VIN", Direct(( m: 4617, R: -2, b: -140 )), Volts),
+        ("READ_VOUT", Direct(( m: 4602, R: -2, b: 500 )), Volts),
         ("READ_TEMPERATURE_1", Direct(( m: 16000, R: -3, b: 0 )), Celsius),
-        ("READ_VAUX", Direct(( m: 13793, R: -1, b: 0 )), Volts),
+        ("READ_VAUX", Direct(( m: 13774, R: -1, b: 73 )), Volts),
         ("MFR_READ_IIN", RuntimeDirect, Amperes),
         ("MFR_READ_PIN", RuntimeDirect, Watts),
         ("MFR_IN_OC_WARN_LIMIT", RuntimeDirect, Amperes),
         ("MFR_PIN_OP_WARN_LIMIT", RuntimeDirect, Watts),
-        ("READ_AVG_VIN", Direct(( m: 4587, R: -2, b: -1200 )), Volts),
-        ("READ_AVG_VOUT", Direct(( m: 4587, R: -2, b: -2400 )), Volts),
+        ("READ_AVG_VIN", Direct(( m: 4617, R: -2, b: -140 )), Volts),
+        ("READ_AVG_VOUT", Direct(( m: 4602, R: -2, b: 500 )), Volts),
         ("READ_AVG_IIN", RuntimeDirect, Amperes),
         ("READ_AVG_PIN", RuntimeDirect, Watts),
     ],
