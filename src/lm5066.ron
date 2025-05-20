@@ -37,7 +37,7 @@
         (0xd8, "ALERT_MASK", WriteWord, ReadWord),
         (0xd9, "DEVICE_SETUP", WriteByte, ReadByte),
         (0xda, "BLOCK_READ", Illegal, ReadBlock),
-        (0xdb, "SAMPLES_FOR_AVG", WriteBlock, ReadBlock),
+        (0xdb, "SAMPLES_FOR_AVG", WriteByte, ReadByte),
         (0xdc, "READ_AVG_VIN", Illegal, ReadWord),
         (0xdd, "READ_AVG_VOUT", Illegal, ReadWord),
         (0xde, "READ_AVG_IIN", Illegal, ReadWord),
