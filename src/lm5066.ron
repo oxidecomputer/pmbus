@@ -496,6 +496,13 @@
                 bits: Bitrange(High(95), Low(80)),
                 values: Scalar(Unsigned),
             ),
-        }
+        },
+        "SAMPLES_FOR_AVG": {
+            "AVGN": (
+                name: "log2 of the number of samples for averaging",
+                bits: Bitrange(High(7), Low(0)),
+                values: Scalar(Unsigned),
+            ),
+        },
     },
 )
