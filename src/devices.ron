@@ -1,7 +1,7 @@
 {
-    "adm1272": (
+    "adm127x": (
         manufacturer: "Analog Devices",
-        part: "ADM1272",
+        part: "ADM1272 or ADM1273",
         description: "Postive Hot Swap Controller",
     ),
     "tps546b24a": (
