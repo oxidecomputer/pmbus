@@ -550,8 +550,8 @@ fn verify_status_other() {
 }
 
 #[test]
-fn verify_status_adm1272() {
-    use commands::adm1272::STATUS_MFR_SPECIFIC::*;
+fn verify_status_adm127x() {
+    use commands::adm127x::STATUS_MFR_SPECIFIC::*;
     let data = CommandData::from_slice(&[0x40]).unwrap();
     dump(&data);
 }
@@ -1250,8 +1250,8 @@ fn device_commands() {
 }
 
 #[test]
-fn adm1272_direct() {
-    use commands::adm1272::*;
+fn adm127x_direct() {
+    use commands::adm127x::*;
     use units::*;
 
     let voltage = Coefficients {
