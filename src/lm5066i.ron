@@ -118,8 +118,8 @@
                 name: "POWER_GOOD signal status",
                 bits: Bit(11),
                 values: Sentinels({
-                    "PowerGood": (0b0, "POWER_GOOD set"),
-                    "NoPowerGood": (0b1, "POWER_GOOD not set"),
+                    "NoPowerGood": (0b0, "POWER_GOOD not set"),
+                    "PowerGood": (0b1, "POWER_GOOD set"),
                 }),
             ),
             "CircuitBreakerFault": (
