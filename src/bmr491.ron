@@ -151,6 +151,7 @@
         ("VIN_OV_WARN_LIMIT", Linear11, Volts),
         ("VIN_UV_WARN_LIMIT", Linear11, Volts),
         ("VIN_UV_FAULT_LIMIT", Linear11, Volts),
+        ("VOUT_UV_FAULT_LIMIT", Linear11, Volts),
         ("TON_DELAY", Linear11, Milliseconds),
         ("TON_RISE", Linear11, Milliseconds),
         ("TON_MAX_FAULT_LIMIT", Linear11, Milliseconds),
