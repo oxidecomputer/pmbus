@@ -10,14 +10,14 @@ inherits = "dev"
 debug = false # default true
 
 [build-dependencies]
-ron = "0.8"
-serde = "1.0.126"
-serde_with = "1.10.0"
+ron = "0.12"
+serde = {version = "1", default-features = false, features = ["derive"] }
+serde_with = { version = "3", default-features = false, features = ["alloc", "std"] }
 
-anyhow = "1.0.31"
-convert_case = "0.4"
+anyhow = "1"
+convert_case = "0.11"
 
 [dependencies]
-num-traits = { version = "0.2.12", default-features = false }
+num-traits = { version = "0.2", default-features = false }
 num-derive = "0.4"
-libm = "0.2.1"
+libm = "0.2"

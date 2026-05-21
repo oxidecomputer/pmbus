@@ -652,7 +652,7 @@ fn validate(
     //
     if bits == 128 {
         let bits = (highest + 1).next_power_of_two();
-        Ok((bits.into(), ((highest + 7) / 8).into()))
+        Ok((bits.into(), highest.div_ceil(8).into()))
     } else {
         Ok((bits, size))
     }
@@ -661,7 +661,7 @@ fn validate(
 #[rustfmt::skip::macros(writeln)]
 fn output_scalar(name: &str, width: usize) -> Result<String> {
     let mut s = String::new();
-    let bits = ((width + 7) / 8) * 8;
+    let bits = width.div_ceil(8) * 8;
 
     writeln!(&mut s, r##"
     #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, ToPrimitive)]
