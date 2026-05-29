@@ -18,10 +18,7 @@
         ("PIN_OP_WARN_LIMIT", Linear11, Watts),
         ("READ_VIN", Linear11, Volts),
         ("READ_IIN", Linear11, Amperes),
-        // TODO mwocp68.ron says that READ_VCAP's format is
-        // `VOutMode(Unsigned)`, but the docs for both the 67 and 68 say it should
-        // be `Linear11`. I should try to test which it is, on both the 67 and 68.
-        ("READ_VCAP", VOutMode(Unsigned), Volts),
+        ("READ_VCAP", Linear11, Volts),
         ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Linear11, Amperes),
         ("READ_TEMPERATURE_1", Linear11, Celsius),
