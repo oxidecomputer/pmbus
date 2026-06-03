@@ -35,6 +35,11 @@
         part: "LM5066I",
         description: "Hotswap Controller With I/V/P Monitoring",
     ),
+    "mwocp67": (
+        manufacturer: "Murata",
+        part: "MWOCP67-5500",
+        description: "Front End Power Module"
+    ),
     "mwocp68": (
         manufacturer: "Murata",
         part: "MWOCP68-3600W",

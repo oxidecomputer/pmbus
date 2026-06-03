@@ -52,6 +52,8 @@
         ("PIN_OP_WARN_LIMIT", Linear11, Watts),
         ("READ_VIN", Linear11, Volts),
         ("READ_IIN", Linear11, Amperes),
+        // TODO: READ_VCAP is probably `Linear11` not `VOutMode(Unsigned)`
+        // https://github.com/oxidecomputer/hubris/issues/2543
         ("READ_VCAP", VOutMode(Unsigned), Volts),
         ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Linear11, Amperes),

@@ -1,0 +1,81 @@
+(
+    all: [
+        (0xc3, "READ_TEMP_CLIP_P", Illegal, ReadWord),
+        (0xc4, "READ_TEMP_CLIP_N", Illegal, ReadWord),
+
+        // TODO: add firmware update commands (https://github.com/oxidecomputer/hubris/issues/2412)
+    ],
+
+    numerics: [
+        ("FAN_COMMAND_1", Linear11, Percent),
+        ("IOUT_OC_FAULT_LIMIT", Linear11, Amperes),
+        ("IOUT_OC_WARN_LIMIT", Linear11, Amperes),
+         // The mwocp67 pmbus doc says IIN_OC_WARN_LIMIT's data format is
+         // "non-numeric" but "input current in amperes" sure sounds numeric to me,
+         // and the value looks reasonable when interpreted as Linear11.
+        ("IIN_OC_WARN_LIMIT", Linear11, Amperes),
+        ("POUT_OP_WARN_LIMIT", Linear11, Watts),
+        ("PIN_OP_WARN_LIMIT", Linear11, Watts),
+        ("READ_VIN", Linear11, Volts),
+        ("READ_IIN", Linear11, Amperes),
+        // The datasheet spells this as READ_CAP in some places
+        ("READ_VCAP", Linear11, Volts),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
+        ("READ_IOUT", Linear11, Amperes),
+        ("READ_TEMPERATURE_1", Linear11, Celsius),
+        ("READ_TEMPERATURE_2", Linear11, Celsius),
+        ("READ_TEMPERATURE_3", Linear11, Celsius),
+        ("READ_TEMP_CLIP_P", Linear11, Celsius),
+        ("READ_TEMP_CLIP_N", Linear11, Celsius),
+        ("READ_FAN_SPEED_1", Linear11, Rpm),
+        ("READ_POUT", Linear11, Watts),
+        ("READ_PIN", Linear11, Watts),
+        ("MFR_VIN_MIN", Linear11, Volts),
+        ("MFR_VIN_MAX", Linear11, Volts),
+        ("MFR_IIN_MAX", Linear11, Amperes),
+        ("MFR_PIN_MAX", Linear11, Watts),
+        ("MFR_VOUT_MIN", VOutMode(Unsigned), Volts),
+        ("MFR_VOUT_MAX", VOutMode(Unsigned), Volts),
+        ("MFR_IOUT_MAX", Linear11, Amperes),
+        ("MFR_POUT_MAX", Linear11, Watts),
+        ("MFR_TAMBIENT_MAX", Linear11, Celsius),
+        ("MFR_TAMBIENT_MIN", Linear11, Celsius),
+        ("MFR_MAX_TEMP_1", Linear11, Celsius),
+        ("MFR_MAX_TEMP_2", Linear11, Celsius),
+        ("MFR_MAX_TEMP_3", Linear11, Celsius),
+    ],
+
+    structured: {
+        "STATUS_MFR_SPECIFIC": {
+            "PfcOvervoltageFault": (
+                name: "PFC OV fault occurred",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            // Bit 6: undocumented
+            // Bit 5: undocumented
+            "LineStatusChange": (
+                name: "Power supply line status change ",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoChange": (0b0, "no change"),
+                    "Change": (0b1, "change"),
+                }),
+            ),
+            "PfcUndervoltageFault": (
+                name: "PFC UV fault occurred",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            // Bit 2: undocumented
+            // Bit 1: reserved
+            // Bit 0: reserved
+        },
+    }
+)
