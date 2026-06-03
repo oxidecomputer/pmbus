@@ -18,6 +18,7 @@
         ("PIN_OP_WARN_LIMIT", Linear11, Watts),
         ("READ_VIN", Linear11, Volts),
         ("READ_IIN", Linear11, Amperes),
+        // The datasheet spells this as READ_CAP in some places
         ("READ_VCAP", Linear11, Volts),
         ("READ_VOUT", VOutMode(Unsigned), Volts),
         ("READ_IOUT", Linear11, Amperes),
