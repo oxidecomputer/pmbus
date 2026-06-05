@@ -2,6 +2,13 @@
     all: [
         (0x01, "OPERATION", WriteByte, ReadByte),
         (0x20, "VOUT_MODE", Illegal, Illegal),
+
+        // These are unsupported, and marked to prevent from automatic queries
+        (0x7e, "STATUS_CML", Illegal, Illegal),
+        (0x7f, "STATUS_OTHER", Illegal, Illegal),
+        (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+
         (0xcc, "RESTART_TIME", WriteByte, ReadByte),
         (0xd0, "PEAK_IOUT", WriteWord, ReadWord),
         (0xd1, "PEAK_VIN", WriteWord, ReadWord),
