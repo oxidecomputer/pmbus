@@ -20,6 +20,11 @@
         (0x2b, "VOUT_MIN", Illegal, Illegal),
         (0xd0, "READ_VAUX", Illegal, ReadWord),
 
+        // These are unsupported, and marked to prevent from automatic queries
+        (0x7b, "STATUS_IOUT", Illegal, Illegal),
+        (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+
         // Why do these four commands have an MFR_ prefix?  Because they
         // conflict with names that PMBus has already defined!  But... why
         // does the device define its own MFR_READ_IIN (say) when it could

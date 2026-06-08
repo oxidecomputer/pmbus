@@ -1,5 +1,9 @@
 (
     all: [
+        // These are unsupported, and marked to prevent from automatic queries
+        (0x7f, "STATUS_OTHER", Illegal, Illegal),
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+
         //
         // MFR_PAGE_X allows for reading the black box data: when any fault
         // (except for an input undervoltage) occurs, many values are latched
