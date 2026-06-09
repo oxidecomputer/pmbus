@@ -4,6 +4,15 @@
         (0xc4, "READ_TEMP_CLIP_N", Illegal, ReadWord),
 
         // TODO: add firmware update commands (https://github.com/oxidecomputer/hubris/issues/2412)
+
+        // These registers are read/write by default, but ACAN-157 specifies
+        // that they are read-only.
+        (0x78, "STATUS_BYTE", Illegal, ReadByte),
+        (0x79, "STATUS_WORD", Illegal, ReadWord),
+        (0x7f, "STATUS_OTHER", Illegal, ReadByte),
+
+        // These are unsupported, and marked to prevent from automatic queries
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
     ],
 
     numerics: [
