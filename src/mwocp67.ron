@@ -11,6 +11,9 @@
         (0x79, "STATUS_WORD", Illegal, ReadWord),
         (0x7f, "STATUS_OTHER", Illegal, ReadByte),
 
+        // This address would have been USER_DATA_01 by default
+        (0xb1, "MB_PSU_SETTING", WriteWord, ReadWord),
+
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
     ],
@@ -86,5 +89,51 @@
             // Bit 1: reserved
             // Bit 0: reserved
         },
+        "MB_PSU_SETTING": {
+            "PowerCycle": (
+                name: "Turn off PSU output for certain time after delay",
+                bits: Bit(15),
+                values: Sentinels({
+                    "Cancel": (0b0, "cancel"),
+                    "PowerCycle": (0b1, "power cycle"),
+                }),
+            ),
+            "ClearFaults": (
+                name: "Clear faults and latch",
+                bits: Bit(14),
+                values: Sentinels({
+                    "Default": (0b0, "default"),
+                    "Clear": (0b1, "clear"),
+                }),
+            ),
+            // Bit 13: undocumented
+            // Bit 12: undocumented
+            "ActiveCurrentSharing": (
+                name: "Active current sharing",
+                bits: Bit(11),
+                values: Sentinels({
+                    "Disable": (0b0, "disable"),
+                    "Enable": (0b1, "enable"),
+                }),
+            ),
+            // Bit 10: undocumented
+            "OutputVoltageSetting": (
+                name: "Output voltage setting",
+                bits: Bit(9),
+                values: Sentinels({
+                    "V48": (0b0, "48V"),
+                    "V50": (0b1, "50V"),
+                }),
+            ),
+            // Bits 1-7: undocumented
+            "EnableWriting": (
+                name: "Enable writing on PSU",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Disabled": (0b0, "disabled"),
+                    "Enabled": (0b1, "enabled"),
+                }),
+            ),
+        }
     }
 )
