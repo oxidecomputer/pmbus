@@ -3,8 +3,6 @@
         (0xc3, "READ_TEMP_CLIP_P", Illegal, ReadWord),
         (0xc4, "READ_TEMP_CLIP_N", Illegal, ReadWord),
 
-        // TODO: add firmware update commands (https://github.com/oxidecomputer/hubris/issues/2412)
-
         // These registers are read/write by default, but ACAN-157 specifies
         // that they are read-only.
         (0x78, "STATUS_BYTE", Illegal, ReadByte),
@@ -13,6 +11,10 @@
 
         // This address would have been USER_DATA_01 by default
         (0xb1, "MB_PSU_SETTING", WriteWord, ReadWord),
+
+        (0xd6, "MFR_FWUPLOAD_MODE", WriteByte, ReadByte),
+        (0xd7, "MFR_FWUPLOAD", WriteBlock, Illegal),
+        (0xd8, "MFR_FWUPLOAD_STATUS", Illegal, ReadWord),
 
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
@@ -117,7 +119,7 @@
                 }),
             ),
             // Bit 10: undocumented
-            "OutputVoltageSetting": (
+           "OutputVoltageSetting": (
                 name: "Output voltage setting",
                 bits: Bit(9),
                 values: Sentinels({
@@ -134,6 +136,63 @@
                     "Enabled": (0b1, "enabled"),
                 }),
             ),
+        },
+        "MFR_FWUPLOAD_MODE": {
+            // Bits 1-7: reserved
+            "EnterOrExit": (
+                name: "Enter or exit firmware upload mode",
+                bits: Bit(0),
+                values: Sentinels({
+                    "Exit": (0b0, "exit"),
+                    "Enter": (0b1, "enter"),
+                }),
+            ),
+        },
+        "MFR_FWUPLOAD_STATUS": {
+            "CommandFormatMismatch": (
+                name: "Command format does not match",
+                bits: Bit(5),
+                values: Sentinels({
+                        "No": (0b0, "no"),
+                        "Yes": (0b1, "yes"),
+                    }),
+            ),
+            "ImageUnsupported": (
+                name: "Image not supported by this PSU",
+                bits: Bit(4),
+                values: Sentinels({
+                        "No": (0b0, "no"),
+                        "Yes": (0b1, "yes"),
+                    }),
+            ),
+            "ImageCorrupt": (
+                name: "Full image received but is corrupt",
+                bits: Bit(3),
+                values: Sentinels({
+                        "No": (0b0, "no"),
+                        "Yes": (0b1, "yes"),
+                    }),
+            ),
+            // Bit 2: reserved
+            "FullImageNotReceivedYet": (
+                // The PSU will keep this bit asserted until the full image is
+                // received by the PSU
+                name: "Full image not received yet",
+                bits: Bit(1),
+                values: Sentinels({
+                        "No": (0b0, "no"),
+                        "Yes": (0b1, "yes"),
+                    }),
+            ),
+            "FullImageReceivedSuccessfully": (
+                name: "Full image received successfully",
+                bits: Bit(0),
+                values: Sentinels({
+                        "No": (0b0, "no"),
+                        "Yes": (0b1, "yes"),
+                    }),
+            ),
         }
+
     }
 )
