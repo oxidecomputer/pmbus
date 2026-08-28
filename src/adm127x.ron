@@ -8,6 +8,10 @@
         (0x7f, "STATUS_OTHER", Illegal, Illegal),
         (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        (0x9c, "MFR_LOCATION", Illegal, Illegal),
+        (0x9e, "MFR_SERIAL", Illegal, Illegal),
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
 
         (0xcc, "RESTART_TIME", WriteByte, ReadByte),
         (0xd0, "PEAK_IOUT", WriteWord, ReadWord),

@@ -3,6 +3,8 @@
         // These are unsupported, and marked to prevent from automatic queries
         (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        (0x9c, "MFR_LOCATION", Illegal, Illegal),
+        (0x9d, "MFR_DATE", Illegal, Illegal),
 
         (0xb1, "COMPENSATION_CONFIG", WriteBlock, ReadBlock),
         (0xb5, "POWER_STAGE_CONFIG", WriteBlock, ReadBlock),

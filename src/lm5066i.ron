@@ -27,6 +27,11 @@
         (0x7b, "STATUS_IOUT", Illegal, Illegal),
         (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        (0x9c, "MFR_LOCATION", Illegal, Illegal),
+        (0x9d, "MFR_DATE", Illegal, Illegal),
+        (0x9e, "MFR_SERIAL", Illegal, Illegal),
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
 
         // Why do these four commands have an MFR_ prefix?  Because they
         // conflict with names that PMBus has already defined!  But... why
