@@ -12,9 +12,31 @@
         // This address would have been USER_DATA_01 by default
         (0xb1, "MB_PSU_SETTING", WriteWord, ReadWord),
 
+        // Firmware upload
         (0xd6, "MFR_FWUPLOAD_MODE", WriteByte, ReadByte),
         (0xd7, "MFR_FWUPLOAD", WriteBlock, Illegal),
         (0xd8, "MFR_FWUPLOAD_STATUS", Illegal, ReadWord),
+
+        // Black box
+        (0xc8, "MB_UNIX_TIME", WriteBlock, ReadBlock),
+        (0xd5, "MFR_BLACKBOX", Illegal, ReadBlock),
+        (0xe0, "MFR_CLEAR_BLACK_BOX", SendByte, Illegal),
+
+        // Other fault and debug info
+        (0xdf, "MB_AC_PWR_CYC_COUNT", Illegal, ReadWord),
+        (0xe1, "MB_AC_OUTAGE_COUNTER", Illegal, ReadWord),
+        (0xb6, "MB_FAULT_COUNT", Illegal, ReadWord),
+        (0xb7, "PMBUS_CRC_ERROR_CNT", Illegal, ReadBlock),
+        (0xb8, "PMBUS_TIMEOUT_ERROR_CNT", Illegal, ReadBlock),
+        (0xe5, "MB_TOTAL_UP_TIME", Illegal, ReadWord32),
+        (0xe6, "MB_TIME_SINCE_LAST_ON", Illegal, ReadWord32),
+        (0xe2, "MB_GENERAL_ALARM_STATUS", Illegal, ReadWord),
+        (0xe3, "MB_PFC_ALARM_STATUS", Illegal, ReadWord),
+        (0xad, "MB_DCDC_ALARM_STATUS", Illegal, ReadWord),
+        (0xae, "MB_TEMP_ALARM_STATUS", Illegal, ReadWord),
+        (0xaf, "MB_COMM_ALARM_STATUS", Illegal, ReadWord),
+        (0xe7, "FAULT_STATUS", Illegal, ReadWord),
+        (0xed, "ORV3_INFO", Illegal, ReadBlock),
 
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
@@ -57,6 +79,11 @@
         ("MFR_MAX_TEMP_1", Linear11, Celsius),
         ("MFR_MAX_TEMP_2", Linear11, Celsius),
         ("MFR_MAX_TEMP_3", Linear11, Celsius),
+        ("MB_AC_PWR_CYC_COUNT", Raw, Unitless),
+        ("MB_AC_OUTAGE_COUNTER", Raw, Unitless),
+        ("MB_TOTAL_UP_TIME", Raw, Seconds),
+        ("MB_TIME_SINCE_LAST_ON", Raw, Seconds),
+        ("MB_FAULT_COUNT", Raw, Unitless),
     ],
 
     structured: {
@@ -192,6 +219,412 @@
                         "Yes": (0b1, "yes"),
                     }),
             ),
+        },
+        "MB_GENERAL_ALARM_STATUS": {
+            // Bits 12-15: undocumented
+            "FanAlarm": (
+                name: "Fan Alarm",
+                bits: Bit(11),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "TempAlarm": (
+                name: "Temp Alarm",
+                bits: Bit(10),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "DcdcConverterFail": (
+                name: "DC/DC converter failure",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "PfcConverterFail": (
+                name: "PFC Converter Fail",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            // Bits 4-7: undocumented
+            "Communication": (
+                name: "Communication",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "Temperature": (
+                name: "Temperature",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "Dcdc": (
+                name: "DCDC",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "Pfc": (
+                name: "PFC",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+        },
+        "MB_PFC_ALARM_STATUS": {
+            // Bits 12-15: undocumented
+            "PfcFail": (
+                name: "PFC Fail",
+                bits: Bit(11),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "InputRelayOff": (
+                name: "Input Relay Off",
+                bits: Bit(10),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "BulkNotOk": (
+                name: "Bulk Not Ok",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "AcNotOk": (
+                name: "AC Not OK",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            // Bits 6-7: undocumented
+            "FreqHigh": (
+                name: "Freq high",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "FreqLow": (
+                name: "Freq low",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            // Bits 2-3: undocumented
+            "AcOvp": (
+                name: "AC OVP",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "AcUvp": (
+                name: "AC UVP",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            )
+        },
+        "MB_DCDC_ALARM_STATUS": {
+            // Bits 11-15: undocumented
+            "OringFail": (
+                name: "Oring Fail",
+                bits: Bit(10),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "SecondaryMcuFail": (
+                name: "secondary MCU fail",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "DcdcFail": (
+                name: "DC/DC fail",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            // Bits 4-7: undocumented
+            "MainSckt": (
+                name: "MAIN_SCKT",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "MainOcp": (
+                name: "MAIN_OCP",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "MainOvp": (
+                name: "MAIN_OVP",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "MainUvp": (
+                name: "MAIN_UVP",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            )
+        },
+        "MB_TEMP_ALARM_STATUS": {
+            // Bits 9-15: undocumented
+            "FanFailure": (
+                name: "Fan Failure",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            // Bits 6-7: undocumented
+            "PfcTempAlarm": (
+                name: "PFC temp alarm",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "LlcTempAlarm": (
+                name: "LLC temp alarm",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "SyncTempAlarm": (
+                name: "Sync temp alarm",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "OringTempAlarm": (
+                name: "Oring temp alarm",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "InletTempAlarm": (
+                name: "Inlet temp alarm",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "OutletTempAlarm": (
+                name: "Outlet temp alarm",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            )
+        },
+        "MB_COMM_ALARM_STATUS": {
+            // Bits 2-15: undocumented
+            "SecondaryLogicMcuFault": (
+                name: "Secondary - Logic MCU Fault",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            ),
+            "PrimarySecondaryMcuFault": (
+                name: "Primary - Secondary MCU Fault",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoAlarm": (0b0, "no alarm"),
+                    "Alarm": (0b1, "alarm"),
+                }),
+            )
+        },
+        "FAULT_STATUS": {
+            "VoutOvF": (
+                name: "VOUT_OV_F",
+                bits: Bit(15),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "VoutUvF": (
+                name: "VOUT_UV_F",
+                bits: Bit(14),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "IoutOcF": (
+                name: "IOUT_OC_F",
+                bits: Bit(13),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "IoutOcW": (
+                name: "IOUT_OC_W",
+                bits: Bit(12),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PoutOpF": (
+                name: "POUT_OP_F",
+                bits: Bit(11),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "PoutOpW": (
+                name: "POUT_OP_W",
+                bits: Bit(10),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "VinOvF": (
+                name: "VIN_OV_F",
+                bits: Bit(9),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "VinUvF": (
+                name: "VIN_UV_F",
+                bits: Bit(8),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "TempOtF": (
+                name: "TEMP_OT_F",
+                bits: Bit(7),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "CmlProcF": (
+                name: "CML_PROC_F",
+                bits: Bit(6),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "ISenseF": (
+                name: "I_SENSE_F",
+                bits: Bit(5),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "TempSenseF": (
+                name: "TEMP_SENSE_F",
+                bits: Bit(4),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "WrongPid": (
+                name: "WRONG_PID",
+                bits: Bit(3),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "OringFault": (
+                name: "ORING_FAULT",
+                bits: Bit(2),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan1F": (
+                name: "FAN_1_F",
+                bits: Bit(1),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            ),
+            "Fan2F": (
+                name: "FAN_2_F",
+                bits: Bit(0),
+                values: Sentinels({
+                    "NoFault": (0b0, "no fault"),
+                    "Fault": (0b1, "fault"),
+                }),
+            )
         }
 
     }
