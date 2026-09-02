@@ -27,8 +27,9 @@ from __future__ import annotations
 import sys
 
 WORDS_PER_RECORD = 150
-BYTES_PER_HALF = 150
-BLOCK_COUNT = 151  # File Offset byte + 150 data bytes
+WORDS_PER_HALF = 75    # words 0..74 in half 0, words 75..149 in half 1
+BYTES_PER_HALF = 150   # data bytes per half (2 x WORDS_PER_HALF)
+BLOCK_COUNT = 151      # File Offset byte + 150 data bytes
 
 # Bit -> label maps for the five bit-mapped alarm status words (words 103-107).
 # These mirror the verified decodes in src/mwocp67.ron.
@@ -138,30 +139,67 @@ def _scale(raw: int, signed: bool, n: int) -> float:
     return val / (1 << n)
 
 
-def unpack_read(read):
-    """Strip the optional block-count byte, the file-offset byte, and any
-    trailing PEC from a single MFR_BLACKBOX read. Returns (file_offset, data)
-    where data is exactly 150 bytes."""
+def strip_framing(read):
+    """Return (file_offset, data) for a well-formed MFR_BLACKBOX read.
+
+    A well-formed read is:  [Block Count] [File Offset (0/1)] [150 data bytes]
+    The Block Count byte is optional (its value equals the number of bytes that
+    follow it); any trailing PEC byte past the 150 data bytes is ignored. If no
+    File Offset byte is present (some captures drop it) file_offset is None and
+    the whole read is treated as data.
+
+    NOTE: a read that is exactly 150 bytes is ambiguous -- it could be 150 data
+    bytes with no offset byte, or a File Offset byte plus 149 (truncated) data
+    bytes. This function treats a leading 0x00/0x01 as an offset byte only when
+    the read is long enough (>=151) to still leave a full 150-byte payload.
+    Otherwise pass the two halves to decode_record() explicitly.
+    """
     b = list(read)
-    # Drop a leading SMBus block-count byte if present (its value is 151).
-    if len(b) >= BLOCK_COUNT + 1 and b[0] == BLOCK_COUNT:
+    if len(b) >= 2 and b[0] == len(b) - 1:   # drop leading block-count byte
         b = b[1:]
-    if len(b) < BYTES_PER_HALF + 1:
-        raise ValueError(
-            f"read too short: need at least {BYTES_PER_HALF + 1} bytes "
-            f"(file offset + {BYTES_PER_HALF} data), got {len(b)}"
-        )
-    file_offset = b[0]
-    data = b[1:1 + BYTES_PER_HALF]  # ignore any trailing PEC
-    if file_offset not in (0, 1):
-        raise ValueError(f"unexpected file offset {file_offset}, expected 0 or 1")
-    return file_offset, data
+    if len(b) >= BYTES_PER_HALF + 1 and b[0] in (0, 1):
+        return b[0], b[1:1 + BYTES_PER_HALF]
+    return None, b[:BYTES_PER_HALF]
+
+
+def decode_record(half0_data, half1_data):
+    """Decode two 150-byte data halves into 150 words + any warnings.
+
+    half0_data supplies words 0..74, half1_data supplies words 75..149. Each
+    half is decoded independently on its own word boundary, so a framing byte in
+    one read can never shift the other half. Short halves decode the missing
+    tail bytes as zero (and produce a warning).
+    """
+    words = [0] * WORDS_PER_RECORD
+    warnings = []
+    for data, base, label in ((half0_data, 0, "half 0"),
+                              (half1_data, WORDS_PER_HALF, "half 1")):
+        if len(data) != BYTES_PER_HALF:
+            warnings.append(
+                f"{label}: got {len(data)} data bytes, expected {BYTES_PER_HALF} "
+                "(missing bytes decoded as zero; checksum cannot be verified)")
+        for k in range(WORDS_PER_HALF):
+            lo = data[2 * k] if 2 * k < len(data) else 0
+            hi = data[2 * k + 1] if 2 * k + 1 < len(data) else 0
+            words[base + k] = lo | (hi << 8)
+    return words, warnings
 
 
 def assemble_record(read_a, read_b):
-    raw = bytes(read_a) + bytes(read_b)  # 300 bytes, words 0..149
-    words = [raw[2 * i] | (raw[2 * i + 1] << 8) for i in range(WORDS_PER_RECORD)]
-    return words
+    """Convenience wrapper for two well-formed reads (each framed as
+    [count?][offset][150 data]). For reads with inconsistent or missing framing,
+    strip the framing yourself and call decode_record() with the two data halves.
+    """
+    halves = {}
+    for r in (read_a, read_b):
+        offset, data = strip_framing(r)
+        if offset is None:
+            raise ValueError("read has no file-offset byte; call decode_record() "
+                             "with the two data halves explicitly")
+        halves[offset] = data
+    if set(halves) != {0, 1}:
+        raise ValueError(f"expected file offsets 0 and 1, got {sorted(halves)}")
+    return decode_record(halves[0], halves[1])
 
 def verify_checksum(words):
     """Word 149 is the two's complement of the sum of all other 16-bit words,
@@ -252,7 +290,23 @@ def main():
     read0 = _parse_hex_bytes("0x00 0x47 0x48 0x2f 0x69 0x17 0x78 0x09 0xf2 0x28 0xa3 0x3f 0xef 0x50 0x0e 0x54 0xe1 0x52 0x14 0x39 0x82 0x20 0xca 0x05 0x86 0x20 0x0a 0x37 0xc2 0x49 0xae 0x53 0xba 0x55 0x2d 0x42 0xd5 0x2b 0x36 0x12 0x58 0x00 0x7a 0x00 0x7a 0x00 0x28 0x00 0x7a 0x00 0x51 0x00 0x28 0x00 0x05 0x00 0x28 0x00 0x7a 0x00 0x23 0x00 0x05 0x00 0x51 0x00 0x2e 0x00 0x51 0x00 0x7a 0x00 0xad 0x00 0x05 0x00 0x23 0x00 0x05 0x00 0x2e 0x02 0xe6 0x02 0xe6 0x02 0xf3 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xf3 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x02 0xf3 0x02 0xe6 0x02 0xe6 0x02 0xe6 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00")
     read1 = _parse_hex_bytes("0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x09 0xa0 0x09 0x80 0x09 0xa0 0x09 0xa0 0x09 0xa0 0x0e 0x70 0x0e 0x70 0x0e 0x70 0x0e 0x80 0x0e 0x80 0x2d 0xa2 0x2e 0xcb 0x00 0xc6 0x00 0x00 0x00 0x00 0x00 0x8f 0xcd 0xac 0x00 0x00 0x00 0x00 0x00 0x41 0x00 0xf4 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x09 0xa0 0x0e 0x80 0x0e 0x80 0x09 0xa0 0x00 0x00 0x00 0x07 0x00 0x00 0x00 0x00 0x00 0x03 0x92 0xde 0x00 0x00 0x00 0x00 0x00 0x79 0x00 0x00 0x6f 0x05 0x00 0x5d 0x01 0xff 0x56 0x4c 0x04 0x29 0x10 0x4d 0x02 0x61 0x00 0x22 0x00 0x00 0x00 0x00 0x00 0x00 0x0a 0x01 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x6c 0x72 0x03 0x00 0x2d 0x2c 0x80 0x66 0x00 0xc8 0x00 0xc0 0x00 0x00 0x00")
 
-    words = assemble_record(read0, read1)
+    # NOTE: these two hardcoded reads are framed inconsistently:
+    #   * read0 is 150 pure data bytes (words 0-74) -- its File Offset byte is
+    #     absent (its leading 0x00 is word 0's low byte; the AC-input-voltage
+    #     waveform only decodes sanely when read0 is NOT stripped).
+    #   * read1 is a File Offset byte (0x01) + 149 data bytes (words 75-149) --
+    #     the offset byte is present and the final data byte (checksum high byte)
+    #     is missing.
+    # Because a 150-byte read starting with 0x00/0x01 is ambiguous, we frame the
+    # two halves explicitly here rather than letting strip_framing() guess.
+    half0 = read0            # already 150 data bytes
+    half1 = read1[1:]        # drop the leading File Offset byte (0x01)
+
+    words, warnings = decode_record(half0, half1)
+    for w in warnings:
+        print(f"WARNING: {w}")
+    if warnings:
+        print()
     print(format_report(decode(words)))
 
 
