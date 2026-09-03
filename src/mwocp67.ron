@@ -16,6 +16,10 @@
 
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        // Note that ACAN-157 makes no mention of the IC_DEVICE_ID/IC_DEVICE_REV
+        // commands; testing indicates that they get NACKed and set STATUS_CML
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
     ],
 
     numerics: [
