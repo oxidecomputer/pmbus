@@ -3,6 +3,11 @@
         // These are unsupported, and marked to prevent from automatic queries
         (0x7f, "STATUS_OTHER", Illegal, Illegal),
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        // Note that ACAN-114 from Murata makes no mention of the IC_DEVICE_ID
+        // and IC_DEVICE_REV  commands; testing indicates that they get NACKed
+        //and set STATUS_CML.
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
 
         //
         // MFR_PAGE_X allows for reading the black box data: when any fault
