@@ -262,18 +262,18 @@ def format_report(result) -> str:
             continue
         if form == "samples":
             nums = ", ".join(f"{v:g}" for v in value)
-            lines.append(f"{name:32s} [{nums}] {unit}".rstrip())
+            lines.append(f"{name}: {{{nums}}} {unit}".rstrip())
         elif form.startswith("bitmap:"):
             if value:
                 flags = ", ".join(f"{label} (bit {bit})" for bit, label in value)
             else:
                 flags = "none"
-            lines.append(f"{name:32s} 0x{raw[0]:04x} -> {flags}")
+            lines.append(f"{name}: 0x{raw[0]:04x} -> {flags}")
         elif form in ("hex", "checksum"):
-            lines.append(f"{name:32s} {value}")
+            lines.append(f"{name}: {value}")
         else:  # u16 / u32 scalar
             u = f" {unit}" if unit else ""
-            lines.append(f"{name:32s} {value:g}{u}  (raw {raw_hex})")
+            lines.append(f"{name}: {value:g}{u}  (raw {raw_hex})")
     return "\n".join(lines)
 
 
