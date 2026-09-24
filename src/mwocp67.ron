@@ -37,6 +37,8 @@
         (0xaf, "MB_COMM_ALARM_STATUS", Illegal, ReadWord),
         (0xe7, "FAULT_STATUS", Illegal, ReadWord),
         (0xed, "ORV3_INFO", Illegal, ReadBlock),
+        // Undocumented command that Murata asked us to read for them
+        (0xd3, "MFR_INTERNAL_DEBUG", Illegal, ReadBlock),
 
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
