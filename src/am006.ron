@@ -1,0 +1,245 @@
+// AM006 is the name of the "Versal Adaptive SoC System Monitor" doc.
+// As this interface may apply to many specific part numbers, the name of the
+// spec doc was used in lieu of a part number.
+//
+// The Versal is an FPGA used as a NIC on compute sleds. It offers an I2C
+// and PMBus management/observation interface. The AM006 document describes
+// interaction with this interface over PMBus. From the Versal side, AM012 is
+// a document that describes access within the chip.
+//
+// For AM012, It is suggested to grab the ZIP offline HTML download for perusing
+// register definitions rather than the online/PDF versions. For AM006, chapter
+// 6, "I2C or PMBus Interface" is of particular interest.
+//
+// For AM006, the PDF download is suitable.
+
+(
+    all: [
+        // Regrettably, this part has quite a few PMBus operations that induce
+        // misbehavior; we mark reads and writes for these operations as illegal
+        // to prevent them from being issued.
+        //
+        // NOTE(AJM): Currently I've only notched-out `STATUS_*` and VPD
+        // relevant registers that are automatically queried or use the Illegal
+        // status as a sentinel not to query known-unsupported registers. This
+        // is only based on "not listed in AM006" as a heuristic.
+        (0x7b, "STATUS_IOUT", Illegal, Illegal),
+        (0x7c, "STATUS_INPUT", Illegal, Illegal),
+        (0x7f, "STATUS_OTHER", Illegal, Illegal),
+        (0x80, "STATUS_MFR_SPECIFIC", Illegal, Illegal),
+        (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        (0x9c, "MFR_LOCATION", Illegal, Illegal),
+        (0x9d, "MFR_DATE", Illegal, Illegal),
+        (0x9e, "MFR_SERIAL", Illegal, Illegal),
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
+
+        // Selects the supply for the single supply commands (Scope = PAGE).
+        //
+        // The PAGE number defined corresponds to the SUPPLY number defined by
+        // the user design.
+        //
+        // Read Write PMBUS_PAGE 1 COMMON
+        (0x00, "PAGE", WriteByte, ReadByte),
+
+        // Clears all fault bits in all status registers simultaneously.
+        //
+        // At the same time, the device negates (clears, releases) its SMBALERT#
+        // signal output if the device is asserting the SMBALERT.
+        //
+        // Write Clears PMBUS_STATUS_* (all) 0 COMMON
+        (0x03, "CLEAR_FAULTS", SendByte, Illegal),
+
+        // Allows host to identify key capabilities of PMBus device, i.e., PEC
+        // support, max bus speed, SMBALERT support.
+        //
+        // Returns 0x30.
+        //
+        // Read Read-only value: 0x30 1 COMMON
+        (0x19, "CAPABILITY", Illegal, ReadByte),
+
+        // To set and query the data format used by device for output voltage
+        // related data.
+        //
+        // Read Write Read-only value: 0x12 1 COMMON
+        (0x20, "VOUT_MODE", WriteByte, ReadByte),
+
+        // Sets the over-voltage value that causes an output over-voltage fault.
+        // Limit shared with SUPPLYn_TH_UPPER register, where n is the PMBUS
+        // PAGE.
+        //
+        // Read Write DEVICE_TEMP_TH_UPPER. 2 (LINEAR16) COMMON
+        (0x40, "VOUT_OV_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Sets the under-voltage value that causes an output over-voltage
+        // fault.
+        //
+        // Limit shared with SUPPLYn_TH_LOWER register, where n is the PMBUS
+        // PAGE.
+        //
+        // Read Write DEVICE_TEMP_TH_LOWER 2 (LINEAR16) COMMON
+        (0x44, "VOUT_UV_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an over temperature fault OT.
+        //
+        // Accesses to the OT_TEMP_TH_UPPER register.
+        //
+        // Read Write OT_TEMP_TH_UPPER 2 (LINEAR11) COMMON
+        (0x4f, "OT_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an over temperature warning ALM_OV[0].
+        //
+        // Accesses to the DEVICE_TEMP_TH_UPPER register.
+        // Read Write DEVICE_TEMP_TH_UPPER 2 (LINEAR11) COMMON
+        (0x51, "OT_WARN_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an under temperature warning ALM_UV[0].
+        //
+        // Accesses to the DEVICE_TEMP_TH_LOWER register.
+        // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
+        (0x52, "UT_WARN_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an under temperature fault UT.
+        //
+        // Accesses to the OT_TEMP_TH_LOWER register.
+        // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
+        (0x53, "UT_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command returns one byte of information with a summary of the most
+        // critical faults.
+        //
+        // Read PMBUS_STATUS_BYTE 1 COMMON
+        (0x78, "STATUS_BYTE", WriteByte, ReadByte),
+
+        // Command returns two bytes of information with a summary of the unit's
+        // fault condition.
+        //
+        // Read PMBUS_STATUS_WORD 2 COMMON
+        (0x79, "STATUS_WORD", WriteWord, ReadWord),
+
+        // Command returns one byte representing VOUT status.
+        // Read Write PMBUS_STATUS_VOUT<page> 1 PAGE
+        (0x7a, "STATUS_VOUT", WriteByte, ReadByte),
+
+        // Command returns temperature status.
+        // Read Write PMBUS_STATUS_TEMPERATUR 1 COMMON
+        (0x7d, "STATUS_TEMPERATURE", WriteByte, ReadByte),
+
+        // Command returns communication, logic, and memory status.
+        // Read Write PMBUS_STATUS_CML 1 COMMON
+        (0x7e, "STATUS_CML", WriteByte, ReadByte),
+
+        // Command returns the actual, measured (not commanded) output voltage
+        // in the LINEAR16 format.
+        //
+        // Read SUPPLYn 2 (LINEAR16) PAGE
+        (0x8b, "READ_VOUT", Illegal, ReadWord),
+
+        // Command returns temperature readings.
+        // Read DEVICE_TEMP 2 (LINEAR11) COMMON
+        (0x8d, "READ_TEMPERATURE_1", Illegal, ReadWord),
+
+        // PMBUS_REVISION command stores or reads the revision of the PMBus to
+        // which the device is compliant.
+        //
+        // Read Read-only value: 0x42 1 COMMON
+        (0x98, "PMBUS_REVISION", Illegal, ReadByte),
+
+        // PMBUS_REVISION command reads the AMD manufacturer's ID.
+        //
+        // The AMD manufacturer ID corresponds to [11:0] of the of the
+        // IDCODE_REGISTER. For example, 000010010011 read as three bytes:
+        // 0x000093.
+        //
+        // Read 3 COMMON
+        (0x99, "MFR_ID", WriteBlock, ReadBlock),
+
+        // The command is used to read the manufacturer's model number of the
+        // part.
+        //
+        // It corresponds to bits [27:12] of the IDCODE_REGISTER in the device
+        // specific BSDL for specific model ID.
+        //
+        // Read 3 COMMON
+        (0x9a, "MFR_MODEL", WriteBlock, ReadBlock),
+
+        // The command is used to either set or read the manufacturer's revision
+        // number.
+        //
+        // See IDCODE_REGISTER in the device specific BSDL for specific Revision
+        // ID.
+        //
+        // Read 2 COMMON
+        (0x9b, "MFR_REVISION", WriteBlock, ReadBlock),
+
+        // (MFR_SELECT_REG) A manufacturer-specific command to program config
+        // and sequence registers.
+        //
+        // The command is used to select memory-mapped registers.
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_00" not "MFR_SPECIFIC_D0".
+        //
+        // Read Write 2 COMMON
+        (0xd0, "MFR_SPECIFIC_D0", MfrDefined, MfrDefined),
+
+        // (MFR_ACCESS_REG) Read or write data on the selected register.
+        //
+        // To write to a register with this command the register space must be
+        // unlocked.
+        //
+        // The PCSR_LOCK register can be accessed via PMBUS.
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_01" not "MFR_SPECIFIC_D1".
+        //
+        // Read Write 4 COMMON
+        (0xd1, "MFR_SPECIFIC_D1", MfrDefined, MfrDefined),
+
+        // (MFR_READ_VOUT_MAX) A manufacturer-specific command.
+        // Reads maximum recorded value for the selected supply.
+        // Read SUPPLYn_MAX 2 (SLINEAR16) PAGE
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_02" not "MFR_SPECIFIC_D2".
+        //
+        (0xd2, "MFR_SPECIFIC_D2", WriteWord, ReadWord),
+
+        // (MFR_READ_VOUT_MIN) A manufacturer-specific command.
+        // Reads minimum recorded value for the selected supply.
+        // Read SUPPLYn_MIN 2 (SLINEAR16) PAGE
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_03" not "MFR_SPECIFIC_D3".
+        //
+        (0xd3, "MFR_SPECIFIC_D3", WriteWord, ReadWord),
+
+        //
+        // TODO: Record all the illegal regs for STATUS_x and VPD items so
+        // we don't get CML error trigger happy
+        //
+    ],
+
+    numerics: [
+        ("READ_TEMPERATURE_1", Linear11, Celsius),
+        ("OT_FAULT_LIMIT", Linear11, Celsius),
+        ("OT_WARN_LIMIT", Linear11, Celsius),
+        ("UT_WARN_LIMIT", Linear11, Celsius),
+        ("UT_FAULT_LIMIT", Linear11, Celsius),
+        ("VOUT_OV_FAULT_LIMIT", VOutMode(Unsigned), Volts),
+        ("VOUT_UV_FAULT_LIMIT", VOutMode(Unsigned), Volts),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
+
+        ("MFR_SPECIFIC_D2", VOutMode(Signed), Volts),
+        ("MFR_SPECIFIC_D3", VOutMode(Signed), Volts),
+    ],
+
+    structured: {
+        // ...
+    },
+
+    synonyms: Some([
+        // ...
+    ]),
+)
