@@ -386,6 +386,22 @@ impl crate::Command for CommandCode {{
 
     writeln!(&mut s, "        }}\n    }}\n}}")?;
 
+    writeln!(&mut s, r##"
+impl core::str::FromStr for CommandCode {{
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, ()> {{
+        match s {{"##)?;
+
+    for cmd in &cmds.all {
+        writeln!(&mut s,
+            "            \"{}\" => Ok(CommandCode::{}),", cmd.1, cmd.1)?;
+    }
+
+    writeln!(&mut s, r##"            _ => Err(()),
+        }}
+    }}
+}}"##)?;
+
     let mut numerics = HashSet::new();
     let mut synonyms = HashSet::new();
 
