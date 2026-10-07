@@ -32,6 +32,9 @@
         (0xe6, "MB_TIME_SINCE_LAST_ON", Illegal, ReadWord32),
         (0xe2, "MB_GENERAL_ALARM_STATUS", Illegal, ReadWord),
         (0xe3, "MB_PFC_ALARM_STATUS", Illegal, ReadWord),
+        // Note: The PMBus specification defines 0xad and 0xae as the commands
+        // `IC_DEVICE_ID` and `IC_DEVICE_REV` respectively. This device defines them
+        // as alarm status commands instead.
         (0xad, "MB_DCDC_ALARM_STATUS", Illegal, ReadWord),
         (0xae, "MB_TEMP_ALARM_STATUS", Illegal, ReadWord),
         (0xaf, "MB_COMM_ALARM_STATUS", Illegal, ReadWord),
@@ -44,10 +47,6 @@
 
         // These are unsupported, and marked to prevent from automatic queries
         (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
-        // Note that ACAN-157 makes no mention of the IC_DEVICE_ID/IC_DEVICE_REV
-        // commands; testing indicates that they get NACKed and set STATUS_CML
-        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
-        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
     ],
 
     numerics: [
