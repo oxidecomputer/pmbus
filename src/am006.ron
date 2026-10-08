@@ -7,7 +7,7 @@
 // interaction with this interface over PMBus. From the Versal side, AM012 is
 // a document that describes access within the chip.
 //
-// For AM012, It is suggested to grab the ZIP offline HTML download for perusing
+// For AM012, it is suggested to grab the ZIP offline HTML download for perusing
 // register definitions rather than the online/PDF versions. For AM006, chapter
 // 6, "I2C or PMBus Interface" is of particular interest.
 //
