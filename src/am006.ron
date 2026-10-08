@@ -93,8 +93,11 @@
         // Limit shared with SUPPLYn_TH_UPPER register, where n is the PMBUS
         // PAGE.
         //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_UPPER, which appears to be a mistake.
+        //
         // Read Write DEVICE_TEMP_TH_UPPER. 2 (LINEAR16) COMMON
-        // TODO(AJM): Discrepancy?
         (0x40, "VOUT_OV_FAULT_LIMIT", WriteWord, ReadWord),
         (0x41, "VOUT_OV_FAULT_RESPONSE", Illegal, Illegal),
         (0x42, "VOUT_OV_WARN_LIMIT", Illegal, Illegal),
@@ -105,8 +108,11 @@
         // Limit shared with SUPPLYn_TH_LOWER register, where n is the PMBUS
         // PAGE.
         //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_LOWER, which appears to be a mistake.
+        //
         // Read Write DEVICE_TEMP_TH_LOWER 2 (LINEAR16) COMMON
-        // TODO(AJM): Discrepancy?
         (0x44, "VOUT_UV_FAULT_LIMIT", Illegal, Illegal),
         (0x45, "VOUT_UV_FAULT_RESPONSE", Illegal, Illegal),
         (0x46, "IOUT_OC_FAULT_LIMIT", Illegal, Illegal),
@@ -115,34 +121,49 @@
         //
         // Accesses to the OT_TEMP_TH_UPPER register.
         //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_UPPER, which appears to be a mistake.
+        //
         // Read Write OT_TEMP_TH_UPPER 2 (LINEAR11) COMMON
-        // TODO(AJM): Discrepancy?
         (0x4f, "OT_FAULT_LIMIT", WriteWord, ReadWord),
         (0x50, "OT_FAULT_RESPONSE", Illegal, Illegal),
         // Command sets the temperature of the unit at which it should indicate
         // an over temperature warning ALM_OV[0].
         //
         // Accesses to the DEVICE_TEMP_TH_UPPER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_UPPER, which appears to be a mistake.
+        //
         // Read Write DEVICE_TEMP_TH_UPPER 2 (LINEAR11) COMMON
-        // TODO(AJM): Is DEVICE_TEMP_TH_UPPER like OT_WARN_LIMIT?
         (0x51, "OT_WARN_LIMIT", WriteWord, ReadWord),
 
         // Command sets the temperature of the unit at which it should indicate
         // an under temperature warning ALM_UV[0].
         //
         // Accesses to the DEVICE_TEMP_TH_LOWER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_LOWER, which appears to be a mistake.
+        //
         // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
-        // TODO(AJM): Is OT_TEMP_TH_LOWER like UT_WARN_LIMIT?
         (0x52, "UT_WARN_LIMIT", WriteWord, ReadWord),
 
         // Command sets the temperature of the unit at which it should indicate
         // an under temperature fault UT.
         //
         // Accesses to the OT_TEMP_TH_LOWER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_LOWER, which appears to be a mistake.
+        //
         // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
-        // TODO(AJM): Is OT_TEMP_TH_LOWER like UT_FAULT_LIMIT?
         (0x53, "UT_FAULT_LIMIT", WriteWord, ReadWord),
-        (0x54, "UT_FAULT_RESPONSE", WriteByte, ReadByte),
+        (0x54, "UT_FAULT_RESPONSE", Illegal, Illegal),
         (0x55, "VIN_OV_FAULT_LIMIT", Illegal, Illegal),
         (0x56, "VIN_OV_FAULT_RESPONSE", Illegal, Illegal),
         (0x57, "VIN_OV_WARN_LIMIT", Illegal, Illegal),
@@ -181,8 +202,12 @@
         // (0x79, "STATUS_WORD", WriteWord, ReadWord),
 
         // Command returns one byte representing VOUT status.
+        //
+        // NOTE(AJM): This seems a little funky, because this device isn't a
+        // regulator, so this might actually want to be `STATUS_VIN`, but they
+        // have mapped it where `STATUS_VOUT` usually goes.
+        //
         // Read Write PMBUS_STATUS_VOUT<page> 1 PAGE
-        // TODO(AJM): Is this actually "STATUS_VIN"? This isn't a regulator
         (0x7a, "STATUS_VOUT", WriteByte, ReadByte),
         (0x7b, "STATUS_IOUT", Illegal, Illegal),
         (0x7c, "STATUS_INPUT", Illegal, Illegal),
@@ -210,8 +235,11 @@
         // Command returns the actual, measured (not commanded) output voltage
         // in the LINEAR16 format.
         //
+        // NOTE(AJM): This seems a little funky, because this device isn't a
+        // regulator, so this might actually want to be `READ_VIN`, but they
+        // have mapped it where `READ_VOUT` usually goes.
+        //
         // Read SUPPLYn 2 (LINEAR16) PAGE
-        // TODO(AJM): Is this actually READ_VIN? This isn't a regulator
         (0x8b, "READ_VOUT", Illegal, ReadWord),
         (0x8c, "READ_IOUT", Illegal, Illegal),
         // Command returns temperature readings.
@@ -342,7 +370,6 @@
         // Read SUPPLYn_MAX 2 (SLINEAR16) PAGE
         //
         // NOTE: AM006 calls this "MFR_SPECIFIC_02" not "MFR_SPECIFIC_D2".
-        // TODO(AJM): Discrepancy?
         (0xd2, "MFR_SPECIFIC_D2", WriteWord, ReadWord),
 
         // (MFR_READ_VOUT_MIN) A manufacturer-specific command.
@@ -350,7 +377,6 @@
         // Read SUPPLYn_MIN 2 (SLINEAR16) PAGE
         //
         // NOTE: AM006 calls this "MFR_SPECIFIC_03" not "MFR_SPECIFIC_D3".
-        // TODO(AJM): Discrepancy?
         (0xd3, "MFR_SPECIFIC_D3", WriteWord, ReadWord),
         (0xd4, "MFR_SPECIFIC_D4", Illegal, Illegal),
         (0xd5, "MFR_SPECIFIC_D5", Illegal, Illegal),
@@ -404,8 +430,6 @@
         ("OT_WARN_LIMIT", Linear11, Celsius),
         ("UT_WARN_LIMIT", Linear11, Celsius),
         ("UT_FAULT_LIMIT", Linear11, Celsius),
-        // ("VOUT_OV_FAULT_LIMIT", VOutMode(Unsigned), Volts),
-        // ("VOUT_UV_FAULT_LIMIT", VOutMode(Unsigned), Volts),
         ("READ_VOUT", VOutMode(Unsigned), Volts),
 
         ("MFR_SPECIFIC_D2", VOutMode(Signed), Volts),
