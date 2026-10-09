@@ -1,0 +1,459 @@
+// This documents the "Versal Adaptive SoC System Monitor" interface, which
+// can be configured to operate as a PMBus device.
+//
+// The Versal is an FPGA used as a NIC on compute sleds. It offers an I2C
+// and PMBus management/observation interface. The AM006 document describes
+// interaction with this interface over PMBus. From the Versal side, AM012 is
+// a document that describes access within the chip.
+//
+// For AM012, it is suggested to grab the ZIP offline HTML download for perusing
+// register definitions rather than the online/PDF versions. For AM006, chapter
+// 6, "I2C or PMBus Interface" is of particular interest.
+//
+// For AM006, the PDF download is suitable.
+
+(
+    all: [
+        //
+        // Regrettably, this part has quite a few PMBus operations that induce
+        // misbehavior; we mark reads and writes for these operations as illegal
+        // to prevent them from being issued.
+        //
+        // NOTE(AJM): I've notched out ALL commands that are in the base level
+        // `commands.ron`, but NOT present in AM006.
+        //
+        (0x01, "OPERATION", Illegal, Illegal),
+        (0x02, "ON_OFF_CONFIG", Illegal, Illegal),
+        (0x04, "PHASE", Illegal, Illegal),
+        (0x05, "PAGE_PLUS_WRITE", Illegal, Illegal),
+        (0x06, "PAGE_PLUS_READ", Illegal, Illegal),
+        (0x07, "ZONE_CONFIG", Illegal, Illegal),
+        (0x08, "ZONE_ACTIVE", Illegal, Illegal),
+        (0x10, "WRITE_PROTECT", Illegal, Illegal),
+        (0x11, "STORE_DEFAULT_ALL", Illegal, Illegal),
+        (0x12, "RESTORE_DEFAULT_ALL", Illegal, Illegal),
+        (0x13, "STORE_DEFAULT_CODE", Illegal, Illegal),
+        (0x14, "RESTORE_DEFAULT_CODE", Illegal, Illegal),
+        (0x15, "STORE_USER_ALL", Illegal, Illegal),
+        (0x16, "RESTORE_USER_ALL", Illegal, Illegal),
+        (0x17, "STORE_USER_CODE", Illegal, Illegal),
+        (0x18, "RESTORE_USER_CODE", Illegal, Illegal),
+        (0x19, "CAPABILITY", Illegal, Illegal),
+        (0x1a, "QUERY", Illegal, Illegal),
+        (0x1b, "SMBALERT_MASK", Illegal, Illegal),
+        (0x20, "VOUT_MODE", Illegal, Illegal),
+        (0x21, "VOUT_COMMAND", Illegal, Illegal),
+        (0x22, "VOUT_TRIM", Illegal, Illegal),
+        (0x23, "VOUT_CAL_OFFSET", Illegal, Illegal),
+        (0x24, "VOUT_MAX", Illegal, Illegal),
+        (0x25, "VOUT_MARGIN_HIGH", Illegal, Illegal),
+        (0x26, "VOUT_MARGIN_LOW", Illegal, Illegal),
+        (0x27, "VOUT_TRANSITION_RATE", Illegal, Illegal),
+        (0x28, "VOUT_DROOP", Illegal, Illegal),
+        (0x29, "VOUT_SCALE_LOOP", Illegal, Illegal),
+        (0x2a, "VOUT_SCALE_MONITOR", Illegal, Illegal),
+        (0x2b, "VOUT_MIN", Illegal, Illegal),
+        (0x30, "COEFFICIENTS", Illegal, Illegal),
+        (0x31, "POUT_MAX", Illegal, Illegal),
+        (0x32, "MAX_DUTY", Illegal, Illegal),
+        (0x33, "FREQUENCY_SWITCH", Illegal, Illegal),
+        (0x34, "POWER_MODE", Illegal, Illegal),
+        (0x35, "VIN_ON", Illegal, Illegal),
+        (0x36, "VIN_OFF", Illegal, Illegal),
+        (0x37, "INTERLEAVE", Illegal, Illegal),
+        (0x38, "IOUT_CAL_GAIN", Illegal, Illegal),
+        (0x39, "IOUT_CAL_OFFSET", Illegal, Illegal),
+        (0x3a, "FAN_CONFIG_1_2", Illegal, Illegal),
+        (0x3b, "FAN_COMMAND_1", Illegal, Illegal),
+        (0x3c, "FAN_COMMAND_2", Illegal, Illegal),
+        (0x3d, "FAN_CONFIG_3_4", Illegal, Illegal),
+        (0x3e, "FAN_COMMAND_3", Illegal, Illegal),
+        (0x3f, "FAN_COMMAND_4", Illegal, Illegal),
+        (0x41, "VOUT_OV_FAULT_RESPONSE", Illegal, Illegal),
+        (0x42, "VOUT_OV_WARN_LIMIT", Illegal, Illegal),
+        (0x43, "VOUT_UV_WARN_LIMIT", Illegal, Illegal),
+        (0x44, "VOUT_UV_FAULT_LIMIT", Illegal, Illegal),
+        (0x45, "VOUT_UV_FAULT_RESPONSE", Illegal, Illegal),
+        (0x46, "IOUT_OC_FAULT_LIMIT", Illegal, Illegal),
+        (0x50, "OT_FAULT_RESPONSE", Illegal, Illegal),
+        (0x54, "UT_FAULT_RESPONSE", Illegal, Illegal),
+        (0x55, "VIN_OV_FAULT_LIMIT", Illegal, Illegal),
+        (0x56, "VIN_OV_FAULT_RESPONSE", Illegal, Illegal),
+        (0x57, "VIN_OV_WARN_LIMIT", Illegal, Illegal),
+        (0x58, "VIN_UV_WARN_LIMIT", Illegal, Illegal),
+        (0x59, "VIN_UV_FAULT_LIMIT", Illegal, Illegal),
+        (0x5a, "VIN_UV_FAULT_RESPONSE", Illegal, Illegal),
+        (0x5b, "IIN_OC_FAULT_LIMIT", Illegal, Illegal),
+        (0x5c, "IIN_OC_FAULT_RESPONSE", Illegal, Illegal),
+        (0x5d, "IIN_OC_WARN_LIMIT", Illegal, Illegal),
+        (0x5e, "POWER_GOOD_ON", Illegal, Illegal),
+        (0x5f, "POWER_GOOD_OFF", Illegal, Illegal),
+        (0x60, "TON_DELAY", Illegal, Illegal),
+        (0x61, "TON_RISE", Illegal, Illegal),
+        (0x62, "TON_MAX_FAULT_LIMIT", Illegal, Illegal),
+        (0x63, "TON_MAX_FAULT_RESPONSE", Illegal, Illegal),
+        (0x64, "TOFF_DELAY", Illegal, Illegal),
+        (0x65, "TOFF_FALL", Illegal, Illegal),
+        (0x66, "TOFF_MAX_WARN_LIMIT", Illegal, Illegal),
+        (0x67, "Deprecated", Illegal, Illegal),
+        (0x68, "POUT_OP_FAULT_LIMIT", Illegal, Illegal),
+        (0x69, "POUT_OP_FAULT_RESPONSE", Illegal, Illegal),
+        (0x6a, "POUT_OP_WARN_LIMIT", Illegal, Illegal),
+        (0x6b, "PIN_OP_WARN_LIMIT", Illegal, Illegal),
+        (0x7b, "STATUS_IOUT", Illegal, Illegal),
+        (0x7c, "STATUS_INPUT", Illegal, Illegal),
+        (0x7f, "STATUS_OTHER", Illegal, Illegal),
+        (0x80, "STATUS_MFR_SPECIFIC", Illegal, Illegal),
+        (0x81, "STATUS_FANS_1_2", Illegal, Illegal),
+        (0x82, "STATUS_FANS_3_4", Illegal, Illegal),
+        (0x83, "READ_KWH_IN", Illegal, Illegal),
+        (0x84, "READ_KWH_OUT", Illegal, Illegal),
+        (0x85, "READ_KWH_CONFIG", Illegal, Illegal),
+        (0x86, "READ_EIN", Illegal, Illegal),
+        (0x87, "READ_EOUT", Illegal, Illegal),
+        (0x88, "READ_VIN", Illegal, Illegal),
+        (0x89, "READ_IIN", Illegal, Illegal),
+        (0x8a, "READ_VCAP", Illegal, Illegal),
+        (0x8c, "READ_IOUT", Illegal, Illegal),
+        (0x8e, "READ_TEMPERATURE_2", Illegal, Illegal),
+        (0x8f, "READ_TEMPERATURE_3", Illegal, Illegal),
+        (0x90, "READ_FAN_SPEED_1", Illegal, Illegal),
+        (0x91, "READ_FAN_SPEED_2", Illegal, Illegal),
+        (0x92, "READ_FAN_SPEED_3", Illegal, Illegal),
+        (0x93, "READ_FAN_SPEED_4", Illegal, Illegal),
+        (0x94, "READ_DUTY_CYCLE", Illegal, Illegal),
+        (0x95, "READ_FREQUENCY", Illegal, Illegal),
+        (0x96, "READ_POUT", Illegal, Illegal),
+        (0x97, "READ_PIN", Illegal, Illegal),
+        (0x9c, "MFR_LOCATION", Illegal, Illegal),
+        (0x9d, "MFR_DATE", Illegal, Illegal),
+        (0x9e, "MFR_SERIAL", Illegal, Illegal),
+        (0x9f, "APP_PROFILE_SUPPORT", Illegal, Illegal),
+        (0xa0, "MFR_VIN_MIN", Illegal, Illegal),
+        (0xa1, "MFR_VIN_MAX", Illegal, Illegal),
+        (0xa2, "MFR_IIN_MAX", Illegal, Illegal),
+        (0xa3, "MFR_PIN_MAX", Illegal, Illegal),
+        (0xa4, "MFR_VOUT_MIN", Illegal, Illegal),
+        (0xa5, "MFR_VOUT_MAX", Illegal, Illegal),
+        (0xa6, "MFR_IOUT_MAX", Illegal, Illegal),
+        (0xa7, "MFR_POUT_MAX", Illegal, Illegal),
+        (0xa8, "MFR_TAMBIENT_MAX", Illegal, Illegal),
+        (0xa9, "MFR_TAMBIENT_MIN", Illegal, Illegal),
+        (0xaa, "MFR_EFFICIENCY_LL", Illegal, Illegal),
+        (0xab, "MFR_EFFICIENCY_HL", Illegal, Illegal),
+        (0xac, "MFR_PIN_ACCURACY", Illegal, Illegal),
+        (0xad, "IC_DEVICE_ID", Illegal, Illegal),
+        (0xae, "IC_DEVICE_REV", Illegal, Illegal),
+        (0xb0, "USER_DATA_00", Illegal, Illegal),
+        (0xb1, "USER_DATA_01", Illegal, Illegal),
+        (0xb2, "USER_DATA_02", Illegal, Illegal),
+        (0xb3, "USER_DATA_03", Illegal, Illegal),
+        (0xb4, "USER_DATA_04", Illegal, Illegal),
+        (0xb5, "USER_DATA_05", Illegal, Illegal),
+        (0xb6, "USER_DATA_06", Illegal, Illegal),
+        (0xb7, "USER_DATA_07", Illegal, Illegal),
+        (0xb8, "USER_DATA_08", Illegal, Illegal),
+        (0xb9, "USER_DATA_09", Illegal, Illegal),
+        (0xba, "USER_DATA_10", Illegal, Illegal),
+        (0xbb, "USER_DATA_11", Illegal, Illegal),
+        (0xbc, "USER_DATA_12", Illegal, Illegal),
+        (0xbd, "USER_DATA_13", Illegal, Illegal),
+        (0xbe, "USER_DATA_14", Illegal, Illegal),
+        (0xbf, "USER_DATA_15", Illegal, Illegal),
+        (0xc0, "MFR_MAX_TEMP_1", Illegal, Illegal),
+        (0xc1, "MFR_MAX_TEMP_2", Illegal, Illegal),
+        (0xc2, "MFR_MAX_TEMP_3", Illegal, Illegal),
+        (0xc4, "MFR_SPECIFIC_C4", Illegal, Illegal),
+        (0xc5, "MFR_SPECIFIC_C5", Illegal, Illegal),
+        (0xc6, "MFR_SPECIFIC_C6", Illegal, Illegal),
+        (0xc7, "MFR_SPECIFIC_C7", Illegal, Illegal),
+        (0xc8, "MFR_SPECIFIC_C8", Illegal, Illegal),
+        (0xc9, "MFR_SPECIFIC_C9", Illegal, Illegal),
+        (0xca, "MFR_SPECIFIC_CA", Illegal, Illegal),
+        (0xcb, "MFR_SPECIFIC_CB", Illegal, Illegal),
+        (0xcc, "MFR_SPECIFIC_CC", Illegal, Illegal),
+        (0xcd, "MFR_SPECIFIC_CD", Illegal, Illegal),
+        (0xce, "MFR_SPECIFIC_CE", Illegal, Illegal),
+        (0xcf, "MFR_SPECIFIC_CF", Illegal, Illegal),
+        (0xd4, "MFR_SPECIFIC_D4", Illegal, Illegal),
+        (0xd5, "MFR_SPECIFIC_D5", Illegal, Illegal),
+        (0xd6, "MFR_SPECIFIC_D6", Illegal, Illegal),
+        (0xd7, "MFR_SPECIFIC_D7", Illegal, Illegal),
+        (0xd8, "MFR_SPECIFIC_D8", Illegal, Illegal),
+        (0xd9, "MFR_SPECIFIC_D9", Illegal, Illegal),
+        (0xda, "MFR_SPECIFIC_DA", Illegal, Illegal),
+        (0xdb, "MFR_SPECIFIC_DB", Illegal, Illegal),
+        (0xdc, "MFR_SPECIFIC_DC", Illegal, Illegal),
+        (0xdd, "MFR_SPECIFIC_DD", Illegal, Illegal),
+        (0xde, "MFR_SPECIFIC_DE", Illegal, Illegal),
+        (0xdf, "MFR_SPECIFIC_DF", Illegal, Illegal),
+        (0xe0, "MFR_SPECIFIC_E0", Illegal, Illegal),
+        (0xe1, "MFR_SPECIFIC_E1", Illegal, Illegal),
+        (0xe2, "MFR_SPECIFIC_E2", Illegal, Illegal),
+        (0xe3, "MFR_SPECIFIC_E3", Illegal, Illegal),
+        (0xe4, "MFR_SPECIFIC_E4", Illegal, Illegal),
+        (0xe5, "MFR_SPECIFIC_E5", Illegal, Illegal),
+        (0xe6, "MFR_SPECIFIC_E6", Illegal, Illegal),
+        (0xe7, "MFR_SPECIFIC_E7", Illegal, Illegal),
+        (0xe8, "MFR_SPECIFIC_E8", Illegal, Illegal),
+        (0xe9, "MFR_SPECIFIC_E9", Illegal, Illegal),
+        (0xea, "MFR_SPECIFIC_EA", Illegal, Illegal),
+        (0xeb, "MFR_SPECIFIC_EB", Illegal, Illegal),
+        (0xec, "MFR_SPECIFIC_EC", Illegal, Illegal),
+        (0xed, "MFR_SPECIFIC_ED", Illegal, Illegal),
+        (0xee, "MFR_SPECIFIC_EE", Illegal, Illegal),
+        (0xef, "MFR_SPECIFIC_EF", Illegal, Illegal),
+        (0xf0, "MFR_SPECIFIC_F0", Illegal, Illegal),
+        (0xf1, "MFR_SPECIFIC_F1", Illegal, Illegal),
+        (0xf2, "MFR_SPECIFIC_F2", Illegal, Illegal),
+        (0xf3, "MFR_SPECIFIC_F3", Illegal, Illegal),
+        (0xf4, "MFR_SPECIFIC_F4", Illegal, Illegal),
+        (0xf5, "MFR_SPECIFIC_F5", Illegal, Illegal),
+        (0xf6, "MFR_SPECIFIC_F6", Illegal, Illegal),
+        (0xf7, "MFR_SPECIFIC_F7", Illegal, Illegal),
+        (0xf8, "MFR_SPECIFIC_F8", Illegal, Illegal),
+        (0xf9, "MFR_SPECIFIC_F9", Illegal, Illegal),
+        (0xfa, "MFR_SPECIFIC_FA", Illegal, Illegal),
+        (0xfb, "MFR_SPECIFIC_FB", Illegal, Illegal),
+        (0xfc, "MFR_SPECIFIC_FC", Illegal, Illegal),
+        (0xfd, "MFR_SPECIFIC_FD", Illegal, Illegal),
+        (0xfe, "MFR_SPECIFIC_COMMAND_EXT", Illegal, Illegal),
+        (0xff, "PMBUS_COMMAND_EXT", Illegal, Illegal),
+
+        //
+        // Next up, all of the following are "standard" pmbus commands and
+        // types, so all of these are commented out, but left here for
+        // documentation purposes.
+        //
+
+        // Selects the supply for the single supply commands (Scope = PAGE).
+        //
+        // The PAGE number defined corresponds to the SUPPLY number defined by
+        // the user design.
+        //
+        // Read Write PMBUS_PAGE 1 COMMON
+        // (0x00, "PAGE", WriteByte, ReadByte),
+
+        // Clears all fault bits in all status registers simultaneously.
+        //
+        // At the same time, the device negates (clears, releases) its SMBALERT#
+        // signal output if the device is asserting the SMBALERT.
+        //
+        // Write Clears PMBUS_STATUS_* (all) 0 COMMON
+        // (0x03, "CLEAR_FAULTS", SendByte, Illegal),
+
+        // Allows host to identify key capabilities of PMBus device, i.e., PEC
+        // support, max bus speed, SMBALERT support.
+        //
+        // Returns 0x30.
+        //
+        // Read Read-only value: 0x30 1 COMMON
+        // (0x19, "CAPABILITY", Illegal, ReadByte),
+
+        // To set and query the data format used by device for output voltage
+        // related data.
+        //
+        // Read Write Read-only value: 0x12 1 COMMON
+        // (0x20, "VOUT_MODE", WriteByte, ReadByte),
+
+        // Sets the over-voltage value that causes an output over-voltage fault.
+        // Limit shared with SUPPLYn_TH_UPPER register, where n is the PMBUS
+        // PAGE.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_UPPER, which appears to be a mistake.
+        //
+        // Read Write DEVICE_TEMP_TH_UPPER. 2 (LINEAR16) COMMON
+        // (0x40, "VOUT_OV_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Sets the under-voltage value that causes an output over-voltage
+        // fault.
+        //
+        // Limit shared with SUPPLYn_TH_LOWER register, where n is the PMBUS
+        // PAGE.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_LOWER, which appears to be a mistake.
+        //
+        // Read Write DEVICE_TEMP_TH_LOWER 2 (LINEAR16) COMMON
+        // (0x44, "VOUT_UV_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an over temperature fault OT.
+        //
+        // Accesses to the OT_TEMP_TH_UPPER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_UPPER, which appears to be a mistake.
+        //
+        // Read Write OT_TEMP_TH_UPPER 2 (LINEAR11) COMMON
+        // (0x4f, "OT_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an over temperature warning ALM_OV[0].
+        //
+        // Accesses to the DEVICE_TEMP_TH_UPPER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is DEVICE_TEMP_TH_UPPER, which appears to be a mistake.
+        //
+        // Read Write DEVICE_TEMP_TH_UPPER 2 (LINEAR11) COMMON
+        // (0x51, "OT_WARN_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an under temperature warning ALM_UV[0].
+        //
+        // Accesses to the DEVICE_TEMP_TH_LOWER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_LOWER, which appears to be a mistake.
+        //
+        // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
+        // (0x52, "UT_WARN_LIMIT", WriteWord, ReadWord),
+
+        // Command sets the temperature of the unit at which it should indicate
+        // an under temperature fault UT.
+        //
+        // Accesses to the OT_TEMP_TH_LOWER register.
+        //
+        // NOTE(AJM): The docs here are somewhat inconsistent. They list the
+        // command as per the standard PMBUS spec, but the "Local Register Name"
+        // is OT_TEMP_TH_LOWER, which appears to be a mistake.
+        //
+        // Read Write OT_TEMP_TH_LOWER 2 (LINEAR11) COMMON
+        // (0x53, "UT_FAULT_LIMIT", WriteWord, ReadWord),
+
+        // Command returns one byte of information with a summary of the most
+        // critical faults.
+        //
+        // Read PMBUS_STATUS_BYTE 1 COMMON
+        // (0x78, "STATUS_BYTE", WriteByte, ReadByte),
+
+        // Command returns two bytes of information with a summary of the unit's
+        // fault condition.
+        //
+        // Read PMBUS_STATUS_WORD 2 COMMON
+        // (0x79, "STATUS_WORD", WriteWord, ReadWord),
+
+        // Command returns one byte representing VOUT status.
+        //
+        // Read Write PMBUS_STATUS_VOUT<page> 1 PAGE
+        // (0x7a, "STATUS_VOUT", WriteByte, ReadByte),
+
+        // Command returns temperature status.
+        // Read Write PMBUS_STATUS_TEMPERATUR 1 COMMON
+        // (0x7d, "STATUS_TEMPERATURE", WriteByte, ReadByte),
+
+        // Command returns communication, logic, and memory status.
+        // Read Write PMBUS_STATUS_CML 1 COMMON
+        // (0x7e, "STATUS_CML", WriteByte, ReadByte),
+
+        // Command returns the actual, measured (not commanded) output voltage
+        // in the LINEAR16 format.
+        //
+        // Read SUPPLYn 2 (LINEAR16) PAGE
+        // (0x8b, "READ_VOUT", Illegal, ReadWord),
+
+        // Command returns temperature readings.
+        // Read DEVICE_TEMP 2 (LINEAR11) COMMON
+        // (0x8d, "READ_TEMPERATURE_1", Illegal, ReadWord),
+
+        // PMBUS_REVISION command stores or reads the revision of the PMBus to
+        // which the device is compliant.
+        //
+        // Read Read-only value: 0x42 1 COMMON
+        // (0x98, "PMBUS_REVISION", Illegal, ReadByte),
+
+        // PMBUS_REVISION command reads the AMD manufacturer's ID.
+        //
+        // The AMD manufacturer ID corresponds to [11:0] of the of the
+        // IDCODE_REGISTER. For example, 000010010011 read as three bytes:
+        // 0x000093.
+        //
+        // Read 3 COMMON
+        // (0x99, "MFR_ID", WriteBlock, ReadBlock),
+
+        // The command is used to read the manufacturer's model number of the
+        // part.
+        //
+        // It corresponds to bits [27:12] of the IDCODE_REGISTER in the device
+        // specific BSDL for specific model ID.
+        //
+        // Read 3 COMMON
+        // (0x9a, "MFR_MODEL", WriteBlock, ReadBlock),
+
+        // The command is used to either set or read the manufacturer's revision
+        // number.
+        //
+        // See IDCODE_REGISTER in the device specific BSDL for specific Revision
+        // ID.
+        //
+        // Read 2 COMMON
+        // (0x9b, "MFR_REVISION", WriteBlock, ReadBlock),
+
+        // (MFR_SELECT_REG) A manufacturer-specific command to program config
+        // and sequence registers.
+        //
+        // The command is used to select memory-mapped registers.
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_00" not "MFR_SPECIFIC_D0".
+        //
+        // Read Write 2 COMMON
+        // (0xd0, "MFR_SPECIFIC_D0", MfrDefined, MfrDefined),
+
+        //
+        // Finally, these are "real" custom definitions.
+        //
+
+        // (MFR_ACCESS_REG) Read or write data on the selected register.
+        //
+        // To write to a register with this command the register space must be
+        // unlocked.
+        //
+        // The PCSR_LOCK register can be accessed via PMBUS.
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_01" not "MFR_SPECIFIC_D1".
+        //
+        // Read Write 4 COMMON
+        (0xd1, "MFR_SPECIFIC_D1", WriteBlock, ReadBlock),
+
+        // (MFR_READ_VOUT_MAX) A manufacturer-specific command.
+        // Reads maximum recorded value for the selected supply.
+        // Read SUPPLYn_MAX 2 (SLINEAR16) PAGE
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_02" not "MFR_SPECIFIC_D2".
+        (0xd2, "MFR_SPECIFIC_D2", WriteWord, ReadWord),
+
+        // (MFR_READ_VOUT_MIN) A manufacturer-specific command.
+        // Reads minimum recorded value for the selected supply.
+        // Read SUPPLYn_MIN 2 (SLINEAR16) PAGE
+        //
+        // NOTE: AM006 calls this "MFR_SPECIFIC_03" not "MFR_SPECIFIC_D3".
+        (0xd3, "MFR_SPECIFIC_D3", WriteWord, ReadWord),
+    ],
+
+    numerics: [
+        ("READ_TEMPERATURE_1", Linear11, Celsius),
+        ("OT_FAULT_LIMIT", Linear11, Celsius),
+        ("OT_WARN_LIMIT", Linear11, Celsius),
+        ("UT_WARN_LIMIT", Linear11, Celsius),
+        ("UT_FAULT_LIMIT", Linear11, Celsius),
+        ("READ_VOUT", VOutMode(Unsigned), Volts),
+
+        ("MFR_SPECIFIC_D2", VOutMode(Signed), Volts),
+        ("MFR_SPECIFIC_D3", VOutMode(Signed), Volts),
+    ],
+
+    structured: {
+        // ...
+    },
+
+    synonyms: Some([
+        // ...
+    ]),
+)
