@@ -187,25 +187,25 @@
                 name: "Command format does not match",
                 bits: Bit(5),
                 values: Sentinels({
-                        "No": (0b0, "no"),
-                        "Yes": (0b1, "yes"),
-                    }),
+                    "Ok": (0b0, "ok"),
+                    "Mismatch": (0b1, "mismatch"),
+                }),
             ),
             "ImageUnsupported": (
                 name: "Image not supported by this PSU",
                 bits: Bit(4),
                 values: Sentinels({
-                        "No": (0b0, "no"),
-                        "Yes": (0b1, "yes"),
-                    }),
+                    "Ok": (0b0, "ok"),
+                    "Unsupported": (0b1, "unsupported"),
+                }),
             ),
             "ImageCorrupt": (
                 name: "Full image received but is corrupt",
                 bits: Bit(3),
                 values: Sentinels({
-                        "No": (0b0, "no"),
-                        "Yes": (0b1, "yes"),
-                    }),
+                    "No": (0b0, "no"),
+                    "Yes": (0b1, "yes"),
+                }),
             ),
             // Bit 2: reserved
             "FullImageNotReceivedYet": (
@@ -214,17 +214,17 @@
                 name: "Full image not received yet",
                 bits: Bit(1),
                 values: Sentinels({
-                        "No": (0b0, "no"),
-                        "Yes": (0b1, "yes"),
-                    }),
+                    "Done": (0b0, "done"),
+                    "NotDone": (0b1, "not done"),
+                }),
             ),
             "FullImageReceivedSuccessfully": (
                 name: "Full image received successfully",
                 bits: Bit(0),
                 values: Sentinels({
-                        "No": (0b0, "no"),
-                        "Yes": (0b1, "yes"),
-                    }),
+                    "No": (0b0, "no"),
+                    "Yes": (0b1, "yes"),
+                }),
             ),
         },
         "MB_GENERAL_ALARM_STATUS": {
