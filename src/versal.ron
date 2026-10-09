@@ -1,6 +1,5 @@
-// AM006 is the name of the "Versal Adaptive SoC System Monitor" doc.
-// As this interface may apply to many specific part numbers, the name of the
-// spec doc was used in lieu of a part number.
+// This documents the "Versal Adaptive SoC System Monitor" interface, which
+// can be configured to operate as a PMBus device.
 //
 // The Versal is an FPGA used as a NIC on compute sleds. It offers an I2C
 // and PMBus management/observation interface. The AM006 document describes
@@ -343,10 +342,6 @@
 
         // Command returns one byte representing VOUT status.
         //
-        // NOTE(AJM): This seems a little funky, because this device isn't a
-        // regulator, so this might actually want to be `STATUS_VIN`, but they
-        // have mapped it where `STATUS_VOUT` usually goes.
-        //
         // Read Write PMBUS_STATUS_VOUT<page> 1 PAGE
         // (0x7a, "STATUS_VOUT", WriteByte, ReadByte),
 
@@ -360,10 +355,6 @@
 
         // Command returns the actual, measured (not commanded) output voltage
         // in the LINEAR16 format.
-        //
-        // NOTE(AJM): This seems a little funky, because this device isn't a
-        // regulator, so this might actually want to be `READ_VIN`, but they
-        // have mapped it where `READ_VOUT` usually goes.
         //
         // Read SUPPLYn 2 (LINEAR16) PAGE
         // (0x8b, "READ_VOUT", Illegal, ReadWord),
