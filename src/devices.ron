@@ -1,9 +1,4 @@
 {
-    "am006": (
-        manufacturer: "Advanced Micro Devices",
-        part: "Versal series",
-        description: "FPGA SoC SYSMON interface",
-    ),
     "adm127x": (
         manufacturer: "Analog Devices",
         part: "ADM1272 or ADM1273",
@@ -67,5 +62,10 @@
         part: "RAA229620A",
         description: "Digital Dual Output, 12-Phase Configurable, SVI3 PWM Controller",
         coefficients: Some(( m: 1, R: 3, b: 0 ))
+    ),
+    "versal": (
+        manufacturer: "Advanced Micro Devices",
+        part: "Versal series",
+        description: "FPGA SoC SYSMON interface",
     ),
 }
